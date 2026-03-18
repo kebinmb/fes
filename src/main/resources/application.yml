@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: faculty
+  session:
+    store-type: none
+    jdbc:
+      initialize-schema: never  # Explicitly prevent table creation attempts
+  datasource:
+    primary:
+      jdbc-url: jdbc:mysql://localhost:3306/faculty_evaluation_db
+      username: root
+      password: root
+      driver-class-name: com.mysql.cj.jdbc.Driver
+    legacy:
+      jdbc-url: jdbc:mysql://localhost:3306/sisdatabase
+      username: root
+      password: root
+      driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+  migration:
+    enabled: true
+jwt:
+  secret: ${JWT_SECRET:411733b1bfc19f809225035fc41a53f98e34a2f149adf9e85e4063edf304b8db0179633d70b31db7ed97faa2c1181bdc}
+  expiration: 900000 # 15 minutes in milliseconds
+  refresh-expiration: 86400000 # 24 hours in milliseconds
