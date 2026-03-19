@@ -1,5 +1,6 @@
 package com.faculty_evaluation_backend.fes.services.jwt;
 
+import com.faculty_evaluation_backend.fes.config.jwt.JwtConfig;
 import com.faculty_evaluation_backend.fes.entities.authentication.UserAccounts;
 import com.faculty_evaluation_backend.fes.repositories.authentication.UserAccountsRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryFacultyRepository;

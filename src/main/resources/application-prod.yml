@@ -1,0 +1,54 @@
+spring:
+  datasource:
+    primary:
+      jdbc-url: jdbc:mysql://prod-db-host:3306/faculty_evaluation_db?useSSL=true&serverTimezone=UTC
+      username: faculty_user
+      password: ${DB_PASSWORD}
+      driver-class-name: com.mysql.cj.jdbc.Driver
+
+    legacy:
+      jdbc-url: jdbc:mysql://legacy-db-host:3306/sisdatabase?useSSL=true&serverTimezone=UTC
+      username: legacy_user
+      password: ${LEGACY_DB_PASSWORD}
+      driver-class-name: com.mysql.cj.jdbc.Driver
+
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 600000
+      connection-timeout: 30000
+      max-lifetime: 1800000
+
+  cache:
+    type: caffeine
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+  flyway:
+    clean-disabled: true
+    validate-on-migrate: true
+
+server:
+  port: 8080
+  forward-headers-strategy: framework
+
+logging:
+  level:
+    root: INFO
+    org.hibernate.SQL: OFF
+    org.springframework.security: WARN
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: never
+
+jwt:
+  secret: ${JWT_SECRET}

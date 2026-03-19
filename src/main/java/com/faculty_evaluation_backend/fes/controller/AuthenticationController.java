@@ -3,7 +3,7 @@ package com.faculty_evaluation_backend.fes.controller;
 import com.faculty_evaluation_backend.fes.entities.authentication.StudentAccessCode;
 import com.faculty_evaluation_backend.fes.exceptions.UnauthorizedException;
 import com.faculty_evaluation_backend.fes.services.authentication.StudentAuthenticationService;
-import com.faculty_evaluation_backend.fes.services.jwt.JwtConfig;
+import com.faculty_evaluation_backend.fes.config.jwt.JwtConfig;
 import com.faculty_evaluation_backend.fes.services.jwt.JwtService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;

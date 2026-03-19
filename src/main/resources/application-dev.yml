@@ -1,0 +1,41 @@
+spring:
+  datasource:
+    primary:
+      jdbc-url: jdbc:mysql://localhost:3306/faculty_evaluation_db_v2?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      username: root
+      password: root
+      driver-class-name: com.mysql.cj.jdbc.Driver
+
+    legacy:
+      jdbc-url: jdbc:mysql://localhost:3306/sisdatabase?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      username: root
+      password: root
+      driver-class-name: com.mysql.cj.jdbc.Driver
+
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 2
+      idle-timeout: 30000
+      connection-timeout: 20000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+
+  flyway:
+    clean-disabled: false
+
+logging:
+  level:
+    root: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE
+    org.springframework.security: DEBUG
+
+server:
+  port: 8080
+
+# Override JWT for dev if needed
+jwt:
+  secret: this-is-a-dev-secret-key-change-me

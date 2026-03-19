@@ -1,4 +1,4 @@
-package com.faculty_evaluation_backend.fes.services.jwt;
+package com.faculty_evaluation_backend.fes.config.jwt;
 
 import lombok.Getter;
 

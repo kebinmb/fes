@@ -1,5 +1,6 @@
 package com.faculty_evaluation_backend.fes.entities.legacy;
 
+import com.faculty_evaluation_backend.fes.entities.compositeKey.LegacyStudentLoadId;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
