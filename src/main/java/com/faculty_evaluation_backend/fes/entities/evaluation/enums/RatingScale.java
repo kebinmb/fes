@@ -1,4 +1,4 @@
-package com.faculty_evaluation_backend.fes.entities.studentEvaluation.enums;
+package com.faculty_evaluation_backend.fes.entities.evaluation.enums;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 import lombok.Getter;

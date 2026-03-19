@@ -1,6 +1,6 @@
-package com.faculty_evaluation_backend.fes.entities.studentEvaluation;
+package com.faculty_evaluation_backend.fes.entities.evaluation;
 
-import com.faculty_evaluation_backend.fes.entities.studentEvaluation.enums.RatingScale;
+import com.faculty_evaluation_backend.fes.entities.evaluation.enums.RatingScale;
 import jakarta.persistence.*;
 import lombok.*;
 

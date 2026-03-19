@@ -1,4 +1,4 @@
-package com.faculty_evaluation_backend.fes.entities.studentEvaluation;
+package com.faculty_evaluation_backend.fes.entities.evaluation;
 
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryFaculty;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryStudent;
@@ -7,7 +7,8 @@ import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+
 
 /**
  * Entity representing the complete faculty evaluation score
@@ -139,14 +140,14 @@ public class FacultyEvaluationScore {
      */
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     /**
      * Last modification timestamp
      */
     @LastModifiedDate
     @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    private Instant updatedAt;
 
     // ==================== Business Logic Methods ====================
 
@@ -251,8 +252,8 @@ public class FacultyEvaluationScore {
     public void prePersist() {
         calculateOverallScore();
         if (createdAt == null) {
-            createdAt = LocalDateTime.now();
+            createdAt = Instant.now();
         }
-        updatedAt = LocalDateTime.now();
+        updatedAt = Instant.now();
     }
 }

@@ -3,7 +3,7 @@ package com.faculty_evaluation_backend.fes.entities.tokens;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(name = "refresh_tokens")
@@ -25,7 +25,7 @@ public class RefreshToken {
     @Column(nullable = false, unique = true, length = 64)
     private String tokenHash;
 
-    private LocalDateTime expiryDate;
+    private Instant expiryDate;
 
     private boolean revoked;
 
