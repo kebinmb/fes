@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
+import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -27,22 +28,26 @@ public class JwtService {
     private final JwtConfig jwtConfig;
     private SecretKey key;
     private JwtParser parser;
-
     private final UserAccountsRepository userAccountsRepository;
-    private final PrimaryStudentRepository primaryStudentRepository;
-    private final PrimaryFacultyRepository primaryFacultyRepository;
 
     @PostConstruct
     public void init(){
-        key = Keys.hmacShaKeyFor(jwtConfig.getSecret().getBytes());
+        byte[] keyBytes;
+        try{
+            keyBytes = Base64.getDecoder().decode(jwtConfig.getSecret());
+        }catch (IllegalArgumentException e){
+            keyBytes = jwtConfig.getSecret().getBytes();
+        }
+        if(keyBytes.length < 32){
+            throw new IllegalStateException("JWT Secret must be at least 256 bits (32 bytes)");
+        }
+        key = Keys.hmacShaKeyFor(keyBytes);
         parser = Jwts.parser().verifyWith(key).build();
     }
 
-    public String generateAccessTokenForStudent(String studentId, String accessCode){
+    public String generateAccessTokenForStudent(String studentId){
         Map<String,Object> claims = new HashMap<>();
-        claims.put("studentId", studentId);
-        claims.put("accessCode", accessCode);
-        claims.put("type", "access");
+        claims.put("type", "student_access");
         return createToken(claims, studentId, jwtConfig.getExpiration());
     }
     public String generateRefreshTokenForStudent(String studentId){
@@ -57,7 +62,7 @@ public class JwtService {
                 .orElseThrow(()-> new IllegalStateException("User detais not found for user ID = " + userId));
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
-        claims.put("type", "faculty");
+        claims.put("type", "faculty_access");
         claims.put("role", user.getRole().name());
         claims.put("college", user.getCollege().name());
         claims.put("semester","1st");
@@ -68,7 +73,7 @@ public class JwtService {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
         claims.put("type", "faculty_refresh");
-        return createToken(claims, userId.toString(), jwtConfig.getExpiration());
+        return createToken(claims, userId.toString(), jwtConfig.getRefreshExpiration());
     }
     public String extractStudentId(String token){
         return extractClaim(token, Claims::getSubject);
@@ -89,12 +94,9 @@ public class JwtService {
         final Claims claims = extractAllClaims(token);
         return claimsResolver.apply(claims);
     }
-    private Claims extractAllClaims(String token){
-        return Jwts.parser()
-                .verifyWith(key)
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
+    public Claims extractAllClaims(String token){
+        return parser
+                .parseSignedClaims(token).getPayload();
     }
     private String createToken(Map<String, Object> claims, String subject, Long expiration){
         Date now = new Date();
@@ -102,17 +104,36 @@ public class JwtService {
         return Jwts.builder()
                 .claims(claims)
                 .subject(subject)
+                .issuer("faculty-evaluation-system")
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(key)
                 .compact();
     }
 
+    public boolean isAccessTokenValid(String token){
+        try{
+            Claims claims = parser.parseSignedClaims(token).getPayload();
+            if (!"faculty-evaluation-system".equals(claims.getIssuer())) {
+                throw new RuntimeException("Invalid issuer");
+            }
+            String type = claims.get("type", String.class);
+            return ("student_access".equals(type) || "faculty_access".equals(type)) && claims.getExpiration().after(new Date()) && claims.getSubject() != null;
+        }catch (Exception e){
+            log.warn("Invalid access token: {}", e.getMessage());
+            return false;
+        }
+    }
     public boolean isRefreshTokenValid(String token){
         try{
-            var claims = parser.parseSignedClaims(token).getPayload();
-            return "student_refresh".equals(claims.get("type", String.class)) && claims.getExpiration().after(new Date());
+            Claims claims = parser.parseSignedClaims(token).getPayload();
+            if (!"faculty-evaluation-system".equals(claims.getIssuer())) {
+                throw new RuntimeException("Invalid issuer");
+            }
+            String type = claims.get("type", String.class);
+            return ("student_refresh".equals(type) || "faculty_refresh".equals(type)) && claims.getExpiration().after(new Date()) && claims.getSubject() != null;
         }catch (Exception e){
+            log.warn("Invalid refresh token: {}", e.getMessage());
             return false;
         }
     }

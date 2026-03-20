@@ -1,18 +1,20 @@
 package com.faculty_evaluation_backend.fes.services.authentication;
 
 import com.faculty_evaluation_backend.fes.audit.AuditableAction;
+import com.faculty_evaluation_backend.fes.config.jwt.JwtConfig;
 import com.faculty_evaluation_backend.fes.dto.authentication.AuthenticationResponse;
 import com.faculty_evaluation_backend.fes.entities.authentication.StudentAccessCode;
+import com.faculty_evaluation_backend.fes.entities.tokens.RefreshToken;
 import com.faculty_evaluation_backend.fes.exceptions.BadRequestException;
 import com.faculty_evaluation_backend.fes.exceptions.ResourceNotFoundException;
 import com.faculty_evaluation_backend.fes.exceptions.UnauthorizedException;
 import com.faculty_evaluation_backend.fes.repositories.authentication.StudentAccessCodeRepository;
-import com.faculty_evaluation_backend.fes.repositories.evaluation.FacultyEvaluationScoreRepository;
-import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryStudentLoadRepository;
-import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryStudentRepository;
+import com.faculty_evaluation_backend.fes.repositories.tokens.RefreshTokenRepository;
 import com.faculty_evaluation_backend.fes.services.cache.StudentCacheService;
 import com.faculty_evaluation_backend.fes.services.jwt.JwtService;
 import com.faculty_evaluation_backend.fes.services.rateLimiting.RateLimitingService;
+import com.faculty_evaluation_backend.fes.utilities.token.TokenHashUtil;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -34,6 +36,8 @@ public class StudentAuthenticationService {
     private final JwtService jwtService;
     private final StudentCacheService studentCacheService;
     private final RateLimitingService rateLimitingService;
+    private final JwtConfig jwtConfig;
+    private final RefreshTokenRepository refreshTokenRepository;
     private static final int ACCESS_CODE_EXPIRY_MINUTES = 15;
 
     @Transactional(transactionManager = "primaryTransactionManager")
@@ -85,7 +89,7 @@ public class StudentAuthenticationService {
 
     @AuditableAction(action = "AUTHENTICATE_STUDENT", entity = "STUDENT_AUTHENTICATION")
     @Transactional(transactionManager = "primaryTransactionManager")
-    public AuthenticationResponse authenticateWithAccessCode(String studentId, String accessCode){
+    public AuthenticationResponse authenticateWithAccessCode(String studentId, String accessCode, HttpServletRequest request){
         rateLimitingService.consume(studentId,"AUTHENTICATE");
         int updated = studentAccessCodeRepository
                 .markAsUsedIfValid(studentId, accessCode);
@@ -102,18 +106,30 @@ public class StudentAuthenticationService {
                 }
         );
         String accessToken =
-                jwtService.generateAccessTokenForStudent(studentId, accessCode);
+                jwtService.generateAccessTokenForStudent(studentId);
 
         String refreshToken =
                 jwtService.generateRefreshTokenForStudent(studentId);
-
+        String tokenHash = TokenHashUtil.sha256(refreshToken);
+        String rawDevice = request.getHeader("User-Agent");
+        String deviceInfo = TokenHashUtil.sha256(rawDevice != null ? rawDevice : "unknown").substring(0,16);
+        refreshTokenRepository.revokeAllByUserId(studentId);
+        refreshTokenRepository.save(
+                RefreshToken.builder()
+                        .userId(studentId)
+                        .tokenHash(tokenHash)
+                        .expiryDate(Instant.now().plusMillis(jwtConfig.getRefreshExpiration()))
+                        .revoked(false)
+                        .deviceInfo(deviceInfo)
+                        .build()
+        );
         log.info("Student {} authenticated", studentId);
 
         return AuthenticationResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .tokenType("Bearer")
-                .expiresIn(900L)
+                .expiresIn(jwtConfig.getExpiration())
                 .studentId(studentId)
                 .build();
     }

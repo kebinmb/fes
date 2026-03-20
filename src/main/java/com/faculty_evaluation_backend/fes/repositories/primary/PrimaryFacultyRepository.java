@@ -15,7 +15,7 @@ import java.util.Optional;
 @Repository
 public interface PrimaryFacultyRepository extends JpaRepository<PrimaryFaculty, Long> {
     Optional<PrimaryFaculty> findByFacultyId(String facultyId);
-
+    boolean existsByFacultyId(String facultyId);
     @Query("SELECT CASE WHEN COUNT(f) > 0 THEN true ELSE false END FROM PrimaryFaculty f " +
             "WHERE f.facultyId = :facultyId " +
             "AND f.firstname = :firstname " +
