@@ -31,7 +31,7 @@ public class SectionMigration {
                             legacySection.getId().getSectionId(),
                             legacySection.getId().getProgramCode(),
                             legacySection.getSectionCode(),
-                            legacySection.getYearLevel()
+                            legacySection.getYearlevel()
                     ))
                     .map(this::map)
                     .toList();
@@ -44,7 +44,7 @@ public class SectionMigration {
         primarySection.setSectionId(legacySection.getId().getSectionId());
         primarySection.setProgramCode(legacySection.getId().getProgramCode());
         primarySection.setSectionCode(legacySection.getSectionCode());
-        primarySection.setYearLevel(legacySection.getYearLevel());
+        primarySection.setYearLevel(legacySection.getYearlevel());
         return primarySection;
     }
 }

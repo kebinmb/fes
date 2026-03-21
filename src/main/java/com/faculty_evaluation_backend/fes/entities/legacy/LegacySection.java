@@ -21,7 +21,7 @@ public class LegacySection {
     private LegacySectionId id;
     @Column(name = "section_code")
     private String sectionCode;
-    @Column(name = "yearLevel")
-    private String yearLevel;
+    @Column(name = "yearlevel")
+    private String yearlevel;
 }
 

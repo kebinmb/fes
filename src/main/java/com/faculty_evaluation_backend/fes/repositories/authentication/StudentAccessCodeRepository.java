@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 
@@ -32,14 +33,14 @@ public interface StudentAccessCodeRepository extends JpaRepository<StudentAccess
     boolean existsByStudentIdAndIsCompletedTrue(String studentId);
     boolean existsByAccessCode(String accessCode);
 
-    @Modifying
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
-            UPDATE StudentAccessCode ac
-            SET ac.isUsed = true
-            WHERE ac.studentId = :studentId
-            AND ac.accessCode = :accessCode
-            AND ac.isUsed = false
-            AND ac.expiresAt > CURRENT_TIMESTAMP
-            """)
-    int markAsUsedIfValid(String studentId, String accessCode);
+    SELECT s FROM StudentAccessCode s
+    WHERE s.studentId = :studentId
+      AND s.accessCode = :accessCode
+""")
+    Optional<StudentAccessCode> findForUpdate(
+            @Param("studentId") String studentId,
+            @Param("accessCode") String accessCode
+    );
 }

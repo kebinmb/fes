@@ -28,11 +28,12 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/**").permitAll()
-                        .requestMatchers("/student/**").hasRole("STUDENT")
+                        .requestMatchers("/migration/**").permitAll()
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(jwtRefreshFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterAfter(jwtAuthenticationFilter, JwtRefreshFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(jwtRefreshFilter, JwtAuthenticationFilter.class);
+
         return http.build();
 
     }

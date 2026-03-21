@@ -50,7 +50,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
         filterChain.doFilter(request,response);
     }
-
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request){
+        String path = request.getServletPath();
+        return path.startsWith("/auth") || path.startsWith("/migration");
+    }
     private String extractAccessToken(HttpServletRequest request){
         if(request.getCookies() == null){
             return null;

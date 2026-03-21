@@ -125,4 +125,9 @@ public class JwtRefreshFilter extends OncePerRequestFilter {
                 .maxAge(jwtConfig.getRefreshExpiration() / 1000)
                 .build();
     }
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getServletPath();
+        return !path.equals("/auth/refresh");
+    }
 }

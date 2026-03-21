@@ -62,7 +62,11 @@ public class StudentAuthenticationService {
                         .findLatestValidAccessCodeForUpdate(studentId, Instant.now());
 
         if(existingCode.isPresent()){
-            return existingCode.get();
+            StudentAccessCode code = existingCode.get();
+
+            if (code.isValid()) {
+                return code;
+            }
         }
         String accessCode = generateAccessCodeSecure();
 
@@ -91,12 +95,14 @@ public class StudentAuthenticationService {
     @Transactional(transactionManager = "primaryTransactionManager")
     public AuthenticationResponse authenticateWithAccessCode(String studentId, String accessCode, HttpServletRequest request){
         rateLimitingService.consume(studentId,"AUTHENTICATE");
-        int updated = studentAccessCodeRepository
-                .markAsUsedIfValid(studentId, accessCode);
-
-        if(updated == 0){
+        String normalizedAccessCode  = accessCode.trim().toUpperCase();
+        StudentAccessCode code = studentAccessCodeRepository.findForUpdate(studentId, normalizedAccessCode )
+                        .orElseThrow(() -> new UnauthorizedException("Invalid access code"));
+        if (!code.isValid()) {
             throw new UnauthorizedException("Invalid, expired, or already used access code");
         }
+        code.markAsUsed();
+        studentAccessCodeRepository.save(code);
         TransactionSynchronizationManager.registerSynchronization(
                 new TransactionSynchronization() {
                     @Override
