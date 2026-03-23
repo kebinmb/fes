@@ -17,7 +17,7 @@ import java.util.Objects;
 @AllArgsConstructor
 public class LegacyClassId implements Serializable {
     @Column(name = "class_code")
-    private String classCode;
+    private Integer classCode;
     @Column(name = "section_id")
     private Integer sectionId;
     @Column(name = "school_year")

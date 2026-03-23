@@ -8,16 +8,16 @@ CREATE TABLE primary_section (
 
 CREATE TABLE primary_class (
                                primary_class_id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                               class_code VARCHAR(255),
+                               class_code INT,
                                faculty_id VARCHAR(255),
                                subject_code VARCHAR(255),
                                section_id INT,
-                               semester VARCHAR(50),
+                               semester VARCHAR(255),
                                school_year INT,
-                               schedule_day VARCHAR(50),
-                               schedule_time VARCHAR(50),
-                               room VARCHAR(50),
-                               created_at DATETIME,
+                               schedule_day VARCHAR(255),
+                               schedule_time VARCHAR(255),
+                               room VARCHAR(255),
+                               created_at DATETIME(6),
 
                                CONSTRAINT fk_class_faculty FOREIGN KEY (faculty_id)
                                    REFERENCES primary_faculty(faculty_id),
@@ -30,12 +30,12 @@ CREATE TABLE primary_class (
 );
 
 CREATE TABLE primary_student_load (
-                                      primay_student_load_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                                      primary_student_load_id BIGINT AUTO_INCREMENT PRIMARY KEY,
                                       load_id INT,
                                       student_id VARCHAR(255),
-                                      year_level VARCHAR(50),
+                                      year_level VARCHAR(255),
                                       class_code INT,
-                                      grade VARCHAR(50),
+                                      grade VARCHAR(255),
 
                                       CONSTRAINT fk_student_load FOREIGN KEY (student_id)
                                           REFERENCES primary_student(student_id)

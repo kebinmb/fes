@@ -35,17 +35,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     && jwtService.isAccessTokenValid(token)
                     && !jwtService.isTokenExpired(token)) {
                 Claims claims = jwtService.extractAllClaims(token);
-                String studentID = claims.getSubject();
+                String userId = claims.getSubject();
+                String role = claims.get("role", String.class);
                 UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
-                        studentID,
+                        userId,
                         null,
-                        Collections.singletonList(new SimpleGrantedAuthority("ROLE_STUDENT"))
+                        Collections.singletonList(new SimpleGrantedAuthority(role))
                 );
                 SecurityContextHolder.getContext().setAuthentication(authenticationToken);
-                log.debug("Authenticated student: {}",studentID);
+                log.debug("Authenticated {} with role {}", userId, role);
             }
         }catch (UnauthorizedException e){
-            log.error("Authentication failed: {}", e.getMessage());
+            log.warn("JWT auth failed: {}", e.getMessage());
             SecurityContextHolder.clearContext();
         }
         filterChain.doFilter(request,response);
@@ -53,16 +54,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request){
         String path = request.getServletPath();
-        return path.startsWith("/auth") || path.startsWith("/migration");
+        return path.startsWith("/auth");
     }
     private String extractAccessToken(HttpServletRequest request){
-        if(request.getCookies() == null){
-            return null;
-        }
-        for (Cookie cookie : request.getCookies()){
-            if("student_access".equals(cookie.getName())){
-                return cookie.getValue();
+        if(request.getCookies() != null){
+            for(Cookie cookie : request.getCookies()){
+                if("student_access".equals(cookie.getName()) || "supervisor_access".equals(cookie.getName())){
+                    return cookie.getValue();
+                }
             }
+        }
+        String header = request.getHeader("Authorization");
+        if (header != null && header.startsWith("Bearer ")) {
+            return header.substring(7);
         }
         return null;
     }

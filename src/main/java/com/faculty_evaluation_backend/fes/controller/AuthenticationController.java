@@ -1,9 +1,11 @@
 package com.faculty_evaluation_backend.fes.controller;
 
+import com.faculty_evaluation_backend.fes.dto.authentication.LoginRequest;
 import com.faculty_evaluation_backend.fes.entities.authentication.StudentAccessCode;
 import com.faculty_evaluation_backend.fes.repositories.tokens.RefreshTokenRepository;
 import com.faculty_evaluation_backend.fes.services.authentication.StudentAuthenticationService;
 import com.faculty_evaluation_backend.fes.config.jwt.JwtConfig;
+import com.faculty_evaluation_backend.fes.services.authentication.SupervisorAccountsAuthenticationService;
 import com.faculty_evaluation_backend.fes.utilities.token.TokenHashUtil;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,6 +24,7 @@ import java.util.Map;
 public class AuthenticationController {
 
     private final StudentAuthenticationService studentAuthenticationService;
+    private final SupervisorAccountsAuthenticationService supervisorAccountsAuthenticationService;
     private final JwtConfig jwtConfig;
     private final RefreshTokenRepository refreshTokenRepository;
 
@@ -44,7 +47,24 @@ public class AuthenticationController {
                 .maxAge(jwtConfig.getRefreshExpiration() / 1000)
                 .build();
     }
-
+    private ResponseCookie buildSupervisorAccessTokenCookie(String token){
+        return ResponseCookie.from("supervisor_access",token)
+                .httpOnly(true)
+                .secure(false)
+                .path("/")
+                .sameSite("Lax")
+                .maxAge(Math.max(1, jwtConfig.getExpiration() / 1000))
+                .build();
+    }
+    private ResponseCookie buildSupervisorRefreshTokenCookie(String token){
+        return ResponseCookie.from("supervisor_refresh",token)
+                .httpOnly(true)
+                .secure(false)
+                .path("/")
+                .sameSite("Lax")
+                .maxAge(Math.max(1, jwtConfig.getRefreshExpiration()/1000))
+                .build();
+    }
     private ResponseCookie deleteCookie(String name) {
         return ResponseCookie.from(name, "")
                 .httpOnly(true)
@@ -83,12 +103,25 @@ public class AuthenticationController {
                         "studentId", response.getStudentId()
                 ));
     }
+    @PostMapping("/supervisor/login")
+    public ResponseEntity<?> supervisorLogin(
+            @RequestBody LoginRequest loginRequest,
+            HttpServletRequest request
+    ){
+        var response = supervisorAccountsAuthenticationService.login(loginRequest);
+        return ResponseEntity.ok()
+                .header("Set-Cookie", buildSupervisorAccessTokenCookie(response.getAccessToken()).toString())
+                .header("Set-Cookie", buildSupervisorRefreshTokenCookie(response.getRefreshToken()).toString())
+                .  body(Map.of("message","Authentication successful","evaluatorId",response.getEvaluatorId()));
+    }
     @PostMapping("/logout")
     public ResponseEntity<?> logout(HttpServletRequest request) {
 
         try {
             String refreshToken = extractCookie(request, "student_refresh");
-
+            if(refreshToken == null){
+                refreshToken = extractCookie(request, "supervisor_refresh");
+            }
             if (refreshToken != null) {
                 String hash = TokenHashUtil.sha256(refreshToken);
 
@@ -106,6 +139,8 @@ public class AuthenticationController {
         return ResponseEntity.ok()
                 .header("Set-Cookie", deleteCookie("student_access").toString())
                 .header("Set-Cookie", deleteCookie("student_refresh").toString())
+                .header("Set-Cookie", deleteCookie("supervisor_access").toString())
+                .header("Set-Cookie", deleteCookie("supervisor_refresh").toString())
                 .body(Map.of("message", "Logged out"));
     }
     private String extractCookie(HttpServletRequest request, String name) {

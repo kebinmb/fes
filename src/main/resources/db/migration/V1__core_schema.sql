@@ -20,8 +20,8 @@ CREATE TABLE primary_faculty (
                                  middlename VARCHAR(255),
                                  position VARCHAR(255),
                                  load_limit DOUBLE,
-                                 college VARCHAR(50),
-                                 status VARCHAR(20)
+                                 college ENUM('CAS','CIT','COED','COENG','FOR_MIGRATION'),
+                                 status ENUM('ACTIVE','INACTIVE')
 );
 
 CREATE TABLE primary_student (
@@ -31,5 +31,5 @@ CREATE TABLE primary_student (
                                  student_lastname VARCHAR(255),
                                  student_firstname VARCHAR(255),
                                  student_middlename VARCHAR(255),
-                                 gender VARCHAR(10)
+                                 gender VARCHAR(255)
 );

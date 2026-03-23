@@ -22,7 +22,7 @@ public class PrimaryClass {
     private Long primaryClassId;
 
     @Column(name = "class_code")
-    private String classCode;
+    private Integer classCode;
     @Column(name = "faculty_id")
     private String facultyId;
     @ManyToOne(fetch = FetchType.LAZY)

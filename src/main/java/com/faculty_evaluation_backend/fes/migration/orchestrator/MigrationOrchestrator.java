@@ -15,16 +15,16 @@ public class MigrationOrchestrator {
     private final ProgramMigration programMigration;
     private final SectionMigration sectionMigration;
     private final StudentLoadMigration studentLoadMigration;
-    private final SubjectMigrationService subjectMigrationService;
+    private final SubjectMigrationService subjectMigration;
     public void migrateAll(){
         log.info("===START MIGRATION PIPELINE===");
+        programMigration.migrate();
+        sectionMigration.migrate();
+        subjectMigration.migrate();
         facultyMigration.migrate();
         classMigration.migrate();
         studentMigration.migrate();
-        programMigration.migrate();
-        sectionMigration.migrate();
         studentLoadMigration.migrate();
-        studentMigration.migrate();
         log.info("===END MIGRATION PIPELINE===");
     }
 }

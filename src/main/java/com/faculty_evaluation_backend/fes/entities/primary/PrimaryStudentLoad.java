@@ -15,7 +15,7 @@ import lombok.Setter;
 public class PrimaryStudentLoad {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "primay_student_load_id")
+    @Column(name = "primary_student_load_id")
     private Long primaryStudentLoadId;
 
     @Column(name = "load_id")

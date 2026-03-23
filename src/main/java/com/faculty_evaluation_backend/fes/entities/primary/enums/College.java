@@ -5,5 +5,6 @@ public enum College {
     CAS,
     COENG,
     COED,
+    CCS,
     FOR_MIGRATION
 }

@@ -21,25 +21,43 @@ public class ParallelMigrationExecutor {
         threadPoolTaskExecutor.initialize();
     }
 
-    public <T> void processInParallel(List<T> data, int batchSize, BatchProcessor<T> processor){
+    public <T> void processInParallel(List<T> data, int batchSize, BatchProcessor<T> processor) {
         int total = data.size();
+
         List<CompletableFuture<Void>> futures =
-                IntStream.range(0, (total + batchSize -1)/batchSize)
-                        .mapToObj(i ->{
+                IntStream.range(0, (total + batchSize - 1) / batchSize)
+                        .mapToObj(i -> {
                             int start = i * batchSize;
                             int end = Math.min(start + batchSize, total);
-                            List<T> batch = data.subList(start,end);
-                            return CompletableFuture.runAsync(()->{
-                                try{
-                                    processor.process(batch);
-                                }catch (Exception e){
-                                    log.error("Batch failed: {}", e.getMessage(), e);
-                                }
+                            List<T> batch = data.subList(start, end);
+
+                            return CompletableFuture.runAsync(() -> {
+                                // ❌ DO NOT catch here → let it fail
+                                processor.process(batch);
                             }, threadPoolTaskExecutor);
                         })
                         .toList();
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-        log.info("Parallel processing completed");
+
+        try {
+            // 🔥 This will THROW if any batch fails
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
+        } catch (Exception ex) {
+            log.error("❌ FATAL: Parallel migration failed. Stopping all batches.", ex);
+
+            // 🔥 Force shutdown of threads
+            threadPoolTaskExecutor.shutdown();
+
+            // 🔥 Terminal output
+            System.err.println("\n========= PARALLEL MIGRATION FAILED =========");
+            System.err.println("Error: " + ex.getMessage());
+            ex.printStackTrace();
+            System.err.println("=============================================\n");
+
+            throw new RuntimeException("Parallel migration failed", ex);
+        }
+
+        log.info("✅ Parallel processing completed successfully");
     }
 
     @FunctionalInterface

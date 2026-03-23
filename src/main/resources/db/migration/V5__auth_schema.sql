@@ -3,15 +3,15 @@ CREATE TABLE user_accounts (
                                username VARCHAR(50) UNIQUE NOT NULL,
                                email VARCHAR(100) UNIQUE NOT NULL,
                                password VARCHAR(255) NOT NULL,
-                               user_role VARCHAR(20) NOT NULL,
-                               college VARCHAR(20),
-                               is_enabled BIT NOT NULL,
-                               is_locked BIT NOT NULL,
-                               last_login_at DATETIME,
-                               created_at DATETIME,
-                               updated_at DATETIME,
+                               user_role ENUM('DEAN','FACULTY','PROGRAM_CHAIR','STUDENT') NOT NULL,
+                               college ENUM('CAS','CIT','COED','COENG','CCS','FOR_MIGRATION'),
+                               is_enabled BIT(1) NOT NULL,
+                               is_locked BIT(1) NOT NULL,
+                               last_login_at DATETIME(6),
+                               created_at DATETIME(6),
+                               updated_at DATETIME(6),
                                reset_token VARCHAR(255),
-                               reset_token_expiry DATETIME
+                               reset_token_expiry DATETIME(6)
 );
 
 CREATE TABLE user_login_otp (

@@ -37,6 +37,16 @@ public class JwtRefreshFilter extends OncePerRequestFilter {
         try{
             String accessToken = extractCookie(request, "student_access");
             String refreshToken = extractCookie(request, "student_refresh");
+            String role = "ROLE_STUDENT";
+            String accessCookieName = "student_access";
+            String refreshCookieName = "student_refresh";
+            if(refreshToken == null){
+                refreshToken = extractCookie(request,"supervisor_refresh");
+                accessToken = extractCookie(request, "supervisor_access");
+                role = "ROLE_SUPERVISOR";
+                accessCookieName = "supervisor_access";
+                refreshCookieName = "supervisor_refresh";
+            }
             boolean shouldRefresh = accessToken == null
                     || !jwtService.isAccessTokenValid(accessToken)
                     || jwtService.isTokenExpired(accessToken);
@@ -52,10 +62,13 @@ public class JwtRefreshFilter extends OncePerRequestFilter {
                     throw new UnauthorizedException("Invalid refresh token");
                 }
                 Claims claims = jwtService.extractAllClaims(refreshToken);
-                String studentId = claims.getSubject();
+                String userId = claims.getSubject();
                 String type = claims.get("type",String.class);
-                if(!"student_refresh".equals(type)){
-                    throw new UnauthorizedException("Invalid token type.");
+                if (role.equals("ROLE_STUDENT") && !"student_refresh".equals(type)) {
+                    throw new UnauthorizedException("Invalid token type");
+                }
+                if (role.equals("ROLE_SUPERVISOR") && !"faculty_refresh".equals(type)) {
+                    throw new UnauthorizedException("Invalid token type");
                 }
                 String requestDevice = request.getHeader("User-Agent");
                 String deviceFingerprint = TokenHashUtil.sha256(
@@ -69,29 +82,35 @@ public class JwtRefreshFilter extends OncePerRequestFilter {
                 storedToken.setRevoked(true);
                 refreshTokenRepository.save(storedToken);
 
-                String newRefreshToken = jwtService.generateRefreshTokenForStudent(studentId);
-                String newAccessToken = jwtService.generateAccessTokenForStudent(studentId);
+                String newAccessToken;
+                String newRefreshToken;
+
+                if(role.equals("ROLE_STUDENT")){
+                    newAccessToken = jwtService.generateAccessTokenForStudent(userId);
+                    newRefreshToken = jwtService.generateRefreshTokenForStudent(userId);
+                }else{
+                    newAccessToken = jwtService.generateAccessTokenForSupervisor(Long.valueOf(userId));
+                    newRefreshToken = jwtService.generateRefreshTokenForSupervisor(Long.valueOf(userId));
+                }
                 refreshTokenRepository.save(
                         RefreshToken.builder()
-                                .userId(studentId)
+                                .userId(userId)
                                 .tokenHash(TokenHashUtil.sha256(newRefreshToken))
                                 .expiryDate(Instant.now().plusMillis(jwtConfig.getRefreshExpiration()))
                                 .revoked(false)
                                 .deviceInfo(deviceFingerprint)
                                 .build()
                 );
-                response.addHeader("Set-Cookie", buildAccessTokenCookie(newAccessToken).toString());
-                response.addHeader("Set-Cookie", buildRefreshTokenCookie(newRefreshToken).toString());
-                log.info("Token rotated for student {}", studentId);
+                response.addHeader("Set-Cookie", buildAccessTokenCookie(newAccessToken,accessCookieName).toString());
+                response.addHeader("Set-Cookie", buildRefreshTokenCookie(newRefreshToken, refreshCookieName).toString());
+                log.info("Token rotated for {}", userId);
             }
         }catch (Exception e){
             log.warn("Refresh failed: {}", e.getMessage());
-
-            response.addHeader("Set-Cookie", ResponseCookie.from("student_access", "")
-                    .maxAge(0).path("/").build().toString());
-
-            response.addHeader("Set-Cookie", ResponseCookie.from("student_refresh", "")
-                    .maxAge(0).path("/").build().toString());
+            response.addHeader("Set-Cookie", deleteCookie("student_access").toString());
+            response.addHeader("Set-Cookie", deleteCookie("student_refresh").toString());
+            response.addHeader("Set-Cookie", deleteCookie("faculty_access").toString());
+            response.addHeader("Set-Cookie", deleteCookie("faculty_refresh").toString());
         }
         filterChain.doFilter(request,response);
     }
@@ -106,8 +125,8 @@ public class JwtRefreshFilter extends OncePerRequestFilter {
         return null;
     }
 
-    private ResponseCookie buildAccessTokenCookie(String token){
-        return ResponseCookie.from("student_access", token)
+    private ResponseCookie buildAccessTokenCookie(String token, String name){
+        return ResponseCookie.from(name, token)
                 .httpOnly(true)
                 .secure(true)
                 .path("/")
@@ -116,13 +135,22 @@ public class JwtRefreshFilter extends OncePerRequestFilter {
                 .build();
     }
 
-    private ResponseCookie buildRefreshTokenCookie(String token){
-        return ResponseCookie.from("student_refresh", token)
+    private ResponseCookie buildRefreshTokenCookie(String token, String name){
+        return ResponseCookie.from(name, token)
                 .httpOnly(true)
                 .secure(true)
                 .path("/")
                 .sameSite("Lax")
                 .maxAge(jwtConfig.getRefreshExpiration() / 1000)
+                .build();
+    }
+    private ResponseCookie deleteCookie(String name) {
+        return ResponseCookie.from(name, "")
+                .httpOnly(true)
+                .secure(false)
+                .path("/")
+                .sameSite("Lax")
+                .maxAge(0)
                 .build();
     }
     @Override

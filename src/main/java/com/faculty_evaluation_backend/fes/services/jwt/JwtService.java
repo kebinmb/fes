@@ -3,8 +3,6 @@ package com.faculty_evaluation_backend.fes.services.jwt;
 import com.faculty_evaluation_backend.fes.config.jwt.JwtConfig;
 import com.faculty_evaluation_backend.fes.entities.authentication.UserAccounts;
 import com.faculty_evaluation_backend.fes.repositories.authentication.UserAccountsRepository;
-import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryFacultyRepository;
-import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryStudentRepository;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
@@ -54,25 +52,26 @@ public class JwtService {
         Map<String, Object> claims = new HashMap<>();
         claims.put("studentId", studentId);
         claims.put("type", "student_refresh");
+        claims.put("role", "ROLE_STUDENT");
         return createToken(claims, studentId, jwtConfig.getRefreshExpiration());
     }
 
-    public String generateAccessTokenForFaculty(Long userId){
+    public String generateAccessTokenForSupervisor(Long userId){
         UserAccounts user = userAccountsRepository.findUserByUserId(userId)
                 .orElseThrow(()-> new IllegalStateException("User detais not found for user ID = " + userId));
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
-        claims.put("type", "faculty_access");
-        claims.put("role", user.getRole().name());
+        claims.put("type", "supervisor_access");
+        claims.put("role","ROLE_"+user.getRole().name());
         claims.put("college", user.getCollege().name());
         claims.put("semester","1st");
         claims.put("schoolYear",2023);
         return createToken(claims,userId.toString(), jwtConfig.getExpiration());
     }
-    public String generateRefreshTokenForFaculty(Long userId){
+    public String generateRefreshTokenForSupervisor(Long userId){
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
-        claims.put("type", "faculty_refresh");
+        claims.put("type", "supervisor_refresh");
         return createToken(claims, userId.toString(), jwtConfig.getRefreshExpiration());
     }
     public String extractStudentId(String token){
@@ -118,7 +117,7 @@ public class JwtService {
                 throw new RuntimeException("Invalid issuer");
             }
             String type = claims.get("type", String.class);
-            return ("student_access".equals(type) || "faculty_access".equals(type)) && claims.getExpiration().after(new Date()) && claims.getSubject() != null;
+            return ("student_access".equals(type) || "supervisor_access".equals(type)) && claims.getExpiration().after(new Date()) && claims.getSubject() != null;
         }catch (Exception e){
             log.warn("Invalid access token: {}", e.getMessage());
             return false;

@@ -21,7 +21,7 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
             "AND c.schoolYear = :schoolYear " +
             "AND c.semester = :semester")
     boolean existsByClassCodeAndFacultyIdAndSubjectCodeAndSectionIdAndSchoolYearAndSemester(
-            @Param("classCode") String classCode,
+            @Param("classCode") Integer classCode,
             @Param("facultyId") String facultyId,
             @Param("subjectCode") String subjectCode,
             @Param("sectionId") Integer sectionId,
