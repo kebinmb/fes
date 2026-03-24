@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -113,6 +114,21 @@ public class AuthenticationController {
                 .header("Set-Cookie", buildSupervisorAccessTokenCookie(response.getAccessToken()).toString())
                 .header("Set-Cookie", buildSupervisorRefreshTokenCookie(response.getRefreshToken()).toString())
                 .  body(Map.of("message","Authentication successful","evaluatorId",response.getEvaluatorId()));
+    }
+    @GetMapping("/me")
+    public ResponseEntity<?> me(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(401).build();
+        }
+
+        return ResponseEntity.ok(Map.of(
+                "userId", authentication.getName(),
+                "role", authentication.getAuthorities()
+                        .stream()
+                        .findFirst()
+                        .map(Object::toString)
+                        .orElse("ROLE_STUDENT")
+        ));
     }
     @PostMapping("/logout")
     public ResponseEntity<?> logout(HttpServletRequest request) {
