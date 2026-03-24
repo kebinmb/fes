@@ -32,9 +32,9 @@ public class AuthenticationController {
     private ResponseCookie buildStudentAccessTokenCookie(String token) {
         return ResponseCookie.from("student_access", token)
                 .httpOnly(true)
-                .secure(true)
+                .secure(false)
                 .path("/")
-                .sameSite("Strict")
+                .sameSite("Lax")
                 .maxAge(Math.max(1, jwtConfig.getExpiration() / 1000))
                 .build();
     }
@@ -42,9 +42,9 @@ public class AuthenticationController {
     private ResponseCookie buildStudentRefreshTokenCookie(String token) {
         return ResponseCookie.from("student_refresh", token)
                 .httpOnly(true)
-                .secure(true)
+                .secure(false)
                 .path("/")
-                .sameSite("Strict")
+                .sameSite("Lax")
                 .maxAge(jwtConfig.getRefreshExpiration() / 1000)
                 .build();
     }
@@ -69,9 +69,9 @@ public class AuthenticationController {
     private ResponseCookie deleteCookie(String name) {
         return ResponseCookie.from(name, "")
                 .httpOnly(true)
-                .secure(true)
+                .secure(false)
                 .path("/")
-                .sameSite("Strict")
+                .sameSite("Lax")
                 .maxAge(0)
                 .build();
     }

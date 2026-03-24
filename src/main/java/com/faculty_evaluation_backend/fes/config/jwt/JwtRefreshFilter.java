@@ -128,7 +128,7 @@ public class JwtRefreshFilter extends OncePerRequestFilter {
     private ResponseCookie buildAccessTokenCookie(String token, String name){
         return ResponseCookie.from(name, token)
                 .httpOnly(true)
-                .secure(true)
+                .secure(false)
                 .path("/")
                 .sameSite("Lax")
                 .maxAge(Math.max(1, jwtConfig.getExpiration() / 1000))
@@ -138,7 +138,7 @@ public class JwtRefreshFilter extends OncePerRequestFilter {
     private ResponseCookie buildRefreshTokenCookie(String token, String name){
         return ResponseCookie.from(name, token)
                 .httpOnly(true)
-                .secure(true)
+                .secure(false)
                 .path("/")
                 .sameSite("Lax")
                 .maxAge(jwtConfig.getRefreshExpiration() / 1000)
