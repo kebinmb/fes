@@ -1,5 +1,6 @@
 package com.faculty_evaluation_backend.fes.entities.primary;
 
+import com.faculty_evaluation_backend.fes.audit.Auditable;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.College;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.Status;
 import jakarta.persistence.*;
@@ -14,7 +15,7 @@ import lombok.Setter;
 @Table(name = "primary_faculty")
 @AllArgsConstructor
 @NoArgsConstructor
-public class PrimaryFaculty {
+public class PrimaryFaculty extends Auditable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "primary_faculty_id")

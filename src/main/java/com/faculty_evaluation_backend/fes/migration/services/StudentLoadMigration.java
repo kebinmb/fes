@@ -44,7 +44,7 @@ public class StudentLoadMigration {
         primaryStudentLoad.setStudentId(legacyStudentLoad.getId().getStudentId());
         primaryStudentLoad.setLoadId(legacyStudentLoad.getId().getLoadId());
         primaryStudentLoad.setYearLevel(legacyStudentLoad.getId().getYearLevel());
-        primaryStudentLoad.setClassCode(legacyStudentLoad.getId().getClassCode());
+        primaryStudentLoad.setClassCode(legacyStudentLoad.getId().getClassCode().toString());
         return primaryStudentLoad;
     }
 }

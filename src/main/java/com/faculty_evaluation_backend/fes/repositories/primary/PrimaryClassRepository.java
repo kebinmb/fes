@@ -2,7 +2,6 @@ package com.faculty_evaluation_backend.fes.repositories.primary;
 
 
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassDTO;
-import com.faculty_evaluation_backend.fes.dto.student.StudentClassLoadDTO;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryClass;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -49,24 +48,24 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
             nativeQuery = true)
     List<Object[]> findClassesByStudentIdNative(@Param("studentId") String studentId);
 
-    default List<StudentClassLoadDTO> findClassesByStudentId(String studentId) {
-        return findClassesByStudentIdNative(studentId).stream()
-                .map(row -> new StudentClassLoadDTO(
-                        (String) row[0],  // classCode
-                        (String) row[1],  // facultyId
-                        (String) row[2],  // subjectCode
-                        (Integer) row[3], // section
-                        (String) row[4],  // scheduleDay
-                        (String) row[5],  // scheduleTime
-                        (String) row[6],  // room
-                        (String) row[7],  // semester
-                        (Integer) row[8], // schoolYear
-                        ((Number) row[9]).longValue(), // studentLoadId
-                        (String) row[10], // studentId
-                        (String) row[11]  // grade
-                ))
-                .toList();
-    }
+//    default List<StudentClassLoadDTO> findClassesByStudentId(String studentId) {
+//        return findClassesByStudentIdNative(studentId).stream()
+//                .map(row -> new StudentClassLoadDTO(
+//                        (String) row[0],  // classCode
+//                        (String) row[1],  // facultyId
+//                        (String) row[2],  // subjectCode
+//                        (Integer) row[3], // section
+//                        (String) row[4],  // scheduleDay
+//                        (String) row[5],  // scheduleTime
+//                        (String) row[6],  // room
+//                        (String) row[7],  // semester
+//                        (Integer) row[8], // schoolYear
+//                        ((Number) row[9]).longValue(), // studentLoadId
+//                        (String) row[10], // studentId
+//                        (String) row[11]  // grade
+//                ))
+//                .toList();
+//    }
 
     @Query("SELECT pc FROM PrimaryClass pc " +
             "LEFT JOIN FETCH pc.faculty f " +

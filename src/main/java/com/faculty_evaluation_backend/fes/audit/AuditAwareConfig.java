@@ -15,7 +15,8 @@ public class AuditAwareConfig {
         return () -> Optional.ofNullable(
                 SecurityContextHolder.getContext().getAuthentication()
                 )
-                .filter(Authentication::isAuthenticated)
+                .filter(auth -> auth.isAuthenticated() &&
+                        !"anonymousUser".equals(auth.getPrincipal()))
                 .map(Authentication::getName);
     }
 }

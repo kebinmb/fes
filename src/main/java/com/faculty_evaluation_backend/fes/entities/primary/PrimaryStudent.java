@@ -1,5 +1,6 @@
 package com.faculty_evaluation_backend.fes.entities.primary;
 
+import com.faculty_evaluation_backend.fes.audit.Auditable;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -12,7 +13,7 @@ import lombok.Setter;
 @Table(name = "primary_student")
 @AllArgsConstructor
 @NoArgsConstructor
-public class PrimaryStudent {
+public class PrimaryStudent extends Auditable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "primary_student_id")

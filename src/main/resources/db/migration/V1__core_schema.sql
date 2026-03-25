@@ -3,13 +3,21 @@ CREATE TABLE primary_program (
                                  program_code VARCHAR(255),
                                  program_title VARCHAR(255),
                                  year_granted INT,
-                                 college_code VARCHAR(255)
+                                 college_code VARCHAR(255),
+                                 created_at DATETIME(6) NOT NULL,
+                                 updated_at DATETIME(6),
+                                 created_by VARCHAR(255),
+                                 updated_by VARCHAR(255)
 );
 
 CREATE TABLE primary_subject (
                                  primary_subject_id BIGINT AUTO_INCREMENT PRIMARY KEY,
                                  subject_code VARCHAR(255) UNIQUE,
-                                 descriptive_title VARCHAR(255)
+                                 descriptive_title VARCHAR(255),
+                                 created_at DATETIME(6) NOT NULL,
+                                 updated_at DATETIME(6),
+                                 created_by VARCHAR(255),
+                                 updated_by VARCHAR(255)
 );
 
 CREATE TABLE primary_faculty (
@@ -21,7 +29,11 @@ CREATE TABLE primary_faculty (
                                  position VARCHAR(255),
                                  load_limit DOUBLE,
                                  college ENUM('CAS','CIT','COED','COENG','FOR_MIGRATION'),
-                                 status ENUM('ACTIVE','INACTIVE')
+                                 status ENUM('ACTIVE','INACTIVE'),
+                                 created_at DATETIME(6) NOT NULL,
+                                 updated_at DATETIME(6),
+                                 created_by VARCHAR(255),
+                                 updated_by VARCHAR(255)
 );
 
 CREATE TABLE primary_student (
@@ -31,5 +43,9 @@ CREATE TABLE primary_student (
                                  student_lastname VARCHAR(255),
                                  student_firstname VARCHAR(255),
                                  student_middlename VARCHAR(255),
-                                 gender VARCHAR(255)
+                                 gender VARCHAR(255),
+                                 created_at DATETIME(6) NOT NULL,
+                                 updated_at DATETIME(6),
+                                 created_by VARCHAR(255),
+                                 updated_by VARCHAR(255)
 );

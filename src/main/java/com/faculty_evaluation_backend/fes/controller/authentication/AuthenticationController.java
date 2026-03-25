@@ -1,4 +1,4 @@
-package com.faculty_evaluation_backend.fes.controller;
+package com.faculty_evaluation_backend.fes.controller.authentication;
 
 import com.faculty_evaluation_backend.fes.dto.authentication.LoginRequest;
 import com.faculty_evaluation_backend.fes.entities.authentication.StudentAccessCode;

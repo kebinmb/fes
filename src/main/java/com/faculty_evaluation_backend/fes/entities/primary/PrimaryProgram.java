@@ -1,5 +1,6 @@
 package com.faculty_evaluation_backend.fes.entities.primary;
 
+import com.faculty_evaluation_backend.fes.audit.Auditable;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -12,9 +13,10 @@ import lombok.Setter;
 @AllArgsConstructor
 @Entity
 @Table(name = "primary_program")
-public class PrimaryProgram {
+public class PrimaryProgram extends Auditable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "primary_program_id")
     private Long primaryProgramId;
 
     @Column(name = "program_code")

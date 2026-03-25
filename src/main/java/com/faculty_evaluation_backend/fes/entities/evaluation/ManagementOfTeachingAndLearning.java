@@ -1,6 +1,8 @@
 package com.faculty_evaluation_backend.fes.entities.evaluation;
 
+import com.faculty_evaluation_backend.fes.audit.Auditable;
 import com.faculty_evaluation_backend.fes.entities.evaluation.enums.RatingScale;
+import com.faculty_evaluation_backend.fes.entities.primary.PrimaryFaculty;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -15,22 +17,16 @@ import lombok.*;
 @Builder
 @Entity
 @Table(name = "management_of_teaching_and_learning")
-public class ManagementOfTeachingAndLearning {
+public class ManagementOfTeachingAndLearning extends Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "management_of_teaching_and_learning_id")
     private Long managementOfTeachingAndLearningId;
 
-    /**
-     * Faculty being evaluated
-     */
     @Column(name = "faculty_id", length = 60)
     private String facultyId;
 
-    /**
-     * Criterion 1: Comes to class on time
-     */
     @Enumerated(EnumType.STRING)
     @Column(name = "punctuality", nullable = false, length = 50)
     private RatingScale punctuality;
@@ -55,6 +51,10 @@ public class ManagementOfTeachingAndLearning {
     @Enumerated(EnumType.STRING)
     @Column(name = "feedback_communication", nullable = false, length = 50)
     private RatingScale feedbackCommunication;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "faculty_id", referencedColumnName = "faculty_id", insertable = false, updatable = false)
+    private PrimaryFaculty faculty;
 
     public double calculateAverageScore() {
         if (punctuality == null || courseClarity == null || timeManagement == null ||
@@ -82,10 +82,6 @@ public class ManagementOfTeachingAndLearning {
         return "Poor";
     }
 
-    /**
-     * Check if all criteria are rated positively (score >= 4)
-     * @return true if all ratings are positive
-     */
     public boolean isAllPositive() {
         return punctuality.isPositive() &&
                courseClarity.isPositive() &&
@@ -95,10 +91,6 @@ public class ManagementOfTeachingAndLearning {
                feedbackCommunication.isPositive();
     }
 
-    /**
-     * Check if all required ratings are present
-     * @return true if all ratings are non-null
-     */
     public boolean isComplete() {
         return punctuality != null &&
                courseClarity != null &&
@@ -108,10 +100,6 @@ public class ManagementOfTeachingAndLearning {
                feedbackCommunication != null;
     }
 
-    /**
-     * Get total number of criteria
-     * @return 6 (total criteria)
-     */
     public static int getTotalCriteria() {
         return 6;
     }

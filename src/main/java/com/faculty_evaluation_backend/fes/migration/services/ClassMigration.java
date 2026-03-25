@@ -43,7 +43,7 @@ public class ClassMigration {
 
     private PrimaryClass map(LegacyClass legacyClass){
         PrimaryClass primaryClass = new PrimaryClass();
-        primaryClass.setClassCode(legacyClass.getId().getClassCode());
+        primaryClass.setClassCode(legacyClass.getId().getClassCode().toString());
         primaryClass.setFacultyId(legacyClass.getFacultyId());
         primaryClass.setSubjectCode(legacyClass.getSubjectCode());
         primaryClass.setSectionId(legacyClass.getId().getSectionId());

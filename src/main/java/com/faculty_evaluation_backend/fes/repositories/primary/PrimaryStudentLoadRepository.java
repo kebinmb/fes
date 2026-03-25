@@ -1,11 +1,16 @@
 package com.faculty_evaluation_backend.fes.repositories.primary;
 
 
+import com.faculty_evaluation_backend.fes.dto.student.StudentClassLoadDTO;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryStudentLoad;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+
+import java.util.List;
 
 @Repository
 public interface PrimaryStudentLoadRepository extends JpaRepository<PrimaryStudentLoad, Long> {
@@ -23,4 +28,33 @@ public interface PrimaryStudentLoadRepository extends JpaRepository<PrimaryStude
     );
     Integer countDistinctTotalPrimaryStudentLoadByStudentId(String studentId);
 
+    @Query("""
+    SELECT new com.faculty_evaluation_backend.fes.dto.student.StudentClassLoadDTO(
+        pc.classCode,
+        pc.facultyId,
+        pc.subjectCode,
+        pc.sectionId,
+        pc.scheduleDay,
+        pc.scheduleTime,
+        pc.room,
+        pc.semester,
+        pc.schoolYear,
+        psl.primaryStudentLoadId,
+        psl.loadId,
+        psl.studentId,
+        psl.yearLevel,
+        psl.grade
+    )
+    FROM PrimaryStudentLoad psl
+    JOIN psl.primaryClass pc
+    WHERE psl.studentId = :studentId
+      AND psl.yearLevel = :yearLevel
+      AND pc.schoolYear = :schoolYear
+""")
+    Page<StudentClassLoadDTO> findStudentLoadDTO(
+            @Param("studentId") String studentId,
+            @Param("yearLevel") String yearLevel,
+            @Param("schoolYear") Integer schoolYear,
+            Pageable pageable
+    );
 }

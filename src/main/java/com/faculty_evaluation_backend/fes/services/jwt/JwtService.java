@@ -46,6 +46,7 @@ public class JwtService {
     public String generateAccessTokenForStudent(String studentId){
         Map<String,Object> claims = new HashMap<>();
         claims.put("type", "student_access");
+        claims.put("role", "ROLE_STUDENT");
         return createToken(claims, studentId, jwtConfig.getExpiration());
     }
     public String generateRefreshTokenForStudent(String studentId){

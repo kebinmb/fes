@@ -7,7 +7,11 @@ CREATE TABLE management_of_teaching_and_learning (
                                                      time_management ENUM('ALWAYS_MANIFESTED','NEVER_OR_RARELY_MANIFESTED','OFTEN_MANIFESTED','SELDOM_MANIFESTED','SOMETIMES_MANIFESTED') NOT NULL,
                                                      critical_thinking_facilitation ENUM('ALWAYS_MANIFESTED','NEVER_OR_RARELY_MANIFESTED','OFTEN_MANIFESTED','SELDOM_MANIFESTED','SOMETIMES_MANIFESTED') NOT NULL,
                                                      independent_learning_guidance ENUM('ALWAYS_MANIFESTED','NEVER_OR_RARELY_MANIFESTED','OFTEN_MANIFESTED','SELDOM_MANIFESTED','SOMETIMES_MANIFESTED') NOT NULL,
-                                                     feedback_communication ENUM('ALWAYS_MANIFESTED','NEVER_OR_RARELY_MANIFESTED','OFTEN_MANIFESTED','SELDOM_MANIFESTED','SOMETIMES_MANIFESTED') NOT NULL
+                                                     feedback_communication ENUM('ALWAYS_MANIFESTED','NEVER_OR_RARELY_MANIFESTED','OFTEN_MANIFESTED','SELDOM_MANIFESTED','SOMETIMES_MANIFESTED') NOT NULL,
+                                                     created_at DATETIME(6) NOT NULL,
+                                                     updated_at DATETIME(6),
+                                                     created_by VARCHAR(255),
+                                                     updated_by VARCHAR(255)
 );
 
 CREATE TABLE content_knowledge_pedagogy_and_technology (
@@ -18,7 +22,11 @@ CREATE TABLE content_knowledge_pedagogy_and_technology (
                                                            content_simplification ENUM('ALWAYS_MANIFESTED','NEVER_OR_RARELY_MANIFESTED','OFTEN_MANIFESTED','SELDOM_MANIFESTED','SOMETIMES_MANIFESTED') NOT NULL,
                                                            real_world_application ENUM('ALWAYS_MANIFESTED','NEVER_OR_RARELY_MANIFESTED','OFTEN_MANIFESTED','SELDOM_MANIFESTED','SOMETIMES_MANIFESTED') NOT NULL,
                                                            technology_integration ENUM('ALWAYS_MANIFESTED','NEVER_OR_RARELY_MANIFESTED','OFTEN_MANIFESTED','SELDOM_MANIFESTED','SOMETIMES_MANIFESTED') NOT NULL,
-                                                           assessment_alignment ENUM('ALWAYS_MANIFESTED','NEVER_OR_RARELY_MANIFESTED','OFTEN_MANIFESTED','SELDOM_MANIFESTED','SOMETIMES_MANIFESTED') NOT NULL
+                                                           assessment_alignment ENUM('ALWAYS_MANIFESTED','NEVER_OR_RARELY_MANIFESTED','OFTEN_MANIFESTED','SELDOM_MANIFESTED','SOMETIMES_MANIFESTED') NOT NULL,
+                                                        created_at DATETIME(6) NOT NULL,
+                                                        updated_at DATETIME(6),
+                                                        created_by VARCHAR(255),
+                                                        updated_by VARCHAR(255)
 );
 
 CREATE TABLE commitment_and_transparency (
@@ -28,5 +36,9 @@ CREATE TABLE commitment_and_transparency (
                                              diversity_recognition ENUM('ALWAYS_MANIFESTED','NEVER_OR_RARELY_MANIFESTED','OFTEN_MANIFESTED','SELDOM_MANIFESTED','SOMETIMES_MANIFESTED') NOT NULL,
                                              consultation_support ENUM('ALWAYS_MANIFESTED','NEVER_OR_RARELY_MANIFESTED','OFTEN_MANIFESTED','SELDOM_MANIFESTED','SOMETIMES_MANIFESTED') NOT NULL,
                                              immediate_feedback ENUM('ALWAYS_MANIFESTED','NEVER_OR_RARELY_MANIFESTED','OFTEN_MANIFESTED','SELDOM_MANIFESTED','SOMETIMES_MANIFESTED') NOT NULL,
-                                             transparent_grading ENUM('ALWAYS_MANIFESTED','NEVER_OR_RARELY_MANIFESTED','OFTEN_MANIFESTED','SELDOM_MANIFESTED','SOMETIMES_MANIFESTED') NOT NULL
+                                             transparent_grading ENUM('ALWAYS_MANIFESTED','NEVER_OR_RARELY_MANIFESTED','OFTEN_MANIFESTED','SELDOM_MANIFESTED','SOMETIMES_MANIFESTED') NOT NULL,
+                                               created_at DATETIME(6) NOT NULL,
+                                               updated_at DATETIME(6),
+                                               created_by VARCHAR(255),
+                                               updated_by VARCHAR(255)
 );

@@ -21,10 +21,8 @@ public class RefreshToken {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // facultyId OR studentId
     private String userId;
 
-    // SHA256 hash of token
     @Column(nullable = false, unique = true, length = 64)
     private String tokenHash;
 

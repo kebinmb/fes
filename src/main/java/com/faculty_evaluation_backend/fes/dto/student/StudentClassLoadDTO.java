@@ -10,19 +10,22 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class StudentClassLoadDTO {
-    // From primary_class
+
+    // PrimaryClass
     private String classCode;
     private String facultyId;
     private String subjectCode;
-    private Integer section;
+    private Integer sectionId;
     private String scheduleDay;
     private String scheduleTime;
     private String room;
     private String semester;
     private Integer schoolYear;
 
-    // From primary_student_load
-    private Long studentLoadId;
+    // PrimaryStudentLoad
+    private Long primaryStudentLoadId;
+    private Integer loadId;
     private String studentId;
+    private String yearLevel;
     private String grade;
 }

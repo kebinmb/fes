@@ -1,5 +1,6 @@
 package com.faculty_evaluation_backend.fes.entities.primary;
 
+import com.faculty_evaluation_backend.fes.audit.Auditable;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -15,14 +16,14 @@ import java.time.Instant;
 @AllArgsConstructor
 @Entity
 @Table(name = "primary_class")
-public class PrimaryClass {
+public class PrimaryClass extends Auditable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "primary_class_id")
     private Long primaryClassId;
 
     @Column(name = "class_code")
-    private Integer classCode;
+    private String classCode;
     @Column(name = "faculty_id")
     private String facultyId;
     @ManyToOne(fetch = FetchType.LAZY)
@@ -48,7 +49,4 @@ public class PrimaryClass {
     private String scheduleTime;
     @Column(name = "room")
     private String room;
-    @Column(name = "created_at")
-    @CreatedDate
-    private Instant createdAt;
 }

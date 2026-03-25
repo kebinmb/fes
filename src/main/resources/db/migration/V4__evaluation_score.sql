@@ -3,7 +3,6 @@ CREATE TABLE faculty_evaluation_score (
 
                                           faculty_id VARCHAR(60) NOT NULL,
                                           evaluator_id VARCHAR(15) NOT NULL,
-                                          student_id VARCHAR(15),
                                           class_code VARCHAR(20) NOT NULL,
                                           semester VARCHAR(10) NOT NULL,
                                           school_year INT NOT NULL,
@@ -18,10 +17,12 @@ CREATE TABLE faculty_evaluation_score (
                                           overall_average_score DOUBLE,
                                           overall_interpretation VARCHAR(20),
 
-                                          created_at DATETIME(6),
+                                          created_at DATETIME(6) NOT NULL,
                                           updated_at DATETIME(6),
+                                          created_by VARCHAR(255),
+                                          updated_by VARCHAR(255),
 
-                                          CONSTRAINT uq_evaluation UNIQUE (faculty_id, student_id, class_code, semester, school_year),
+                                          CONSTRAINT uq_evaluation UNIQUE (faculty_id, evaluator_id, class_code, semester, school_year),
 
                                           CONSTRAINT fk_eval_mtl FOREIGN KEY (management_of_teaching_and_learning_id)
                                               REFERENCES management_of_teaching_and_learning(management_of_teaching_and_learning_id),

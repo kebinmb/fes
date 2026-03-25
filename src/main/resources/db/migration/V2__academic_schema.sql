@@ -3,7 +3,11 @@ CREATE TABLE primary_section (
                                  section_id INT UNIQUE,
                                  year_level VARCHAR(255),
                                  program_code VARCHAR(255),
-                                 section_code VARCHAR(255)
+                                 section_code VARCHAR(255),
+                                 created_at DATETIME(6) NOT NULL,
+                                 updated_at DATETIME(6),
+                                 created_by VARCHAR(255),
+                                 updated_by VARCHAR(255)
 );
 
 CREATE TABLE primary_class (
@@ -17,7 +21,10 @@ CREATE TABLE primary_class (
                                schedule_day VARCHAR(255),
                                schedule_time VARCHAR(255),
                                room VARCHAR(255),
-                               created_at DATETIME(6),
+                               created_at DATETIME(6) NOT NULL,
+                               updated_at DATETIME(6),
+                               created_by VARCHAR(255),
+                               updated_by VARCHAR(255),
 
                                CONSTRAINT fk_class_faculty FOREIGN KEY (faculty_id)
                                    REFERENCES primary_faculty(faculty_id),
@@ -36,7 +43,10 @@ CREATE TABLE primary_student_load (
                                       year_level VARCHAR(255),
                                       class_code INT,
                                       grade VARCHAR(255),
-
+                                      created_at DATETIME(6) NOT NULL,
+                                      updated_at DATETIME(6),
+                                      created_by VARCHAR(255),
+                                      updated_by VARCHAR(255),
                                       CONSTRAINT fk_student_load FOREIGN KEY (student_id)
                                           REFERENCES primary_student(student_id)
 );

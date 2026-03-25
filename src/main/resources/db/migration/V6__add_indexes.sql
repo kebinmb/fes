@@ -27,7 +27,7 @@ CREATE INDEX idx_student_load_class ON primary_student_load(class_code);
 -- =========================
 
 CREATE INDEX idx_eval_faculty ON faculty_evaluation_score(faculty_id);
-CREATE INDEX idx_eval_student ON faculty_evaluation_score(student_id);
+CREATE INDEX idx_eval_evaluator ON faculty_evaluation_score(evaluator_id);
 CREATE INDEX idx_eval_class ON faculty_evaluation_score(class_code);
 CREATE INDEX idx_eval_subject ON faculty_evaluation_score(subject_code);
 CREATE INDEX idx_eval_school_year ON faculty_evaluation_score(school_year);
@@ -39,10 +39,6 @@ CREATE INDEX idx_eval_lookup ON faculty_evaluation_score(
                                                          semester,
                                                          school_year
     );
-
--- Optional (if filtering by evaluator/student frequently)
-CREATE INDEX idx_eval_evaluator ON faculty_evaluation_score(evaluator_id);
-
 -- =========================
 -- EVALUATION CATEGORY TABLES
 -- =========================
