@@ -43,7 +43,7 @@ public class StudentAuthenticationService {
     @Transactional(transactionManager = "primaryTransactionManager")
     @AuditableAction(action = "GENERATE_ACCESS_CODE", entity = "STUDENT_ACCESS_CODE")
     public StudentAccessCode generateAccessCode(String studentId){
-        rateLimitingService.consume(studentId,"GENERATE_ACCESS_CODE");
+        rateLimitingService.consumeStudentRequest(studentId,"GENERATE_ACCESS_CODE");
         if(!studentCacheService.studentExists(studentId)){
             throw new ResourceNotFoundException("Student ID not found: " + studentId);
         }
@@ -94,7 +94,7 @@ public class StudentAuthenticationService {
     @AuditableAction(action = "AUTHENTICATE_STUDENT", entity = "STUDENT_AUTHENTICATION")
     @Transactional(transactionManager = "primaryTransactionManager")
     public AuthenticationResponse authenticateWithAccessCode(String studentId, String accessCode, HttpServletRequest request){
-        rateLimitingService.consume(studentId,"AUTHENTICATE");
+        rateLimitingService.consumeStudentRequest(studentId,"AUTHENTICATE_STUDENT");
         String normalizedAccessCode  = accessCode.trim().toUpperCase();
         StudentAccessCode code = studentAccessCodeRepository.findForUpdate(studentId, normalizedAccessCode )
                         .orElseThrow(() -> new UnauthorizedException("Invalid access code"));

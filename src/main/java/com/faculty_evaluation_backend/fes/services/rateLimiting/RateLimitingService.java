@@ -12,9 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
-import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @RequiredArgsConstructor
@@ -26,9 +24,9 @@ public class RateLimitingService {
             .expireAfterAccess(Duration.ofMinutes(10))
             .build();
 
-    public void consume(String studentId, String endpoint){
+    public void consumeStudentRequest(String studentId, String endpoint){
         String ip = getClientIp();
-        String key = buildKey(studentId, ip, endpoint);
+        String key = buildStudentKey(studentId, ip, endpoint);
         Bucket bucket = Objects.requireNonNull(
                 buckets.get(key, k -> createBucket(endpoint)),
                 "Bucket must not be null"
@@ -46,6 +44,26 @@ public class RateLimitingService {
             throw new RateLimitExceededException("Too many requests. Try again in " + waitSeconds + " seconds.");
         }
     }
+    public void consumeFacultyRequest(String username, String endpoint){
+        String ip = getClientIp();
+        String key = buildSupervisorKey(username,ip,endpoint);
+        Bucket bucket = Objects.requireNonNull(
+                buckets.get(key,k->createBucket(endpoint)),
+                "Bucket must not be null"
+        );
+        ConsumptionProbe probe = bucket.tryConsumeAndReturnRemaining(1);
+        if(!probe.isConsumed()){
+            String actor = (username != null ? username : "ANON:" + ip);
+            long waitSeconds = Math.max(1, probe.getNanosToWaitForRefill()/1_000_000_000);
+            auditService.log(
+                    actor,
+                    "RATE_LIMIT_EXCEEDED: " + endpoint +
+                            " remaining=" + probe.getRemainingTokens(),
+                    ip
+            );
+            throw new RateLimitExceededException("Too many requests. Try again in " + waitSeconds + " seconds.");
+        }
+    }
     private String getClientIp(){
         String xfHeader = httpServletRequest.getHeader("X-Forwarded-For");
         if (xfHeader != null && !xfHeader.isBlank()){
@@ -53,17 +71,22 @@ public class RateLimitingService {
         }
         return httpServletRequest.getRemoteAddr();
     }
-    private String buildKey(String studentId, String ip, String endpoint){
+    private String buildStudentKey(String studentId, String ip, String endpoint){
         String userKey = (studentId != null ? studentId : ip);
         return (userKey)
                 + ":" + ip
                 + ":" + endpoint;
     }
-
+    private String buildSupervisorKey(String username, String ip, String endpoint){
+        String supervisorKey = (username != null ? username : ip);
+        return (supervisorKey)
+                + ":" + ip
+                + ":" + endpoint;
+    }
     private Bucket createBucket(String endpoint){
         return switch (endpoint) {
             case "GENERATE_ACCESS_CODE" -> newBucket(3, 1, Duration.ofMinutes(1));
-            case "AUTHENTICATE" -> newBucket(10, 5, Duration.ofMinutes(1));
+            case "AUTHENTICATE_STUDENT", "AUTHENTICATE_SUPERVISOR" -> newBucket(10, 5, Duration.ofMinutes(1));
             default -> newBucket(20, 10, Duration.ofMinutes(1));
         };
     }
