@@ -155,7 +155,6 @@ public class JwtRefreshFilter extends OncePerRequestFilter {
     }
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        String path = request.getServletPath();
-        return !path.equals("/auth/refresh");
+        return false; // run for all requests
     }
 }

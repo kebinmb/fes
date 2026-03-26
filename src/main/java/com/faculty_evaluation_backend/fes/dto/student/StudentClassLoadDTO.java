@@ -16,16 +16,10 @@ public class StudentClassLoadDTO {
     private String facultyId;
     private String subjectCode;
     private Integer sectionId;
-    private String scheduleDay;
-    private String scheduleTime;
-    private String room;
     private String semester;
     private Integer schoolYear;
 
     // PrimaryStudentLoad
-    private Long primaryStudentLoadId;
-    private Integer loadId;
     private String studentId;
     private String yearLevel;
-    private String grade;
 }

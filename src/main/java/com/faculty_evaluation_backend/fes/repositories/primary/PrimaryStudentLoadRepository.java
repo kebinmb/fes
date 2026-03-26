@@ -34,16 +34,10 @@ public interface PrimaryStudentLoadRepository extends JpaRepository<PrimaryStude
         pc.facultyId,
         pc.subjectCode,
         pc.sectionId,
-        pc.scheduleDay,
-        pc.scheduleTime,
-        pc.room,
         pc.semester,
         pc.schoolYear,
-        psl.primaryStudentLoadId,
-        psl.loadId,
         psl.studentId,
-        psl.yearLevel,
-        psl.grade
+        psl.yearLevel
     )
     FROM PrimaryStudentLoad psl
     JOIN psl.primaryClass pc
