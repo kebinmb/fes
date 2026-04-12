@@ -46,6 +46,17 @@ public class GlobalExceptionHandler {
         return buildResponse(ex, HttpStatus.UNAUTHORIZED, request);
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalidEnum(
+            IllegalArgumentException ex,
+            HttpServletRequest request
+    ) {
+        return buildResponse(
+                new Exception("Invalid request parameter value"),
+                HttpStatus.BAD_REQUEST,
+                request
+        );
+    }
     // ✅ Handle @Valid body errors
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiErrorResponse> handleValidationErrors(

@@ -98,25 +98,21 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
 
     @Query(
             value = """
-                    SELECT 
-                        pc.subject_code,
-                        pc.faculty_id,
-                        pc.school_year,
-                        pc.semester,
-                        MIN(pc.class_code) AS class_code
-                    FROM primary_class pc
-                    WHERE pc.faculty_id = :facultyId
-                      AND pc.school_year = :schoolYear
-                      AND pc.semester = :semester
-                    GROUP BY 
-                        pc.subject_code,
-                        pc.faculty_id,
-                        pc.school_year,
-                        pc.semester
-                    """,
+        SELECT 
+            pc.subject_code AS subjectCode,
+            pc.faculty_id AS facultyId,
+            pc.school_year AS schoolYear,
+            pc.semester AS semester,
+            MIN(pc.class_code) AS classCode
+        FROM primary_class pc
+        WHERE pc.faculty_id = :facultyId
+          AND pc.school_year = :schoolYear
+          AND pc.semester = :semester
+        GROUP BY pc.subject_code
+        """,
             nativeQuery = true
     )
-    List<FacultyClassDTO> findClassWithFacultyIdAndSchoolYearAndSemester(
+    List<FacultyClassDTO> findFacultyClasses(
             @Param("facultyId") String facultyId,
             @Param("schoolYear") Integer schoolYear,
             @Param("semester") String semester

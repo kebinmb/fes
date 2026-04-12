@@ -1,0 +1,70 @@
+package com.faculty_evaluation_backend.fes.controller.supervisor;
+
+import com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassDTO;
+import com.faculty_evaluation_backend.fes.dto.faculty.FacultyDTO;
+import com.faculty_evaluation_backend.fes.entities.primary.enums.College;
+import com.faculty_evaluation_backend.fes.entities.primary.enums.Status;
+import com.faculty_evaluation_backend.fes.services.data.supervisor.SupervisorDataService;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/faculty")
+@Slf4j
+@RequiredArgsConstructor
+public class SupervisorDataController {
+
+    private final SupervisorDataService supervisorDataService;
+
+    @GetMapping("/list")
+    public ResponseEntity<List<FacultyDTO>> getFacultiesByCollegeAndStatus(
+            @RequestParam College college,
+            @RequestParam Status status
+    ) {
+        return ResponseEntity.ok(
+                supervisorDataService.getFacultiesByCollegeAndStatus(
+                        college.name(),
+                        status.name()
+                )
+        );
+    }
+
+    @GetMapping("/faculty-classes")
+
+    public ResponseEntity<List<FacultyClassDTO>> getFacultyClasses(
+            @RequestParam @NotBlank String facultyId,
+            @RequestParam @NotNull Integer schoolYear,
+            @RequestParam @NotBlank String semester
+    ) {
+        log.info(
+                "API Request → Fetch faculty classes | facultyId={} | schoolYear={} | semester={}",
+                facultyId, schoolYear, semester
+        );
+
+        return ResponseEntity.ok(
+                supervisorDataService.findFacultyClasses(
+                        facultyId, schoolYear, semester
+                )
+        );
+    }
+
+
+
+}

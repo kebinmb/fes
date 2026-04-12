@@ -13,13 +13,17 @@ import java.util.concurrent.TimeUnit;
 @EnableCaching
 public class CacheConfig {
     @Bean
-    public CacheManager cacheManager(){
-        CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
-        caffeineCacheManager.setCaffeine(Caffeine.newBuilder()
+    public CacheManager cacheManager() {
+        CaffeineCacheManager cacheManager = new CaffeineCacheManager(
+                "facultyClasses",
+                "faculties"
+        );
+
+        cacheManager.setCaffeine(Caffeine.newBuilder()
                 .maximumSize(10_000)
                 .expireAfterWrite(5, TimeUnit.MINUTES)
                 .recordStats());
-        return caffeineCacheManager;
 
+        return cacheManager;
     }
 }
