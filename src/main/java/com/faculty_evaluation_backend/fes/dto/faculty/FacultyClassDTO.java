@@ -15,4 +15,5 @@ public class FacultyClassDTO {
     private Integer schoolYear;
     private String semester;
     private String classCode;
+    private String yearLevel;
 }

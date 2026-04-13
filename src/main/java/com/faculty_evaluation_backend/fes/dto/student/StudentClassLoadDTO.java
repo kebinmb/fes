@@ -23,7 +23,10 @@ public class StudentClassLoadDTO {
     private String studentId;
     private String yearLevel;
 
-    // NEW FIELDS
+    // Faculty
+    private String college;
+
+    // Others
     private String facultyName;
     private String subjectDescription;
 }
