@@ -6,6 +6,7 @@ import com.faculty_evaluation_backend.fes.entities.primary.PrimaryFaculty;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.College;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.Status;
 import com.faculty_evaluation_backend.fes.exceptions.BadRequestException;
+import com.faculty_evaluation_backend.fes.repositories.evaluation.FacultyEvaluationScoreRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryClassRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryFacultyRepository;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ import java.util.List;
 public class SupervisorDataService {
     private final PrimaryFacultyRepository primaryFacultyRepository;
     private final PrimaryClassRepository  primaryClassRepository;
+    private final FacultyEvaluationScoreRepository facultyEvaluationScoreRepository;
     @Transactional(transactionManager = "primaryTransactionManager", readOnly = true)
     public List<FacultyDTO> getFacultiesByCollegeAndStatus(String college, String status) {
 
@@ -75,7 +77,15 @@ public class SupervisorDataService {
 
         return result;
     }
+    @Transactional(transactionManager = "primaryTransactionManager", readOnly = true)
+    public boolean hasStudentEvaluatedFacultyForSubject(
+            String facultyId, String evaluatorId, String subjectCode,
+            String semester, Integer schoolYear) {
 
+        return facultyEvaluationScoreRepository
+                .existsByFacultyIdAndEvaluatorIdAndSubjectCodeAndSemesterAndSchoolYear(
+                        facultyId, evaluatorId, subjectCode, semester, schoolYear);
+    }
     private College parseCollege(String college) {
         try {
             return College.valueOf(college.toUpperCase());

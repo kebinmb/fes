@@ -2,6 +2,7 @@ package com.faculty_evaluation_backend.fes.controller.supervisor;
 
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassDTO;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyDTO;
+import com.faculty_evaluation_backend.fes.dto.response.EvaluationCheckResponse;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.College;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.Status;
 import com.faculty_evaluation_backend.fes.services.data.supervisor.SupervisorDataService;
@@ -65,6 +66,31 @@ public class SupervisorDataController {
         );
     }
 
+    @GetMapping("/check")
+    public ResponseEntity<?> checkEvaluationStatus(
+            @RequestParam String facultyId,
+            @RequestParam String evaluatorId,
+            @RequestParam String classCode,
+            @RequestParam String semester,
+            @RequestParam Integer schoolYear) {
+        try {
+            boolean hasEvaluated = supervisorDataService.hasStudentEvaluatedFacultyForSubject(
+                    facultyId, evaluatorId, classCode, semester, schoolYear);
+
+            EvaluationCheckResponse response = EvaluationCheckResponse.builder()
+                    .hasEvaluated(hasEvaluated)
+                    .message(hasEvaluated ?
+                            "You have already evaluated this faculty for this subject" :
+                            "You can submit an evaluation")
+                    .build();
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("❌ Error checking evaluation status", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
 
 
 }

@@ -37,10 +37,14 @@ public interface PrimaryStudentLoadRepository extends JpaRepository<PrimaryStude
         pc.semester,
         pc.schoolYear,
         psl.studentId,
-        psl.yearLevel
+        psl.yearLevel,
+        CONCAT(f.firstname, ' ', f.lastname),
+        s.descriptiveTitle
     )
     FROM PrimaryStudentLoad psl
     JOIN psl.primaryClass pc
+    JOIN pc.faculty f
+    JOIN pc.subject s
     WHERE psl.studentId = :studentId
       AND psl.yearLevel = :yearLevel
       AND pc.schoolYear = :schoolYear

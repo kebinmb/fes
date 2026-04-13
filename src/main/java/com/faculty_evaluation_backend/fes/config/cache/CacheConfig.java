@@ -16,7 +16,12 @@ public class CacheConfig {
     public CacheManager cacheManager() {
         CaffeineCacheManager cacheManager = new CaffeineCacheManager(
                 "facultyClasses",
-                "faculties"
+                "faculties",
+                "studentExists",
+                "studentLoadCount",
+                "evaluatedCount",
+                "activeAccessCode"
+
         );
 
         cacheManager.setCaffeine(Caffeine.newBuilder()

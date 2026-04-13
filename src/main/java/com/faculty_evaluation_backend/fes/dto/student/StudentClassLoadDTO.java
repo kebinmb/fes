@@ -22,4 +22,8 @@ public class StudentClassLoadDTO {
     // PrimaryStudentLoad
     private String studentId;
     private String yearLevel;
+
+    // NEW FIELDS
+    private String facultyName;
+    private String subjectDescription;
 }
