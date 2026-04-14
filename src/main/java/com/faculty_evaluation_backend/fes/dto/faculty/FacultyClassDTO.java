@@ -16,4 +16,6 @@ public class FacultyClassDTO {
     private String semester;
     private String classCode;
     private String yearLevel;
+    private String programCode;
+    private String sectionCode;
 }

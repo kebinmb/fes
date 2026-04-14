@@ -87,6 +87,14 @@ public class GlobalExceptionHandler {
         return buildResponse(new Exception(message), HttpStatus.BAD_REQUEST, request);
     }
 
+    @ExceptionHandler(DuplicateEvaluationException.class)
+    public ResponseEntity<ApiErrorResponse> handleConstraintViolation(
+            DuplicateEvaluationException ex,
+            HttpServletRequest request
+    ) {
+        return buildResponse(ex, HttpStatus.BAD_REQUEST, request);
+    }
+
     // ✅ Fallback (safe message)
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleGeneric(
