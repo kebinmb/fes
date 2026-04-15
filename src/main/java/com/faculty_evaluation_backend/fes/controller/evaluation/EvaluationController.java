@@ -1,5 +1,6 @@
 package com.faculty_evaluation_backend.fes.controller.evaluation;
 
+import com.faculty_evaluation_backend.fes.audit.AuditableAction;
 import com.faculty_evaluation_backend.fes.dto.evaluation.BaseEvaluationDTO;
 import com.faculty_evaluation_backend.fes.entities.evaluation.FacultyEvaluationScore;
 import com.faculty_evaluation_backend.fes.services.data.evaluation.EvaluationDataService;
@@ -20,6 +21,7 @@ public class EvaluationController {
     private final EvaluationDataService evaluationDataService;
 
     @PostMapping("/submit")
+    @AuditableAction(action="SUBMIT",entity = "EVALUATION")
     public ResponseEntity<?> submitEvaluation(@RequestBody BaseEvaluationDTO dto) {
 
         log.info("📥 API Request - Submit Evaluation: {}", dto.getEvaluationType());
