@@ -21,7 +21,6 @@ public class StudentClassLoadDTO {
 
     // PrimaryStudentLoad
     private String studentId;
-    private String yearLevel;
 
     // Faculty
     private String college;

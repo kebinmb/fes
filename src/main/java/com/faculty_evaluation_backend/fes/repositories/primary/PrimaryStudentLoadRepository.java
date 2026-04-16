@@ -37,23 +37,24 @@ public interface PrimaryStudentLoadRepository extends JpaRepository<PrimaryStude
         pc.semester,
         pc.schoolYear,
         psl.studentId,
-        psl.yearLevel,
         CAST(f.college AS string),
         CONCAT(f.firstname, ' ', f.lastname),
         s.descriptiveTitle
     )
     FROM PrimaryStudentLoad psl
-    JOIN psl.primaryClass pc
-    JOIN pc.faculty f
-    JOIN pc.subject s
+    LEFT JOIN psl.primaryClass pc
+    LEFT JOIN pc.faculty f
+    LEFT JOIN pc.subject s
     WHERE psl.studentId = :studentId
-      AND psl.yearLevel = :yearLevel
-      AND pc.schoolYear = :schoolYear
+      AND (
+            (pc.schoolYear = :schoolYear AND pc.semester = :semester)
+            OR pc IS NULL
+          )
 """)
     Page<StudentClassLoadDTO> findStudentLoadDTO(
             @Param("studentId") String studentId,
-            @Param("yearLevel") String yearLevel,
             @Param("schoolYear") Integer schoolYear,
+            @Param("semester") String semester,
             Pageable pageable
     );
 }

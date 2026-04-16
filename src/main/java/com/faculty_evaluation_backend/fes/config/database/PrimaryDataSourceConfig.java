@@ -27,6 +27,7 @@ import java.util.Map;
                 "com.faculty_evaluation_backend.fes.repositories.evaluation",
                 "com.faculty_evaluation_backend.fes.repositories.tokens",
                 "com.faculty_evaluation_backend.fes.repositories.authentication",
+                "com.faculty_evaluation_backend.fes.repositories.data",
                 "com.faculty_evaluation_backend.fes.audit"
         },
         entityManagerFactoryRef = "primaryEntityManagerFactory",
@@ -56,6 +57,7 @@ public class PrimaryDataSourceConfig {
                         "com.faculty_evaluation_backend.fes.entities.authentication",
                         "com.faculty_evaluation_backend.fes.entities.evaluation",
                         "com.faculty_evaluation_backend.fes.entities.tokens",
+                        "com.faculty_evaluation_backend.fes.entities.data",
                         "com.faculty_evaluation_backend.fes.audit"
                 )
                 .persistenceUnit("primary")

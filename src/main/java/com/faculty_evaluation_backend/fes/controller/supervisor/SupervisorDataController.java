@@ -48,20 +48,17 @@ public class SupervisorDataController {
     }
 
     @GetMapping("/faculty-classes")
-
     public ResponseEntity<List<FacultyClassDTO>> getFacultyClasses(
-            @RequestParam @NotBlank String facultyId,
-            @RequestParam @NotNull Integer schoolYear,
-            @RequestParam @NotBlank String semester
+            @RequestParam @NotBlank String facultyId
     ) {
         log.info(
                 "API Request → Fetch faculty classes | facultyId={} | schoolYear={} | semester={}",
-                facultyId, schoolYear, semester
+                facultyId
         );
 
         return ResponseEntity.ok(
                 supervisorDataService.findFacultyClasses(
-                        facultyId, schoolYear, semester
+                        facultyId
                 )
         );
     }

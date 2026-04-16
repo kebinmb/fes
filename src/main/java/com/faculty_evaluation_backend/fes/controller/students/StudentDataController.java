@@ -29,12 +29,11 @@ public class StudentDataController {
     @GetMapping("/student-loads")
     public PageResponse<StudentClassLoadDTO> getStudentLoads(
             @RequestParam @NotBlank String studentId,
-            @RequestParam @NotBlank String yearLevel,
-            @RequestParam @NotNull Integer schoolYear,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "primaryStudentLoadId,desc") String sort
     ){
+        System.out.println("Student ID:" + studentId);
         String sortField = "primaryStudentLoadId";
         Sort.Direction direction = Sort.Direction.DESC;
 
@@ -50,7 +49,7 @@ public class StudentDataController {
                 Sort.by(direction, sortField)
         );
 
-        return studentService.getStudentLoads(studentId, yearLevel, schoolYear, pageable);
+        return studentService.getStudentLoads(studentId, pageable);
     }
 
     @GetMapping("/check")
