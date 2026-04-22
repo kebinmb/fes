@@ -6,7 +6,6 @@ import com.faculty_evaluation_backend.fes.dto.authentication.FacultyAuthenticati
 import com.faculty_evaluation_backend.fes.dto.authentication.LoginRequest;
 import com.faculty_evaluation_backend.fes.entities.authentication.CustomUserDetails;
 import com.faculty_evaluation_backend.fes.entities.authentication.UserAccounts;
-import com.faculty_evaluation_backend.fes.exceptions.RateLimitExceededException;
 import com.faculty_evaluation_backend.fes.repositories.authentication.UserAccountsRepository;
 import com.faculty_evaluation_backend.fes.services.jwt.JwtService;
 import com.faculty_evaluation_backend.fes.services.rateLimiting.RateLimitingService;
@@ -14,7 +13,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.*;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.AuthenticationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

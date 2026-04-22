@@ -5,6 +5,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 
@@ -94,7 +95,21 @@ public class GlobalExceptionHandler {
     ) {
         return buildResponse(ex, HttpStatus.BAD_REQUEST, request);
     }
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<ApiErrorResponse> handleBadCredentials(
+            BadCredentialsException ex,
+            HttpServletRequest request
+    ) {
+        ApiErrorResponse error = new ApiErrorResponse(
+                Instant.now(),
+                401,
+                "Unauthorized",
+                ex.getMessage(),
+                request.getRequestURI()
+        );
 
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+    }
     // ✅ Fallback (safe message)
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleGeneric(
