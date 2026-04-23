@@ -1,8 +1,11 @@
 package com.faculty_evaluation_backend.fes.migration.services;
 
+import com.faculty_evaluation_backend.fes.dto.data.SchoolYearAndSemesterDTO;
 import com.faculty_evaluation_backend.fes.entities.legacy.LegacyClass;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryClass;
+import com.faculty_evaluation_backend.fes.entities.primary.enums.Status;
 import com.faculty_evaluation_backend.fes.migration.engine.ParallelMigrationExecutor;
+import com.faculty_evaluation_backend.fes.repositories.data.SchoolYearAndSemesterRepository;
 import com.faculty_evaluation_backend.fes.repositories.legacy.LegacyClassRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryClassRepository;
 import lombok.RequiredArgsConstructor;
@@ -18,26 +21,29 @@ public class ClassMigration {
     private final LegacyClassRepository legacyClassRepository;
     private final PrimaryClassRepository primaryClassRepository;
     private final ParallelMigrationExecutor parallelMigrationExecutor;
-
+    private final SchoolYearAndSemesterRepository schoolYearAndSemesterRepository;
     private static final int BATCH_SIZE = 1000;
 
-    public void migrate(){
+    public void migrate() {
         log.info("Starting Class Migration");
-        List<LegacyClass> data = legacyClassRepository.findAll();
-        parallelMigrationExecutor.processInParallel(data, BATCH_SIZE, batch ->{
+        SchoolYearAndSemesterDTO filterData =
+                schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE);
+        List<LegacyClass> data =
+                legacyClassRepository.findBySemesterAndSchoolYear(
+                        filterData.getSemester(),
+                        filterData.getSchoolYear()
+                );
+        parallelMigrationExecutor.processInParallel(data, BATCH_SIZE, batch -> {
             List<PrimaryClass> toSave = batch.stream()
-                    .filter(legacyClass -> legacyClass != null && legacyClass.getId() != null)
-                    .filter(legacyClass -> !primaryClassRepository.existsByClassCodeAndFacultyIdAndSubjectCodeAndSectionIdAndSchoolYearAndSemester(
-                            legacyClass.getId().getClassCode(),
-                            legacyClass.getFacultyId(),
-                            legacyClass.getSubjectCode(),
-                            legacyClass.getId().getSectionId(),
-                            legacyClass.getId().getSchoolYear(),
-                            legacyClass.getId().getSemester()
-                    ))
+                    .filter(lc -> lc != null && lc.getId() != null)
                     .map(this::map)
                     .toList();
-            primaryClassRepository.saveAll(toSave);
+
+            try {
+                primaryClassRepository.saveAll(toSave);
+            } catch (Exception e) {
+                log.warn("Batch failed due to duplicates or constraint issues", e);
+            }
         });
     }
 
