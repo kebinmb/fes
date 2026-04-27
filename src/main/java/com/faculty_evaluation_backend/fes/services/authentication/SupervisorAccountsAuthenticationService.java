@@ -61,6 +61,7 @@ public class SupervisorAccountsAuthenticationService {
                     .tokenType("Bearer")
                     .expiresIn(jwtConfig.getExpiration())
                     .evaluatorId(userId.toString())
+                    .college(userAccount.getCollege())
                     .build();
 
         } catch (BadCredentialsException e) {

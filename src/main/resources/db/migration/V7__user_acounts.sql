@@ -22,7 +22,7 @@ INSERT INTO user_accounts (
     1,
     'admin',
     'admin@university.edu',
-    '$2a$12$djC2QERmJyfesRi8bKVva.Eo1Ra5bC6TR.Yob5nQeglo7qKS1cLWC', -- BCrypt for "admin123"
+    '$2a$12$5sofiiPN.AraWznt9z1AJuGvniqEC.1pewOFI3LTD.BmfJV0iFm0a', -- BCrypt for "admin123"
     'DEAN',
     'CCS',
     b'1',
@@ -39,7 +39,7 @@ INSERT INTO user_accounts (
     2,
     'faculty1',
     'faculty1@university.edu',
-    '$2a$12$djC2QERmJyfesRi8bKVva.Eo1Ra5bC6TR.Yob5nQeglo7qKS1cLWC', -- BCrypt
+    '$2a$12$5sofiiPN.AraWznt9z1AJuGvniqEC.1pewOFI3LTD.BmfJV0iFm0a', -- BCrypt
     'DEAN',
     'CAS',
     b'1',
@@ -56,7 +56,7 @@ INSERT INTO user_accounts (
     3,
     'locked_user',
     'locked@university.edu',
-    '$2a$12$djC2QERmJyfesRi8bKVva.Eo1Ra5bC6TR.Yob5nQeglo7qKS1cLWC',
+    '$2a$12$5sofiiPN.AraWznt9z1AJuGvniqEC.1pewOFI3LTD.BmfJV0iFm0a',
     'FACULTY',
     'CIT',
     b'1',
@@ -73,7 +73,7 @@ INSERT INTO user_accounts (
     4,
     'disabled_user',
     'disabled@university.edu',
-    '$2a$12$djC2QERmJyfesRi8bKVva.Eo1Ra5bC6TR.Yob5nQeglo7qKS1cLWC',
+    '$2a$12$5sofiiPN.AraWznt9z1AJuGvniqEC.1pewOFI3LTD.BmfJV0iFm0a',
     'FACULTY',
     'CAS',
     b'0',

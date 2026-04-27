@@ -113,7 +113,7 @@ public class AuthenticationController {
         return ResponseEntity.ok()
                 .header("Set-Cookie", buildSupervisorAccessTokenCookie(response.getAccessToken()).toString())
                 .header("Set-Cookie", buildSupervisorRefreshTokenCookie(response.getRefreshToken()).toString())
-                .  body(Map.of("message","Authentication successful","evaluatorId",response.getEvaluatorId()));
+                .body(Map.of("message","Authentication successful","evaluatorId",response.getEvaluatorId(),"college",response.getCollege()));
     }
     @GetMapping("/me")
     public ResponseEntity<?> me(Authentication authentication) {
