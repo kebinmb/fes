@@ -98,15 +98,15 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
 
     @Query(
             value = """
-        SELECT 
+        SELECT DISTINCT
             pc.subject_code AS subjectCode,
             pc.faculty_id AS facultyId,
             pc.school_year AS schoolYear,
             pc.semester AS semester,
-            MIN(pc.class_code) AS classCode,
+            pc.class_code AS classCode,
             psl.year_level AS yearLevel,
-            MIN(ps.program_code) AS programCode,
-            MIN(ps.section_code) AS sectionCode
+            ps.program_code AS programCode,
+            ps.section_code AS sectionCode
         FROM primary_class pc
         INNER JOIN primary_student_load psl 
             ON pc.class_code = psl.class_code
@@ -115,12 +115,6 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
         WHERE pc.faculty_id = :facultyId
           AND pc.school_year = :schoolYear
           AND pc.semester = :semester
-        GROUP BY 
-            pc.subject_code, 
-            psl.year_level,
-            pc.faculty_id,
-            pc.school_year,
-            pc.semester
         """,
             nativeQuery = true
     )
