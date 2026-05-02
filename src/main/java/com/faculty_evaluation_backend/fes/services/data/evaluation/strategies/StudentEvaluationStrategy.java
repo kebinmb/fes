@@ -24,10 +24,12 @@ public class StudentEvaluationStrategy implements EvaluationStrategy {
 
     @Override
     public boolean isDuplicate(BaseEvaluationDTO baseEvaluationDTO){
-        return facultyEvaluationScoreRepository.existsByFacultyIdAndEvaluatorIdAndClassCodeAndSemesterAndSchoolYear(
+        return facultyEvaluationScoreRepository.existsByFacultyIdAndEvaluatorIdAndClassCodeAndSubjectCodeAndYearLevelAndSemesterAndSchoolYear(
                 baseEvaluationDTO.getFacultyId(),
                 baseEvaluationDTO.getEvaluatorId(),
                 baseEvaluationDTO.getClassCode(),
+                baseEvaluationDTO.getSubjectCode(),
+                baseEvaluationDTO.getYearLevel(),
                 baseEvaluationDTO.getSemester(),
                 baseEvaluationDTO.getSchoolYear()
         );

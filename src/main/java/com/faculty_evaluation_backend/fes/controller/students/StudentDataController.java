@@ -57,11 +57,13 @@ public class StudentDataController {
             @RequestParam @NotBlank(message = "facultyId is required") String facultyId,
             @RequestParam @NotBlank(message = "evaluatorId is required") String evaluatorId,
             @RequestParam @NotBlank(message = "classCode is required") String classCode,
+            @RequestParam @NotBlank(message = "subjectCode is required") String subjectCode,
+            @RequestParam @NotBlank(message = "yearLevel is required") String yearLevel,
             @RequestParam @NotBlank(message = "semester is required") String semester,
             @RequestParam @NotNull(message = "schoolYear is required") Integer schoolYear
     ){
         boolean hasEvaluated = studentEvaluationService.hasEvaluatedFacultyForClass(
-                facultyId, evaluatorId, classCode, semester, schoolYear
+                facultyId, evaluatorId, classCode,subjectCode,yearLevel, semester, schoolYear
         );
 
         StudentEvaluationCheckResponse response = StudentEvaluationCheckResponse.builder()

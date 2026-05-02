@@ -81,12 +81,19 @@ public class SupervisorDataService {
     }
     @Transactional(transactionManager = "primaryTransactionManager", readOnly = true)
     public boolean hasEvaluated(
-            String facultyId, String evaluatorId, String classCode,
+            String facultyId, String evaluatorId, String classCode,String subjectCode,String yearLevel,
             String semester, Integer schoolYear) {
 
         return facultyEvaluationScoreRepository
-                .existsByFacultyIdAndEvaluatorIdAndClassCodeAndSemesterAndSchoolYear(
-                        facultyId, evaluatorId, classCode, semester, schoolYear);
+                .existsByFacultyIdAndEvaluatorIdAndClassCodeAndSubjectCodeAndYearLevelAndSemesterAndSchoolYear(
+                        facultyId,
+                        evaluatorId,
+                        classCode,
+                        subjectCode,
+                        yearLevel,
+                        semester,
+                        schoolYear
+                );
     }
     private College parseCollege(String college) {
         try {

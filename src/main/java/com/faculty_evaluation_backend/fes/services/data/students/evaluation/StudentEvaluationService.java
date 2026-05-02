@@ -16,6 +16,8 @@ public class StudentEvaluationService {
             String facultyId,
             String evaluatorId,
             String classCode,
+            String subjectCode,
+            String yearLevel,
             String semester,
             Integer schoolYear
     ){
@@ -29,10 +31,12 @@ public class StudentEvaluationService {
 
         try {
             return facultyEvaluationScoreRepository
-                    .existsByFacultyIdAndEvaluatorIdAndClassCodeAndSemesterAndSchoolYear(
+                    .existsByFacultyIdAndEvaluatorIdAndClassCodeAndSubjectCodeAndYearLevelAndSemesterAndSchoolYear(
                             facultyId.trim(),
                             evaluatorId.trim(),
                             classCode.trim(),
+                            subjectCode.trim(),
+                            yearLevel.trim(),
                             semester.trim(),
                             schoolYear
                     );

@@ -7,7 +7,7 @@ CREATE TABLE faculty_evaluation_score (
                                           semester VARCHAR(10) NOT NULL,
                                           school_year INT NOT NULL,
                                           subject_code VARCHAR(255) NOT NULL,
-
+                                          year_level VARCHAR(10) NOT NULL,
                                           comments_or_feedbacks VARCHAR(255),
 
                                           management_of_teaching_and_learning_id BIGINT,

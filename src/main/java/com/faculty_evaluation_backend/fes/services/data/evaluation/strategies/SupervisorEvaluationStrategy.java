@@ -20,11 +20,13 @@ public class SupervisorEvaluationStrategy implements EvaluationStrategy {
 
     @Override
     public boolean isDuplicate(BaseEvaluationDTO dto) {
-        return facultyEvaluationScoreRepository.existsByFacultyIdAndEvaluatorIdAndSubjectCodeAndSemesterAndSchoolYear(
+        return facultyEvaluationScoreRepository.existsByFacultyIdAndEvaluatorIdAndClassCodeAndSubjectCodeAndYearLevelAndSemesterAndSchoolYear(
                 dto.getFacultyId(),
                 dto.getEvaluatorId(),
+                dto.getClassCode(),
                 dto.getSubjectCode(),
                 dto.getSemester(),
+                dto.getYearLevel(),
                 dto.getSchoolYear()
         );
     }

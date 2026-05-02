@@ -68,11 +68,13 @@ public class SupervisorDataController {
             @RequestParam String facultyId,
             @RequestParam String evaluatorId,
             @RequestParam String classCode,
+            @RequestParam String subjectCode,
+            @RequestParam String yearLevel,
             @RequestParam String semester,
             @RequestParam Integer schoolYear) {
         try {
             boolean hasEvaluated = supervisorDataService.hasEvaluated(
-                    facultyId, evaluatorId, classCode, semester, schoolYear);
+                    facultyId, evaluatorId, classCode, subjectCode, yearLevel, semester, schoolYear);
 
             EvaluationCheckResponse response = EvaluationCheckResponse.builder()
                     .hasEvaluated(hasEvaluated)

@@ -12,79 +12,24 @@ import java.util.Optional;
 
 @Repository
 public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyEvaluationScore, Long> {
-
-    boolean existsByFacultyIdAndEvaluatorIdAndClassCodeAndSemesterAndSchoolYear(
+    boolean existsByFacultyIdAndEvaluatorIdAndClassCodeAndSubjectCodeAndSemesterAndSchoolYear(
             String facultyId,
             String evaluatorId,
             String classCode,
-            String semester,
-            Integer schoolYear
-    );
-
-    boolean existsByFacultyIdAndEvaluatorIdAndClassCode(
-            String facultyId,
-            String evaluatorId,
-            String classCode
-    );
-    boolean existsByFacultyIdAndEvaluatorIdAndSubjectCodeAndSemesterAndSchoolYear(
-            String facultyId,
-            String evaluatorId,
             String subjectCode,
             String semester,
             Integer schoolYear
     );
+    boolean existsByFacultyIdAndEvaluatorIdAndClassCodeAndSubjectCodeAndYearLevelAndSemesterAndSchoolYear(
+            String facultyId,
+            String evaluatorId,
+            String classCode,
+            String subjectCode,
+            String yearLevel,
+            String semester,
+            Integer schoolYear
+    );
     Integer countDistinctEvaluatedSubjectsByEvaluatorId(String evaluatorId);
-
-    List<FacultyEvaluationScore> findByFacultyId(String facultyId);
-
-    List<FacultyEvaluationScore> findByFacultyIdAndSemesterAndSchoolYear(
-            String facultyId,
-            String semester,
-            Integer schoolYear
-    );
-    List<FacultyEvaluationScore> findByFacultyIdAndSubjectCodeAndSemesterAndSchoolYear(
-            String facultyId,
-            String semester,
-            Integer schoolYear,
-            String subjectCode
-    );
-    List<FacultyEvaluationScore> findByFacultyIdAndClassCode(
-            String facultyId,
-            String classCode
-    );
-
-
-    List<FacultyEvaluationScore> findByEvaluatorId(String evaluatorId);
-
-
-    List<FacultyEvaluationScore> findByEvaluatorIdAndSemesterAndSchoolYear(
-            String evaluatorId,
-            String semester,
-            Integer schoolYear
-    );
-
-
-    Optional<FacultyEvaluationScore> findByFacultyIdAndEvaluatorIdAndClassCodeAndSemesterAndSchoolYear(
-            String facultyId,
-            String evaluatorId,
-            String classCode,
-            String semester,
-            Integer schoolYear
-    );
-
-    List<FacultyEvaluationScore> findByClassCode(String classCode);
-
-    List<FacultyEvaluationScore> findByClassCodeAndSemesterAndSchoolYear(
-            String classCode,
-            String semester,
-            Integer schoolYear
-    );
-
-
-    List<FacultyEvaluationScore> findBySemesterAndSchoolYear(
-            String semester,
-            Integer schoolYear
-    );
 
 
     @Query("SELECT AVG(e.overallAverageScore) FROM FacultyEvaluationScore e " +

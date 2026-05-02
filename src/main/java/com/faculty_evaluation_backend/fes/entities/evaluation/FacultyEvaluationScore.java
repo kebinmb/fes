@@ -56,6 +56,9 @@ public class FacultyEvaluationScore extends Auditable {
     @Column(name = "subject_code",nullable = false)
     private String subjectCode;
 
+    @Column(name = "year_level", nullable = false)
+    private String yearLevel;
+
     @Column(name = "comments_or_feedbacks")
     private String commentsOrFeedbacks;
 

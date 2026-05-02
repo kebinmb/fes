@@ -99,6 +99,7 @@ public class EvaluationDataService {
                 .classCode(dto.getClassCode())
                 .subjectCode(dto.getSubjectCode())
                 .semester(dto.getSemester())
+                .yearLevel(dto.getYearLevel())
                 .schoolYear(dto.getSchoolYear())
                 .managementOfTeachingAndLearning(teaching)
                 .contentKnowledgePedagogyAndTechnology(content)

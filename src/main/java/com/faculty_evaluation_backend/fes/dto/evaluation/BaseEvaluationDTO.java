@@ -12,6 +12,7 @@ public class BaseEvaluationDTO {
     private String classCode;
     private String subjectCode;
     private String semester;
+    private String yearLevel;
     private Integer schoolYear;
     private String accessCode;
 
