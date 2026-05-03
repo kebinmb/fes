@@ -13,4 +13,5 @@ public class AuthenticationResponse {
     private String tokenType;
     private Long expiresIn; // in seconds
     private String studentId;
+    private String accessCode;
 }

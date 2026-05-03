@@ -134,6 +134,7 @@ public class StudentAuthenticationService {
         return AuthenticationResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
+                .accessCode(accessCode)
                 .tokenType("Bearer")
                 .expiresIn(jwtConfig.getExpiration())
                 .studentId(studentId)

@@ -101,7 +101,8 @@ public class AuthenticationController {
                 .header("Set-Cookie", buildStudentRefreshTokenCookie(response.getRefreshToken()).toString())
                 .body(Map.of(
                         "message", "Authentication successful",
-                        "studentId", response.getStudentId()
+                        "studentId", response.getStudentId(),
+                        "accessCode",response.getAccessCode()
                 ));
     }
     @PostMapping("/supervisor/login")
