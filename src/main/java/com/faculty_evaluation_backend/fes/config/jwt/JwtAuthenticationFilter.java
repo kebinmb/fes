@@ -59,18 +59,40 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 path.equals("/auth/supervisor/login") ||
                 path.equals("/auth/access-code/generate");
     }
-    private String extractAccessToken(HttpServletRequest request){
-        if(request.getCookies() != null){
-            for(Cookie cookie : request.getCookies()){
-                if("student_access".equals(cookie.getName()) || "supervisor_access".equals(cookie.getName())){
-                    return cookie.getValue();
+    private String extractAccessToken(HttpServletRequest request) {
+        String supervisorToken = null;
+        String studentToken = null;
+
+        if (request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if ("supervisor_access".equals(cookie.getName())) {
+                    supervisorToken = cookie.getValue();
+                } else if ("student_access".equals(cookie.getName())) {
+                    studentToken = cookie.getValue();
                 }
             }
         }
+
+        String path = request.getServletPath();
+
+        // ✅ FIXED: use contains instead of startsWith
+        if (path.contains("/student")) {
+            return studentToken;
+        }
+
+        if (path.contains("/supervisor")) {
+            return supervisorToken;
+        }
+
+        // fallback
+        if (supervisorToken != null) return supervisorToken;
+        if (studentToken != null) return studentToken;
+
         String header = request.getHeader("Authorization");
         if (header != null && header.startsWith("Bearer ")) {
             return header.substring(7);
         }
+
         return null;
     }
 }

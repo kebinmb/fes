@@ -9,6 +9,7 @@ import com.faculty_evaluation_backend.fes.services.authentication.SupervisorAcco
 import com.faculty_evaluation_backend.fes.utilities.token.TokenHashUtil;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseCookie;
@@ -132,13 +133,14 @@ public class AuthenticationController {
         ));
     }
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(HttpServletRequest request) {
+    public ResponseEntity<?> logout(HttpServletRequest request, HttpServletResponse response) {
 
         try {
             String refreshToken = extractCookie(request, "student_refresh");
-            if(refreshToken == null){
+            if (refreshToken == null) {
                 refreshToken = extractCookie(request, "supervisor_refresh");
             }
+
             if (refreshToken != null) {
                 String hash = TokenHashUtil.sha256(refreshToken);
 
@@ -152,6 +154,9 @@ public class AuthenticationController {
         } catch (Exception e) {
             log.warn("Logout token revoke failed: {}", e.getMessage());
         }
+
+        // ✅ CRITICAL FIX
+        request.getSession().invalidate();
 
         return ResponseEntity.ok()
                 .header("Set-Cookie", deleteCookie("student_access").toString())
