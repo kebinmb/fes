@@ -36,6 +36,7 @@ public interface PrimaryStudentLoadRepository extends JpaRepository<PrimaryStude
         pc.sectionId,
         pc.semester,
         pc.schoolYear,
+        psl.yearLevel,
         psl.studentId,
         CAST(f.college AS string),
         CONCAT(f.firstname, ' ', f.lastname),

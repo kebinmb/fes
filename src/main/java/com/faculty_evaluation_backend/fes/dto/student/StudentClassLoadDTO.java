@@ -18,7 +18,7 @@ public class StudentClassLoadDTO {
     private Integer sectionId;
     private String semester;
     private Integer schoolYear;
-
+    private String yearLevel;
     // PrimaryStudentLoad
     private String studentId;
 
