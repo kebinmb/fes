@@ -2,6 +2,8 @@ package com.faculty_evaluation_backend.fes.repositories.evaluation;
 
 
 import com.faculty_evaluation_backend.fes.entities.evaluation.FacultyEvaluationScore;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -12,6 +14,13 @@ import java.util.Optional;
 
 @Repository
 public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyEvaluationScore, Long> {
+
+    @Query("""
+                SELECT f FROM FacultyEvaluationScore f
+                JOIN FETCH f.faculty
+            """)
+    Page<FacultyEvaluationScore> findAllWithFaculty(Pageable pageable);
+
     boolean existsByFacultyIdAndEvaluatorIdAndClassCodeAndSubjectCodeAndSemesterAndSchoolYear(
             String facultyId,
             String evaluatorId,
@@ -20,6 +29,7 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
             String semester,
             Integer schoolYear
     );
+
     boolean existsByFacultyIdAndEvaluatorIdAndClassCodeAndSubjectCodeAndYearLevelAndSemesterAndSchoolYear(
             String facultyId,
             String evaluatorId,
@@ -29,16 +39,17 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
             String semester,
             Integer schoolYear
     );
+
     Integer countDistinctEvaluatedSubjectsByEvaluatorId(String evaluatorId);
 
 
     @Query("SELECT AVG(e.overallAverageScore) FROM FacultyEvaluationScore e " +
-           "WHERE e.facultyId = :facultyId")
+            "WHERE e.facultyId = :facultyId")
     Double getAverageScoreForFaculty(@Param("facultyId") String facultyId);
 
 
     @Query("SELECT AVG(e.overallAverageScore) FROM FacultyEvaluationScore e " +
-           "WHERE e.facultyId = :facultyId AND e.semester = :semester AND e.schoolYear = :schoolYear")
+            "WHERE e.facultyId = :facultyId AND e.semester = :semester AND e.schoolYear = :schoolYear")
     Double getAverageScoreForFacultyInPeriod(
             @Param("facultyId") String facultyId,
             @Param("semester") String semester,
@@ -57,7 +68,7 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
     );
 
     @Query("SELECT COUNT(DISTINCT e.evaluatorId) FROM FacultyEvaluationScore e " +
-           "WHERE e.facultyId = :facultyId AND e.semester = :semester AND e.schoolYear = :schoolYear")
+            "WHERE e.facultyId = :facultyId AND e.semester = :semester AND e.schoolYear = :schoolYear")
     Long countDistinctStudentsByFacultyIdAndSemesterAndSchoolYear(
             @Param("facultyId") String facultyId,
             @Param("semester") String semester,
@@ -66,11 +77,11 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
 
 
     @Query("SELECT e.facultyId, AVG(e.overallAverageScore), COUNT(e) " +
-           "FROM FacultyEvaluationScore e " +
-           "WHERE e.semester = :semester AND e.schoolYear = :schoolYear " +
-           "GROUP BY e.facultyId " +
-           "HAVING COUNT(e) >= :minEvaluations " +
-           "ORDER BY AVG(e.overallAverageScore) DESC")
+            "FROM FacultyEvaluationScore e " +
+            "WHERE e.semester = :semester AND e.schoolYear = :schoolYear " +
+            "GROUP BY e.facultyId " +
+            "HAVING COUNT(e) >= :minEvaluations " +
+            "ORDER BY AVG(e.overallAverageScore) DESC")
     List<Object[]> findTopRatedFaculty(
             @Param("semester") String semester,
             @Param("schoolYear") Integer schoolYear,
@@ -79,10 +90,10 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
 
 
     @Query("SELECT e.facultyId, AVG(e.overallAverageScore) as avgScore " +
-           "FROM FacultyEvaluationScore e " +
-           "WHERE e.semester = :semester AND e.schoolYear = :schoolYear " +
-           "GROUP BY e.facultyId " +
-           "ORDER BY avgScore DESC")
+            "FROM FacultyEvaluationScore e " +
+            "WHERE e.semester = :semester AND e.schoolYear = :schoolYear " +
+            "GROUP BY e.facultyId " +
+            "ORDER BY avgScore DESC")
     List<Object[]> findFacultyRankings(
             @Param("semester") String semester,
             @Param("schoolYear") Integer schoolYear
@@ -90,9 +101,9 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
 
 
     @Query("SELECT e.facultyId FROM FacultyEvaluationScore e " +
-           "WHERE e.semester = :semester AND e.schoolYear = :schoolYear " +
-           "GROUP BY e.facultyId " +
-           "HAVING AVG(e.overallAverageScore) >= 3.0")
+            "WHERE e.semester = :semester AND e.schoolYear = :schoolYear " +
+            "GROUP BY e.facultyId " +
+            "HAVING AVG(e.overallAverageScore) >= 3.0")
     List<String> findPassedFaculty(
             @Param("semester") String semester,
             @Param("schoolYear") Integer schoolYear
@@ -100,9 +111,9 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
 
 
     @Query("SELECT e.facultyId FROM FacultyEvaluationScore e " +
-           "WHERE e.semester = :semester AND e.schoolYear = :schoolYear " +
-           "GROUP BY e.facultyId " +
-           "HAVING AVG(e.overallAverageScore) >= 4.5")
+            "WHERE e.semester = :semester AND e.schoolYear = :schoolYear " +
+            "GROUP BY e.facultyId " +
+            "HAVING AVG(e.overallAverageScore) >= 4.5")
     List<String> findExcellentFaculty(
             @Param("semester") String semester,
             @Param("schoolYear") Integer schoolYear
@@ -110,10 +121,10 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
 
 
     @Query("SELECT e.facultyId, AVG(e.overallAverageScore) " +
-           "FROM FacultyEvaluationScore e " +
-           "WHERE e.semester = :semester AND e.schoolYear = :schoolYear " +
-           "GROUP BY e.facultyId " +
-           "HAVING AVG(e.overallAverageScore) < 3.0")
+            "FROM FacultyEvaluationScore e " +
+            "WHERE e.semester = :semester AND e.schoolYear = :schoolYear " +
+            "GROUP BY e.facultyId " +
+            "HAVING AVG(e.overallAverageScore) < 3.0")
     List<Object[]> findFacultyNeedingImprovement(
             @Param("semester") String semester,
             @Param("schoolYear") Integer schoolYear
@@ -121,13 +132,13 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
 
 
     @Query("SELECT e FROM FacultyEvaluationScore e " +
-           "WHERE e.overallInterpretation = 'Incomplete'")
+            "WHERE e.overallInterpretation = 'Incomplete'")
     List<FacultyEvaluationScore> findIncompleteEvaluations();
 
 
     @Query("SELECT COUNT(e) FROM FacultyEvaluationScore e " +
-           "WHERE e.semester = :semester AND e.schoolYear = :schoolYear " +
-           "AND e.overallInterpretation = 'Incomplete'")
+            "WHERE e.semester = :semester AND e.schoolYear = :schoolYear " +
+            "AND e.overallInterpretation = 'Incomplete'")
     Long countIncompleteEvaluations(
             @Param("semester") String semester,
             @Param("schoolYear") Integer schoolYear

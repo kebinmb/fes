@@ -1,6 +1,7 @@
 package com.faculty_evaluation_backend.fes.dto.student;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -9,6 +10,7 @@ import java.util.List;
 @Getter
 @Setter
 @AllArgsConstructor
+@Builder
 public class PageResponse<T>{
     private List<T> content;
     private long totalElements;
