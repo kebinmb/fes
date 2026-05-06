@@ -1,10 +1,13 @@
 package com.faculty_evaluation_backend.fes.controller.authentication;
 
-import com.faculty_evaluation_backend.fes.dto.authentication.LoginRequest;
-import com.faculty_evaluation_backend.fes.entities.authentication.StudentAccessCode;
-import com.faculty_evaluation_backend.fes.repositories.tokens.RefreshTokenRepository;
-import com.faculty_evaluation_backend.fes.services.authentication.StudentAuthenticationService;
 import com.faculty_evaluation_backend.fes.config.jwt.JwtConfig;
+import com.faculty_evaluation_backend.fes.dto.authentication.LoginRequest;
+import com.faculty_evaluation_backend.fes.entities.authentication.CustomUserDetails;
+import com.faculty_evaluation_backend.fes.entities.authentication.StudentAccessCode;
+import com.faculty_evaluation_backend.fes.entities.authentication.UserAccounts;
+import com.faculty_evaluation_backend.fes.repositories.tokens.RefreshTokenRepository;
+import com.faculty_evaluation_backend.fes.services.authentication.AdministratorAccountsAuthenticationService;
+import com.faculty_evaluation_backend.fes.services.authentication.StudentAuthenticationService;
 import com.faculty_evaluation_backend.fes.services.authentication.SupervisorAccountsAuthenticationService;
 import com.faculty_evaluation_backend.fes.utilities.token.TokenHashUtil;
 import jakarta.servlet.http.Cookie;
@@ -27,6 +30,7 @@ public class AuthenticationController {
 
     private final StudentAuthenticationService studentAuthenticationService;
     private final SupervisorAccountsAuthenticationService supervisorAccountsAuthenticationService;
+    private final AdministratorAccountsAuthenticationService administratorAccountsAuthenticationService;
     private final JwtConfig jwtConfig;
     private final RefreshTokenRepository refreshTokenRepository;
 
@@ -49,8 +53,9 @@ public class AuthenticationController {
                 .maxAge(jwtConfig.getRefreshExpiration() / 1000)
                 .build();
     }
-    private ResponseCookie buildSupervisorAccessTokenCookie(String token){
-        return ResponseCookie.from("supervisor_access",token)
+
+    private ResponseCookie buildSupervisorAccessTokenCookie(String token) {
+        return ResponseCookie.from("supervisor_access", token)
                 .httpOnly(true)
                 .secure(false)
                 .path("/")
@@ -58,15 +63,37 @@ public class AuthenticationController {
                 .maxAge(Math.max(1, jwtConfig.getExpiration() / 1000))
                 .build();
     }
-    private ResponseCookie buildSupervisorRefreshTokenCookie(String token){
-        return ResponseCookie.from("supervisor_refresh",token)
+
+    private ResponseCookie buildSupervisorRefreshTokenCookie(String token) {
+        return ResponseCookie.from("supervisor_refresh", token)
                 .httpOnly(true)
                 .secure(false)
                 .path("/")
                 .sameSite("Lax")
-                .maxAge(Math.max(1, jwtConfig.getRefreshExpiration()/1000))
+                .maxAge(Math.max(1, jwtConfig.getRefreshExpiration() / 1000))
                 .build();
     }
+
+    private ResponseCookie buildAdministratorAccessTokenCookie(String token) {
+        return ResponseCookie.from("administrator_access", token)
+                .httpOnly(true)
+                .secure(false)
+                .path("/")
+                .sameSite("Lax")
+                .maxAge(Math.max(1, jwtConfig.getExpiration() / 1000))
+                .build();
+    }
+
+    private ResponseCookie buildAdministratorRefreshTokenCookie(String token) {
+        return ResponseCookie.from("administrator_refresh", token)
+                .httpOnly(true)
+                .secure(false)
+                .path("/")
+                .sameSite("Lax")
+                .maxAge(Math.max(1, jwtConfig.getRefreshExpiration() / 1000))
+                .build();
+    }
+
     private ResponseCookie deleteCookie(String name) {
         return ResponseCookie.from(name, "")
                 .httpOnly(true)
@@ -76,6 +103,7 @@ public class AuthenticationController {
                 .maxAge(0)
                 .build();
     }
+
     @PostMapping("/access-code/generate")
     public ResponseEntity<?> generateAccessCode(@RequestParam String studentId) {
         StudentAccessCode code = studentAuthenticationService.generateAccessCode(studentId);
@@ -103,35 +131,70 @@ public class AuthenticationController {
                 .body(Map.of(
                         "message", "Authentication successful",
                         "studentId", response.getStudentId(),
-                        "accessCode",response.getAccessCode()
+                        "accessCode", response.getAccessCode()
                 ));
     }
+
     @PostMapping("/supervisor/login")
     public ResponseEntity<?> supervisorLogin(
             @RequestBody LoginRequest loginRequest,
             HttpServletRequest request
-    ){
+    ) {
         var response = supervisorAccountsAuthenticationService.login(loginRequest);
         return ResponseEntity.ok()
                 .header("Set-Cookie", buildSupervisorAccessTokenCookie(response.getAccessToken()).toString())
                 .header("Set-Cookie", buildSupervisorRefreshTokenCookie(response.getRefreshToken()).toString())
-                .body(Map.of("message","Authentication successful","evaluatorId",response.getEvaluatorId(),"college",response.getCollege()));
+                .body(Map.of("message", "Authentication successful", "evaluatorId", response.getEvaluatorId(), "college", response.getCollege()));
     }
+
+    @PostMapping("/administrator/login")
+    public ResponseEntity<?> administratorLogin(
+            @RequestBody LoginRequest loginRequest,
+            HttpServletRequest request
+    ) {
+        var response = administratorAccountsAuthenticationService.login(loginRequest);
+
+        return ResponseEntity.ok()
+                .header(
+                        "Set-Cookie",
+                        buildAdministratorAccessTokenCookie(
+                                response.getAccessToken()
+                        ).toString()
+                )
+                .header(
+                        "Set-Cookie",
+                        buildAdministratorRefreshTokenCookie(
+                                response.getRefreshToken()
+                        ).toString()
+                )
+                .body(Map.of(
+                        "message", "Authentication successful",
+                        "administratorId", response.getEvaluatorId()
+                ));
+    }
+
     @GetMapping("/me")
     public ResponseEntity<?> me(Authentication authentication) {
+
         if (authentication == null || !authentication.isAuthenticated()) {
             return ResponseEntity.status(401).build();
         }
 
+        String role = authentication.getAuthorities()
+                .stream()
+                .findFirst()
+                .map(Object::toString)
+                .orElse("ROLE_STUDENT");
+
+        String userId = authentication.getName();
+
         return ResponseEntity.ok(Map.of(
-                "userId", authentication.getName(),
-                "role", authentication.getAuthorities()
-                        .stream()
-                        .findFirst()
-                        .map(Object::toString)
-                        .orElse("ROLE_STUDENT")
+                "authenticated", true,
+                "userId", userId,
+                "role", role
         ));
     }
+
     @PostMapping("/logout")
     public ResponseEntity<?> logout(HttpServletRequest request, HttpServletResponse response) {
 
@@ -140,7 +203,9 @@ public class AuthenticationController {
             if (refreshToken == null) {
                 refreshToken = extractCookie(request, "supervisor_refresh");
             }
-
+            if (refreshToken == null) {
+                refreshToken = extractCookie(request, "administrator_refresh");
+            }
             if (refreshToken != null) {
                 String hash = TokenHashUtil.sha256(refreshToken);
 
@@ -154,17 +219,17 @@ public class AuthenticationController {
         } catch (Exception e) {
             log.warn("Logout token revoke failed: {}", e.getMessage());
         }
-
-        // ✅ CRITICAL FIX
         request.getSession().invalidate();
-
         return ResponseEntity.ok()
                 .header("Set-Cookie", deleteCookie("student_access").toString())
                 .header("Set-Cookie", deleteCookie("student_refresh").toString())
                 .header("Set-Cookie", deleteCookie("supervisor_access").toString())
                 .header("Set-Cookie", deleteCookie("supervisor_refresh").toString())
+                .header("Set-Cookie", deleteCookie("administrator_access").toString())
+                .header("Set-Cookie", deleteCookie("administrator_refresh").toString())
                 .body(Map.of("message", "Logged out"));
     }
+
     private String extractCookie(HttpServletRequest request, String name) {
         if (request.getCookies() == null) return null;
 

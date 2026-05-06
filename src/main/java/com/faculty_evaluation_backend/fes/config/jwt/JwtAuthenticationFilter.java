@@ -28,28 +28,74 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final StudentAuthenticationService studentAuthenticationService;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException{
-        try{
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain
+    ) throws ServletException, IOException {
+
+        log.info("JWT FILTER -> {}", request.getServletPath());
+
+        try {
+
             String token = extractAccessToken(request);
-            if (token != null
-                    && jwtService.isAccessTokenValid(token)
-                    && !jwtService.isTokenExpired(token)) {
-                Claims claims = jwtService.extractAllClaims(token);
-                String userId = claims.getSubject();
-                String role = claims.get("role", String.class);
-                UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
-                        userId,
-                        null,
-                        Collections.singletonList(new SimpleGrantedAuthority(role))
-                );
-                SecurityContextHolder.getContext().setAuthentication(authenticationToken);
-                log.debug("Authenticated {} with role {}", userId, role);
+
+            log.info("TOKEN EXISTS: {}", token != null);
+
+            if (token != null) {
+
+                log.info("TOKEN VALUE: {}", token);
+
+                boolean valid =
+                        jwtService.isAccessTokenValid(token);
+
+                boolean expired =
+                        jwtService.isTokenExpired(token);
+
+                log.info("TOKEN VALID: {}", valid);
+
+                log.info("TOKEN EXPIRED: {}", expired);
+
+                if (valid && !expired) {
+
+                    Claims claims =
+                            jwtService.extractAllClaims(token);
+
+                    String userId =
+                            claims.getSubject();
+
+                    String role =
+                            claims.get("role", String.class);
+
+                    log.info("USER ID: {}", userId);
+
+                    log.info("ROLE: {}", role);
+
+                    UsernamePasswordAuthenticationToken authenticationToken =
+                            new UsernamePasswordAuthenticationToken(
+                                    userId,
+                                    null,
+                                    Collections.singletonList(
+                                            new SimpleGrantedAuthority(role)
+                                    )
+                            );
+
+                    SecurityContextHolder
+                            .getContext()
+                            .setAuthentication(authenticationToken);
+
+                    log.info("AUTHENTICATION SET");
+                }
             }
-        }catch (UnauthorizedException e){
-            log.warn("JWT auth failed: {}", e.getMessage());
+
+        } catch (Exception e) {
+
+            log.error("JWT FILTER ERROR", e);
+
             SecurityContextHolder.clearContext();
         }
-        filterChain.doFilter(request,response);
+
+        filterChain.doFilter(request, response);
     }
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request){
@@ -57,25 +103,31 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         return path.equals("/auth/student/login") ||
                 path.equals("/auth/supervisor/login") ||
-                path.equals("/auth/access-code/generate");
+                path.equals("/auth/access-code/generate") || path.equals("/auth/administrator/login");
     }
     private String extractAccessToken(HttpServletRequest request) {
+
         String supervisorToken = null;
         String studentToken = null;
+        String administratorToken = null;
 
         if (request.getCookies() != null) {
             for (Cookie cookie : request.getCookies()) {
+
                 if ("supervisor_access".equals(cookie.getName())) {
                     supervisorToken = cookie.getValue();
+
                 } else if ("student_access".equals(cookie.getName())) {
                     studentToken = cookie.getValue();
+
+                } else if ("administrator_access".equals(cookie.getName())) {
+                    administratorToken = cookie.getValue();
                 }
             }
         }
 
         String path = request.getServletPath();
 
-        // ✅ FIXED: use contains instead of startsWith
         if (path.contains("/student")) {
             return studentToken;
         }
@@ -84,11 +136,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return supervisorToken;
         }
 
-        // fallback
+        if (path.contains("/admin")) {
+            return administratorToken;
+        }
+
+        // fallback priority
+        if (administratorToken != null) return administratorToken;
         if (supervisorToken != null) return supervisorToken;
         if (studentToken != null) return studentToken;
 
         String header = request.getHeader("Authorization");
+
         if (header != null && header.startsWith("Bearer ")) {
             return header.substring(7);
         }

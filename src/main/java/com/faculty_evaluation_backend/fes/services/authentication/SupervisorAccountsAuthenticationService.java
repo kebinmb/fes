@@ -2,7 +2,7 @@ package com.faculty_evaluation_backend.fes.services.authentication;
 
 import com.faculty_evaluation_backend.fes.audit.AuditableAction;
 import com.faculty_evaluation_backend.fes.config.jwt.JwtConfig;
-import com.faculty_evaluation_backend.fes.dto.authentication.FacultyAuthenticationResponse;
+import com.faculty_evaluation_backend.fes.dto.authentication.UserAuthenticationResponse;
 import com.faculty_evaluation_backend.fes.dto.authentication.LoginRequest;
 import com.faculty_evaluation_backend.fes.entities.authentication.CustomUserDetails;
 import com.faculty_evaluation_backend.fes.entities.authentication.UserAccounts;
@@ -27,7 +27,7 @@ public class SupervisorAccountsAuthenticationService {
     private final JwtConfig jwtConfig;
     @AuditableAction(action = "AUTHENTICATE_SUPERVISOR", entity = "SUPERVISOR_AUTHENTICATION")
     @Transactional(transactionManager = "primaryTransactionManager")
-    public FacultyAuthenticationResponse login(LoginRequest loginRequest){
+    public UserAuthenticationResponse login(LoginRequest loginRequest){
 
         String identifier = loginRequest.getUsernameOrEmail();
 
@@ -55,7 +55,7 @@ public class SupervisorAccountsAuthenticationService {
 
             log.info("Login successful for userId = {}", userAccount.getUserId());
 
-            return FacultyAuthenticationResponse.builder()
+            return UserAuthenticationResponse.builder()
                     .accessToken(accessToken)
                     .refreshToken(refreshToken)
                     .tokenType("Bearer")
