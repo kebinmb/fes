@@ -7,6 +7,8 @@ import com.faculty_evaluation_backend.fes.dto.student.PageResponse;
 import com.faculty_evaluation_backend.fes.entities.authentication.UserAccounts;
 import com.faculty_evaluation_backend.fes.entities.evaluation.FacultyEvaluationScore;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryFaculty;
+import com.faculty_evaluation_backend.fes.entities.primary.enums.College;
+import com.faculty_evaluation_backend.fes.entities.primary.enums.Status;
 import com.faculty_evaluation_backend.fes.repositories.authentication.UserAccountsRepository;
 import com.faculty_evaluation_backend.fes.repositories.evaluation.FacultyEvaluationScoreRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryFacultyRepository;
@@ -28,29 +30,55 @@ public class AdministratorService {
     private final UserAccountsRepository userAccountsRepository;
     private final FacultyEvaluationScoreRepository facultyEvaluationScoreRepository;
 
-    public PageResponse<FetchFacultyResponse> facultyList(int page, int size) {
+    public PageResponse<FetchFacultyResponse> facultyList(
+            int page,
+            int size,
+            String search
+    ) {
 
-        Page<PrimaryFaculty> facultyPage =
-                primaryFacultyRepository.findAll(PageRequest.of(page, size));
+        Page<PrimaryFaculty> facultyPage;
 
-        List<FetchFacultyResponse> responseList = facultyPage.getContent()
-                .stream()
-                .map(faculty -> FetchFacultyResponse.builder()
-                        .facultyId(faculty.getFacultyId())
-                        .firstname(faculty.getFirstname())
-                        .lastname(faculty.getLastname())
-                        .middlename(faculty.getMiddlename())
-                        .position(faculty.getPosition())
-                        .loadLimit(
-                                faculty.getLoadLimit() != null
-                                        ? faculty.getLoadLimit().toString()
-                                        : null
+        Pageable pageable = PageRequest.of(page, size);
+
+        if (search != null && !search.trim().isEmpty()) {
+
+            facultyPage =
+                    primaryFacultyRepository
+                            .findByFirstnameContainingIgnoreCaseOrLastnameContainingIgnoreCaseOrFacultyIdContainingIgnoreCaseOrPositionContainingIgnoreCase(
+                                    search,
+                                    search,
+                                    search,
+                                    search,
+                                    pageable
+                            );
+
+        } else {
+
+            facultyPage =
+                    primaryFacultyRepository.findAll(pageable);
+
+        }
+
+        List<FetchFacultyResponse> responseList =
+                facultyPage.getContent()
+                        .stream()
+                        .map(faculty ->
+                                FetchFacultyResponse.builder()
+                                        .facultyId(faculty.getFacultyId())
+                                        .firstname(faculty.getFirstname())
+                                        .lastname(faculty.getLastname())
+                                        .middlename(faculty.getMiddlename())
+                                        .position(faculty.getPosition())
+                                        .loadLimit(
+                                                faculty.getLoadLimit() != null
+                                                        ? faculty.getLoadLimit().toString()
+                                                        : null
+                                        )
+                                        .status(faculty.getStatus())
+                                        .college(faculty.getCollege())
+                                        .build()
                         )
-                        .status(faculty.getStatus())
-                        .college(faculty.getCollege())
-                        .build()
-                )
-                .toList();
+                        .toList();
 
         return PageResponse.<FetchFacultyResponse>builder()
                 .content(responseList)
@@ -126,5 +154,39 @@ public class AdministratorService {
                 .totalElements(scorePage.getTotalElements())
                 .totalPages(scorePage.getTotalPages())
                 .build();
+    }
+
+    public String updateFaculty(
+            String facultyId,
+            String firstname,
+            String middlename,
+            String lastname,
+            String position,
+            Double loadLimit,
+            College college,
+            Status status
+    ) {
+
+        PrimaryFaculty faculty =
+                primaryFacultyRepository.findByFacultyId(facultyId)
+                        .orElseThrow(() ->
+                                new RuntimeException("Faculty not found"));
+
+        int updatedRows = primaryFacultyRepository.updateFaculty(
+                facultyId,
+                firstname,
+                middlename,
+                lastname,
+                position,
+                loadLimit,
+                college,
+                status
+        );
+
+        if (updatedRows > 0) {
+            return "Faculty updated successfully.";
+        }
+
+        return "Failed to update faculty.";
     }
 }

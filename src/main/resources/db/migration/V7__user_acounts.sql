@@ -24,7 +24,7 @@ INSERT INTO user_accounts (
     'admin@university.edu',
     '$2a$12$5sofiiPN.AraWznt9z1AJuGvniqEC.1pewOFI3LTD.BmfJV0iFm0a', -- BCrypt for "admin123"
     'DEAN',
-    'CCS',
+    'CIT',
     b'1',
     b'0',
     NULL,
