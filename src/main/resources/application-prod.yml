@@ -1,14 +1,14 @@
 spring:
   datasource:
     primary:
-      jdbc-url: jdbc:mysql://prod-db-host:3306/faculty_evaluation_db?useSSL=true&serverTimezone=UTC
-      username: faculty_user
+      jdbc-url: jdbc:mysql://68.178.161.177:3306/faculty_evaluation_db?useSSL=true&serverTimezone=UTC
+      username: syndicateadmin_faculty_evaluation_db
       password: ${DB_PASSWORD}
       driver-class-name: com.mysql.cj.jdbc.Driver
 
     legacy:
-      jdbc-url: jdbc:mysql://legacy-db-host:3306/sisdatabase?useSSL=true&serverTimezone=UTC
-      username: legacy_user
+      jdbc-url: jdbc:mysql://119.92.126.122:3306/sisdatabase?useSSL=true&serverTimezone=UTC
+      username: ict
       password: ${LEGACY_DB_PASSWORD}
       driver-class-name: com.mysql.cj.jdbc.Driver
 
