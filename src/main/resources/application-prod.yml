@@ -32,7 +32,7 @@ spring:
     validate-on-migrate: true
 
 server:
-  port: 8080
+  port: 9000
   forward-headers-strategy: framework
 
 logging:
