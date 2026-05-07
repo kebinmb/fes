@@ -6,10 +6,6 @@ import com.faculty_evaluation_backend.fes.entities.primary.PrimaryFaculty;
 import jakarta.persistence.*;
 import lombok.*;
 
-/**
- * Entity representing faculty evaluation for Commitment and Transparency criteria
- * Uses RatingScale enum for type-safe rating values
- */
 @Getter
 @Setter
 @NoArgsConstructor
@@ -44,63 +40,81 @@ public class CommitmentAndTransparency extends Auditable {
     private RatingScale transparentGrading;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "faculty_id", referencedColumnName = "faculty_id", insertable = false, updatable = false)
+    @JoinColumn(
+            name = "faculty_id",
+            referencedColumnName = "faculty_id",
+            insertable = false,
+            updatable = false
+    )
     private PrimaryFaculty faculty;
 
     public double calculateAverageScore() {
-        if (diversityRecognition == null || consultationSupport == null ||
-                immediateFeedback == null || transparentGrading == null) {
+
+        if (!isComplete()) {
             return 0.0;
         }
 
-        int totalScore = diversityRecognition.getScore() +
-                consultationSupport.getScore() +
-                immediateFeedback.getScore() +
-                transparentGrading.getScore();
+        return diversityRecognition.getScore()
+                + consultationSupport.getScore()
+                + immediateFeedback.getScore()
+                + transparentGrading.getScore();
+    }
 
-        return totalScore / 4.0;
+    public double calculatePercentageScore() {
+
+        // MAX = 4 criteria × 5 = 20
+        return (calculateAverageScore() / 20.0) * 100.0;
     }
 
     public String getOverallInterpretation() {
-        double average = calculateAverageScore();
-        if (average >= 4.5) return "Excellent";
-        if (average >= 3.5) return "Very Good";
-        if (average >= 2.5) return "Good";
-        if (average >= 1.5) return "Fair";
+
+        double percentage = calculatePercentageScore();
+
+        if (percentage >= 90) return "Excellent";
+        if (percentage >= 80) return "Very Good";
+        if (percentage >= 70) return "Good";
+        if (percentage >= 60) return "Fair";
+
         return "Poor";
     }
 
     public boolean isAllPositive() {
-        return diversityRecognition.isPositive() &&
-                consultationSupport.isPositive() &&
-                immediateFeedback.isPositive() &&
-                transparentGrading.isPositive();
+
+        return diversityRecognition.isPositive()
+                && consultationSupport.isPositive()
+                && immediateFeedback.isPositive()
+                && transparentGrading.isPositive();
     }
 
     public boolean isComplete() {
-        return diversityRecognition != null &&
-                consultationSupport != null &&
-                immediateFeedback != null &&
-                transparentGrading != null;
+
+        return diversityRecognition != null
+                && consultationSupport != null
+                && immediateFeedback != null
+                && transparentGrading != null;
     }
 
     public boolean hasStrongTransparency() {
-        return transparentGrading != null && transparentGrading.isPositive();
+
+        return transparentGrading != null
+                && transparentGrading.isPositive();
     }
 
     public boolean hasExcellentStudentSupport() {
-        return consultationSupport != null && consultationSupport.isPositive() &&
-                immediateFeedback != null && immediateFeedback.isPositive();
+
+        return consultationSupport != null
+                && consultationSupport.isPositive()
+                && immediateFeedback != null
+                && immediateFeedback.isPositive();
     }
 
     public boolean hasExcellentDiversityRecognition() {
-        return diversityRecognition != null &&
-                diversityRecognition == RatingScale.ALWAYS_MANIFESTED;
+
+        return diversityRecognition != null
+                && diversityRecognition == RatingScale.ALWAYS_MANIFESTED;
     }
 
     public static int getTotalCriteria() {
         return 4;
     }
 }
-
-

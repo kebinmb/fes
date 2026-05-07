@@ -16,46 +16,56 @@ import java.util.List;
 public interface PrimaryStudentLoadRepository extends JpaRepository<PrimaryStudentLoad, Long> {
 
     @Query("SELECT CASE WHEN COUNT(sl) > 0 THEN true ELSE false END FROM PrimaryStudentLoad sl " +
-           "WHERE sl.loadId = :loadId " +
-           "AND sl.studentId = :studentId " +
-           "AND (sl.yearLevel = :yearLevel OR (sl.yearLevel IS NULL AND :yearLevel IS NULL)) " +
-           "AND sl.classCode = :classCode")
+            "WHERE sl.loadId = :loadId " +
+            "AND sl.studentId = :studentId " +
+            "AND (sl.yearLevel = :yearLevel OR (sl.yearLevel IS NULL AND :yearLevel IS NULL)) " +
+            "AND sl.classCode = :classCode")
     boolean existsByLoadIdAndStudentIdAndYearLevelAndClassCode(
             @Param("loadId") Integer loadId,
             @Param("studentId") String studentId,
             @Param("yearLevel") String yearLevel,
             @Param("classCode") Integer classCode
     );
+
     Integer countDistinctTotalPrimaryStudentLoadByStudentId(String studentId);
 
     @Query("""
-    SELECT new com.faculty_evaluation_backend.fes.dto.student.StudentClassLoadDTO(
-        pc.classCode,
-        pc.facultyId,
-        pc.subjectCode,
-        pc.sectionId,
-        pc.semester,
-        pc.schoolYear,
-        psl.yearLevel,
-        psl.studentId,
-        CAST(f.college AS string),
-        CONCAT(f.firstname, ' ', f.lastname),
-        s.descriptiveTitle
-    )
-    FROM PrimaryStudentLoad psl
-    LEFT JOIN psl.primaryClass pc
-    LEFT JOIN pc.faculty f
-    LEFT JOIN pc.subject s
-    WHERE psl.studentId = :studentId
-      AND (
-            (pc.schoolYear = :schoolYear AND pc.semester = :semester)
-            OR pc IS NULL
-          )
-""")
+                SELECT new com.faculty_evaluation_backend.fes.dto.student.StudentClassLoadDTO(
+                    pc.classCode,
+                    pc.facultyId,
+                    pc.subjectCode,
+                    pc.sectionId,
+                    pc.semester,
+                    pc.schoolYear,
+                    psl.yearLevel,
+                    psl.studentId,
+                    CAST(f.college AS string),
+                    CONCAT(f.firstname, ' ', f.lastname),
+                    s.descriptiveTitle
+                )
+                FROM PrimaryStudentLoad psl
+                LEFT JOIN psl.primaryClass pc
+                LEFT JOIN pc.faculty f
+                LEFT JOIN pc.subject s
+                WHERE psl.studentId = :studentId
+                  AND (
+                        (pc.schoolYear = :schoolYear AND pc.semester = :semester)
+                        OR pc IS NULL
+                      )
+            """)
     Page<StudentClassLoadDTO> findStudentLoadDTO(
             @Param("studentId") String studentId,
             @Param("schoolYear") Integer schoolYear,
             @Param("semester") String semester,
             Pageable pageable
+    );
+
+    @Query("""
+                SELECT COUNT(psl)
+                FROM PrimaryStudentLoad psl
+                WHERE psl.classCode = :classCode
+            """)
+    Integer findTotalStudentsInClass(
+            @Param("classCode") String classCode
     );
 }

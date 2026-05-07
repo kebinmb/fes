@@ -1,16 +1,23 @@
 package com.faculty_evaluation_backend.fes.controller.administrator;
 
+import com.faculty_evaluation_backend.fes.audit.AuditableAction;
+import com.faculty_evaluation_backend.fes.controller.evaluation.EvaluationController;
+import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationPrintResponse;
 import com.faculty_evaluation_backend.fes.dto.response.FetchFacultyEvaluationScoreResponse;
 import com.faculty_evaluation_backend.fes.dto.response.FetchFacultyResponse;
 import com.faculty_evaluation_backend.fes.dto.response.FetchUserAccountsResponse;
 import com.faculty_evaluation_backend.fes.dto.student.PageResponse;
+import com.faculty_evaluation_backend.fes.entities.evaluation.FacultyEvaluationScore;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.College;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.Status;
 import com.faculty_evaluation_backend.fes.services.data.admin.AdministratorService;
+import com.faculty_evaluation_backend.fes.services.data.evaluation.EvaluationDataService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/admin")
@@ -18,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 @Slf4j
 public class AdministratorController {
     private final AdministratorService administratorService;
+    private final EvaluationDataService evaluationDataService;
 
     @GetMapping("/faculties")
     public PageResponse<FetchFacultyResponse> getFacultyList(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size, @RequestParam(required = false) String search) {
@@ -49,4 +57,60 @@ public class AdministratorController {
 
         return ResponseEntity.ok(response);
     }
+
+    @GetMapping(
+            "/faculty-evaluation-score/{facultyId}/{classCode}"
+    )
+    @AuditableAction(
+            action = "FETCH",
+            entity = "FACULTY_EVALUATION_REPORT"
+    )
+    public ResponseEntity<?> getFacultyEvaluationScoresByFacultyId(
+            @PathVariable String facultyId,
+            @PathVariable String classCode
+    ) {
+
+        log.info(
+                "📄 Fetching evaluation scores for facultyId: {}",
+                facultyId
+        );
+
+        try {
+
+            List<FacultyEvaluationPrintResponse> evaluations =
+                    evaluationDataService
+                            .getAllFacultyEvaluationPerSubject(
+                                    facultyId,
+                                    classCode
+                            );
+
+            return ResponseEntity.ok(
+                    evaluations
+            );
+
+        } catch (RuntimeException ex) {
+
+            log.error(
+                    "❌ Failed fetching evaluations: {}",
+                    ex.getMessage()
+            );
+
+            return ResponseEntity
+                    .badRequest()
+                    .body(
+                            new ErrorResponse(
+                                    "FAILED",
+                                    ex.getMessage()
+                            )
+                    );
+        }
+    }
+
+    record ErrorResponse(
+            String status,
+            String message
+    ) {
+    }
+
+
 }

@@ -6,10 +6,6 @@ import com.faculty_evaluation_backend.fes.entities.primary.PrimaryFaculty;
 import jakarta.persistence.*;
 import lombok.*;
 
-/**
- * Entity representing faculty evaluation for Management of Teaching and Learning criteria
- * Uses RatingScale enum for type-safe rating values
- */
 @Getter
 @Setter
 @NoArgsConstructor
@@ -39,7 +35,6 @@ public class ManagementOfTeachingAndLearning extends Auditable {
     @Column(name = "time_management", nullable = false, length = 50)
     private RatingScale timeManagement;
 
-
     @Enumerated(EnumType.STRING)
     @Column(name = "critical_thinking_facilitation", nullable = false, length = 50)
     private RatingScale criticalThinkingFacilitation;
@@ -53,56 +48,67 @@ public class ManagementOfTeachingAndLearning extends Auditable {
     private RatingScale feedbackCommunication;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "faculty_id", referencedColumnName = "faculty_id", insertable = false, updatable = false)
+    @JoinColumn(
+            name = "faculty_id",
+            referencedColumnName = "faculty_id",
+            insertable = false,
+            updatable = false
+    )
     private PrimaryFaculty faculty;
 
     public double calculateAverageScore() {
-        if (punctuality == null || courseClarity == null || timeManagement == null ||
-            criticalThinkingFacilitation == null || independentLearningGuidance == null ||
-            feedbackCommunication == null) {
+
+        if (!isComplete()) {
             return 0.0;
         }
 
-        int totalScore = punctuality.getScore() +
-                        courseClarity.getScore() +
-                        timeManagement.getScore() +
-                        criticalThinkingFacilitation.getScore() +
-                        independentLearningGuidance.getScore() +
-                        feedbackCommunication.getScore();
+        return punctuality.getScore()
+                + courseClarity.getScore()
+                + timeManagement.getScore()
+                + criticalThinkingFacilitation.getScore()
+                + independentLearningGuidance.getScore()
+                + feedbackCommunication.getScore();
+    }
 
-        return totalScore / 6.0;
+    public double calculatePercentageScore() {
+
+        // MAX = 6 criteria × 5 = 30
+        return (calculateAverageScore() / 30.0) * 100.0;
     }
 
     public String getOverallInterpretation() {
-        double average = calculateAverageScore();
-        if (average >= 4.5) return "Excellent";
-        if (average >= 3.5) return "Very Good";
-        if (average >= 2.5) return "Good";
-        if (average >= 1.5) return "Fair";
+
+        double percentage = calculatePercentageScore();
+
+        if (percentage >= 90) return "Excellent";
+        if (percentage >= 80) return "Very Good";
+        if (percentage >= 70) return "Good";
+        if (percentage >= 60) return "Fair";
+
         return "Poor";
     }
 
     public boolean isAllPositive() {
-        return punctuality.isPositive() &&
-               courseClarity.isPositive() &&
-               timeManagement.isPositive() &&
-               criticalThinkingFacilitation.isPositive() &&
-               independentLearningGuidance.isPositive() &&
-               feedbackCommunication.isPositive();
+
+        return punctuality.isPositive()
+                && courseClarity.isPositive()
+                && timeManagement.isPositive()
+                && criticalThinkingFacilitation.isPositive()
+                && independentLearningGuidance.isPositive()
+                && feedbackCommunication.isPositive();
     }
 
     public boolean isComplete() {
-        return punctuality != null &&
-               courseClarity != null &&
-               timeManagement != null &&
-               criticalThinkingFacilitation != null &&
-               independentLearningGuidance != null &&
-               feedbackCommunication != null;
+
+        return punctuality != null
+                && courseClarity != null
+                && timeManagement != null
+                && criticalThinkingFacilitation != null
+                && independentLearningGuidance != null
+                && feedbackCommunication != null;
     }
 
     public static int getTotalCriteria() {
         return 6;
     }
 }
-
-

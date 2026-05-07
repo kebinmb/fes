@@ -5,11 +5,6 @@ import com.faculty_evaluation_backend.fes.entities.primary.PrimaryFaculty;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryStudent;
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
-
-import java.time.Instant;
-
 
 @Getter
 @Setter
@@ -17,10 +12,18 @@ import java.time.Instant;
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(name = "faculty_evaluation_score",
-       uniqueConstraints = @UniqueConstraint(
-           columnNames = {"faculty_id", "student_id", "class_code", "semester", "school_year"}
-       ))
+@Table(
+        name = "faculty_evaluation_score",
+        uniqueConstraints = @UniqueConstraint(
+                columnNames = {
+                        "faculty_id",
+                        "student_id",
+                        "class_code",
+                        "semester",
+                        "school_year"
+                }
+        )
+)
 public class FacultyEvaluationScore extends Auditable {
 
     @Id
@@ -32,16 +35,24 @@ public class FacultyEvaluationScore extends Auditable {
     private String facultyId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "faculty_id", referencedColumnName = "faculty_id",
-                insertable = false, updatable = false)
+    @JoinColumn(
+            name = "faculty_id",
+            referencedColumnName = "faculty_id",
+            insertable = false,
+            updatable = false
+    )
     private PrimaryFaculty faculty;
 
     @Column(name = "evaluator_id", nullable = false, length = 15)
     private String evaluatorId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "student_id", referencedColumnName = "student_id",
-                insertable = false, updatable = false)
+    @JoinColumn(
+            name = "student_id",
+            referencedColumnName = "student_id",
+            insertable = false,
+            updatable = false
+    )
     private PrimaryStudent student;
 
     @Column(name = "class_code", nullable = false, length = 20)
@@ -53,7 +64,7 @@ public class FacultyEvaluationScore extends Auditable {
     @Column(name = "school_year", nullable = false)
     private Integer schoolYear;
 
-    @Column(name = "subject_code",nullable = false)
+    @Column(name = "subject_code", nullable = false)
     private String subjectCode;
 
     @Column(name = "year_level", nullable = false)
@@ -62,19 +73,38 @@ public class FacultyEvaluationScore extends Auditable {
     @Column(name = "comments_or_feedbacks")
     private String commentsOrFeedbacks;
 
-    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @JoinColumn(name = "management_of_teaching_and_learning_id",
-                referencedColumnName = "management_of_teaching_and_learning_id")
+    @OneToOne(
+            cascade = CascadeType.ALL,
+            orphanRemoval = true,
+            fetch = FetchType.LAZY
+    )
+    @JoinColumn(
+            name = "management_of_teaching_and_learning_id",
+            referencedColumnName = "management_of_teaching_and_learning_id"
+    )
     private ManagementOfTeachingAndLearning managementOfTeachingAndLearning;
 
-    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @JoinColumn(name = "content_knowledge_pedagogy_and_technology_id",
-                referencedColumnName = "content_knowledge_pedagogy_and_technology_id")
-    private ContentKnowledgePedagogyAndTechnology contentKnowledgePedagogyAndTechnology;
+    @OneToOne(
+            cascade = CascadeType.ALL,
+            orphanRemoval = true,
+            fetch = FetchType.LAZY
+    )
+    @JoinColumn(
+            name = "content_knowledge_pedagogy_and_technology_id",
+            referencedColumnName = "content_knowledge_pedagogy_and_technology_id"
+    )
+    private ContentKnowledgePedagogyAndTechnology
+            contentKnowledgePedagogyAndTechnology;
 
-    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @JoinColumn(name = "commitment_and_transparency_id",
-                referencedColumnName = "commitment_and_transparency_id")
+    @OneToOne(
+            cascade = CascadeType.ALL,
+            orphanRemoval = true,
+            fetch = FetchType.LAZY
+    )
+    @JoinColumn(
+            name = "commitment_and_transparency_id",
+            referencedColumnName = "commitment_and_transparency_id"
+    )
     private CommitmentAndTransparency commitmentAndTransparency;
 
     @Column(name = "overall_average_score")
@@ -83,83 +113,192 @@ public class FacultyEvaluationScore extends Auditable {
     @Column(name = "overall_interpretation", length = 20)
     private String overallInterpretation;
 
+    /* =========================================================
+       OVERALL COMPUTATION
+       ========================================================= */
 
     public void calculateOverallScore() {
-        if (managementOfTeachingAndLearning == null ||
-            contentKnowledgePedagogyAndTechnology == null ||
-            commitmentAndTransparency == null) {
+
+        if (managementOfTeachingAndLearning == null
+                || contentKnowledgePedagogyAndTechnology == null
+                || commitmentAndTransparency == null) {
+
             this.overallAverageScore = 0.0;
             this.overallInterpretation = "Incomplete";
+
             return;
         }
 
-        double teachingScore = managementOfTeachingAndLearning.calculateAverageScore();
-        double contentScore = contentKnowledgePedagogyAndTechnology.calculateAverageScore();
-        double commitmentScore = commitmentAndTransparency.calculateAverageScore();
+        double teachingScore =
+                managementOfTeachingAndLearning.calculateAverageScore();
 
-        this.overallAverageScore = (teachingScore + contentScore + commitmentScore) / 3.0;
+        double contentScore =
+                contentKnowledgePedagogyAndTechnology.calculateAverageScore();
 
-        this.overallInterpretation = determineOverallInterpretation(this.overallAverageScore);
+        double commitmentScore =
+                commitmentAndTransparency.calculateAverageScore();
+
+        /* =====================================================
+           TOTAL RAW SCORE
+           MAXIMUM POSSIBLE = 75
+           ===================================================== */
+
+        double totalScore =
+                teachingScore
+                        + contentScore
+                        + commitmentScore;
+
+        /* =====================================================
+           SET RATING FORMULA
+
+           ((TOTAL SCORE) / 75) * 100
+           ===================================================== */
+
+        double computedSetRating =
+                (totalScore / 75.0) * 100.0;
+
+        this.overallAverageScore =
+                round(computedSetRating);
+
+        this.overallInterpretation =
+                determineOverallInterpretation(
+                        computedSetRating
+                );
     }
 
-    private String determineOverallInterpretation(double average) {
-        if (average >= 4.5) return "Excellent";
-        if (average >= 3.5) return "Very Good";
-        if (average >= 2.5) return "Good";
-        if (average >= 1.5) return "Fair";
+    /* =========================================================
+       INTERPRETATION
+       ========================================================= */
+
+    private String determineOverallInterpretation(
+            double rating
+    ) {
+
+        if (rating >= 90) {
+            return "Excellent";
+        }
+
+        if (rating >= 80) {
+            return "Very Good";
+        }
+
+        if (rating >= 70) {
+            return "Good";
+        }
+
+        if (rating >= 60) {
+            return "Fair";
+        }
+
         return "Poor";
     }
 
+    /* =========================================================
+       ROUNDING
+       ========================================================= */
+
+    private double round(double value) {
+
+        return Math.round(value * 100.0) / 100.0;
+    }
+
+    /* =========================================================
+       VALIDATION
+       ========================================================= */
+
     public boolean isComplete() {
-        return managementOfTeachingAndLearning != null &&
-               managementOfTeachingAndLearning.isComplete() &&
-               contentKnowledgePedagogyAndTechnology != null &&
-               contentKnowledgePedagogyAndTechnology.isComplete() &&
-               commitmentAndTransparency != null &&
-               commitmentAndTransparency.isComplete();
+
+        return managementOfTeachingAndLearning != null
+                && managementOfTeachingAndLearning.isComplete()
+
+                && contentKnowledgePedagogyAndTechnology != null
+                && contentKnowledgePedagogyAndTechnology.isComplete()
+
+                && commitmentAndTransparency != null
+                && commitmentAndTransparency.isComplete();
     }
 
     public boolean isAllPositive() {
-        return managementOfTeachingAndLearning != null &&
-               managementOfTeachingAndLearning.isAllPositive() &&
-               contentKnowledgePedagogyAndTechnology != null &&
-               contentKnowledgePedagogyAndTechnology.isAllPositive() &&
-               commitmentAndTransparency != null &&
-               commitmentAndTransparency.isAllPositive();
+
+        return managementOfTeachingAndLearning != null
+                && managementOfTeachingAndLearning.isAllPositive()
+
+                && contentKnowledgePedagogyAndTechnology != null
+                && contentKnowledgePedagogyAndTechnology.isAllPositive()
+
+                && commitmentAndTransparency != null
+                && commitmentAndTransparency.isAllPositive();
     }
+
+    /* =========================================================
+       TOTAL CRITERIA
+       ========================================================= */
 
     public static int getTotalCriteria() {
-        return ManagementOfTeachingAndLearning.getTotalCriteria() +
-               ContentKnowledgePedagogyAndTechnology.getTotalCriteria() +
-               CommitmentAndTransparency.getTotalCriteria();
+
+        return ManagementOfTeachingAndLearning.getTotalCriteria()
+
+                + ContentKnowledgePedagogyAndTechnology.getTotalCriteria()
+
+                + CommitmentAndTransparency.getTotalCriteria();
     }
 
+    /* =========================================================
+       SCORE BREAKDOWN
+       ========================================================= */
+
     public String getScoreBreakdown() {
+
         if (!isComplete()) {
             return "Evaluation incomplete";
         }
 
+        double teaching =
+                managementOfTeachingAndLearning.calculateAverageScore();
+
+        double content =
+                contentKnowledgePedagogyAndTechnology.calculateAverageScore();
+
+        double commitment =
+                commitmentAndTransparency.calculateAverageScore();
+
+        double total =
+                teaching + content + commitment;
+
         return String.format(
-            "Teaching & Learning: %.2f | Content & Technology: %.2f | Commitment & Transparency: %.2f | Overall: %.2f (%s)",
-            managementOfTeachingAndLearning.calculateAverageScore(),
-            contentKnowledgePedagogyAndTechnology.calculateAverageScore(),
-            commitmentAndTransparency.calculateAverageScore(),
-            overallAverageScore,
-            overallInterpretation
+                "Teaching: %.2f | " +
+                        "Content: %.2f | " +
+                        "Commitment: %.2f | " +
+                        "Total: %.2f/75 | " +
+                        "SET Rating: %.2f%% (%s)",
+
+                teaching,
+                content,
+                commitment,
+                total,
+                overallAverageScore,
+                overallInterpretation
         );
     }
 
+    /* =========================================================
+       PASSING CHECK
+       ========================================================= */
+
     public boolean hasPassed() {
-        return overallAverageScore != null && overallAverageScore >= 3.0;
+
+        return overallAverageScore != null
+                && overallAverageScore >= 75.0;
     }
 
-//    @PrePersist
-//    @PreUpdate
-//    public void prePersist() {
-//        calculateOverallScore();
-//        if (createdAt == null) {
-//            createdAt = Instant.now();
-//        }
-//        updatedAt = Instant.now();
-//    }
+    /* =========================================================
+       ENTITY LIFECYCLE
+       ========================================================= */
+
+    @PrePersist
+    @PreUpdate
+    public void prePersist() {
+
+        calculateOverallScore();
+    }
 }

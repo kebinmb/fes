@@ -6,10 +6,6 @@ import com.faculty_evaluation_backend.fes.entities.primary.PrimaryFaculty;
 import jakarta.persistence.*;
 import lombok.*;
 
-/**
- * Entity representing faculty evaluation for Content Knowledge, Pedagogy, and Technology criteria
- * Uses RatingScale enum for type-safe rating values
- */
 @Getter
 @Setter
 @NoArgsConstructor
@@ -48,56 +44,73 @@ public class ContentKnowledgePedagogyAndTechnology extends Auditable {
     private RatingScale assessmentAlignment;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "faculty_id", referencedColumnName = "faculty_id", insertable = false, updatable = false)
+    @JoinColumn(
+            name = "faculty_id",
+            referencedColumnName = "faculty_id",
+            insertable = false,
+            updatable = false
+    )
     private PrimaryFaculty faculty;
 
     public double calculateAverageScore() {
-        if (subjectKnowledge == null || contentSimplification == null || realWorldApplication == null ||
-            technologyIntegration == null || assessmentAlignment == null) {
+
+        if (!isComplete()) {
             return 0.0;
         }
 
-        int totalScore = subjectKnowledge.getScore() +
-                        contentSimplification.getScore() +
-                        realWorldApplication.getScore() +
-                        technologyIntegration.getScore() +
-                        assessmentAlignment.getScore();
+        return subjectKnowledge.getScore()
+                + contentSimplification.getScore()
+                + realWorldApplication.getScore()
+                + technologyIntegration.getScore()
+                + assessmentAlignment.getScore();
+    }
 
-        return totalScore / 5.0;
+    public double calculatePercentageScore() {
+
+        // MAX = 5 criteria × 5 = 25
+        return (calculateAverageScore() / 25.0) * 100.0;
     }
 
     public String getOverallInterpretation() {
-        double average = calculateAverageScore();
-        if (average >= 4.5) return "Excellent";
-        if (average >= 3.5) return "Very Good";
-        if (average >= 2.5) return "Good";
-        if (average >= 1.5) return "Fair";
+
+        double percentage = calculatePercentageScore();
+
+        if (percentage >= 90) return "Excellent";
+        if (percentage >= 80) return "Very Good";
+        if (percentage >= 70) return "Good";
+        if (percentage >= 60) return "Fair";
+
         return "Poor";
     }
 
     public boolean isAllPositive() {
-        return subjectKnowledge.isPositive() &&
-               contentSimplification.isPositive() &&
-               realWorldApplication.isPositive() &&
-               technologyIntegration.isPositive() &&
-               assessmentAlignment.isPositive();
+
+        return subjectKnowledge.isPositive()
+                && contentSimplification.isPositive()
+                && realWorldApplication.isPositive()
+                && technologyIntegration.isPositive()
+                && assessmentAlignment.isPositive();
     }
 
     public boolean isComplete() {
-        return subjectKnowledge != null &&
-               contentSimplification != null &&
-               realWorldApplication != null &&
-               technologyIntegration != null &&
-               assessmentAlignment != null;
+
+        return subjectKnowledge != null
+                && contentSimplification != null
+                && realWorldApplication != null
+                && technologyIntegration != null
+                && assessmentAlignment != null;
     }
 
     public boolean hasStrongTechnologyIntegration() {
-        return technologyIntegration != null && technologyIntegration.isPositive();
+
+        return technologyIntegration != null
+                && technologyIntegration.isPositive();
     }
 
     public boolean hasExcellentSubjectKnowledge() {
-        return subjectKnowledge != null &&
-               subjectKnowledge == RatingScale.ALWAYS_MANIFESTED;
+
+        return subjectKnowledge != null
+                && subjectKnowledge == RatingScale.ALWAYS_MANIFESTED;
     }
 
     public static int getTotalCriteria() {
