@@ -105,14 +105,22 @@ public class AuthenticationController {
     }
 
     @PostMapping("/access-code/generate")
-    public ResponseEntity<?> generateAccessCode(@RequestParam String studentId) {
-        StudentAccessCode code = studentAuthenticationService.generateAccessCode(studentId);
-
-        return ResponseEntity.ok(Map.of(
-                "studentId", studentId,
-                "accessCode", code.getAccessCode(),
-                "expiresAt", code.getExpiresAt()
-        ));
+    public ResponseEntity<?> generateAccessCode(
+            @RequestParam String studentId,
+            @RequestParam String password
+    ) {
+        StudentAccessCode code =
+                studentAuthenticationService.generateAccessCode(
+                        studentId,
+                        password
+                );
+        return ResponseEntity.ok(
+                Map.of(
+                        "studentId", studentId,
+                        "accessCode", code.getAccessCode(),
+                        "expiresAt", code.getExpiresAt()
+                )
+        );
     }
 
     @PostMapping("/student/login")

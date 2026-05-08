@@ -18,7 +18,11 @@ public class FacultyEvaluationPrintResponse {
     private Integer schoolYear;
     private String subjectCode;
     private String yearLevel;
-    private String comments;
     private Double overallAverageScore;
     private String overallInterpretation;
+    private Double setRating;
+    private Double sefRating;
+    private String evaluatorType;
+    private String studentComments;
+    private String supervisorComments;
 }

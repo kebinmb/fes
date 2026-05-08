@@ -25,8 +25,6 @@ import java.util.Collections;
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
-    private final StudentAuthenticationService studentAuthenticationService;
-
     @Override
     protected void doFilterInternal(
             HttpServletRequest request,
