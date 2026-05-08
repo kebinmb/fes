@@ -58,58 +58,33 @@ public class AdministratorController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping(
-            "/faculty-evaluation-score/{facultyId}/{classCode}"
-    )
-    @AuditableAction(
-            action = "FETCH",
-            entity = "FACULTY_EVALUATION_REPORT"
-    )
+    @GetMapping("/faculty-evaluation-score/{facultyId}")
+    @AuditableAction(action = "FETCH", entity = "FACULTY_EVALUATION_REPORT")
     public ResponseEntity<?> getFacultyEvaluationScoresByFacultyId(
-            @PathVariable String facultyId,
-            @PathVariable String classCode
+            @PathVariable String facultyId
     ) {
 
-        log.info(
-                "📄 Fetching evaluation scores for facultyId: {}",
-                facultyId
-        );
+        log.info("📄 Fetching evaluation scores for facultyId: {}", facultyId);
 
         try {
 
             List<FacultyEvaluationPrintResponse> evaluations =
                     evaluationDataService
-                            .getAllFacultyEvaluationPerSubject(
-                                    facultyId,
-                                    classCode
-                            );
+                            .getSumOfAllFacultyEvaluationPerSubject(facultyId);
 
-            return ResponseEntity.ok(
-                    evaluations
-            );
+            return ResponseEntity.ok(evaluations);
 
         } catch (RuntimeException ex) {
 
-            log.error(
-                    "❌ Failed fetching evaluations: {}",
-                    ex.getMessage()
-            );
+            log.error("❌ Failed fetching evaluations: {}", ex.getMessage());
 
             return ResponseEntity
                     .badRequest()
-                    .body(
-                            new ErrorResponse(
-                                    "FAILED",
-                                    ex.getMessage()
-                            )
-                    );
+                    .body(new ErrorResponse("FAILED", ex.getMessage()));
         }
     }
 
-    record ErrorResponse(
-            String status,
-            String message
-    ) {
+    record ErrorResponse(String status, String message) {
     }
 
 

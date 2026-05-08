@@ -29,9 +29,24 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
             String semester,
             Integer schoolYear
     );
+
     Integer countDistinctEvaluatedSubjectsByEvaluatorId(String evaluatorId);
+
     List<FacultyEvaluationScore> findByFacultyId(String facultyId);
+
     List<FacultyEvaluationScore> findByFacultyIdAndClassCode(String facultyId, String classCode);
 
+    @Query("""
+             SELECT DISTINCT f.classCode
+             FROM FacultyEvaluationScore f
+             WHERE f.facultyId = :facultyId
+             AND f.schoolYear = :schoolYear
+             AND f.semester = :semester
+            """)
+    List<String> findDistinctClassCodesByFacultyIdAndSchoolYearAndSemester(
+            @Param("facultyId") String facultyId,
+            @Param("schoolYear") Integer schoolYear,
+            @Param("semester") String semester
+    );
 }
 

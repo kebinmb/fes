@@ -12,50 +12,37 @@ import java.util.Optional;
 @Repository
 public interface RefreshTokenRepository
         extends JpaRepository<RefreshToken, Long> {
-
     Optional<RefreshToken> findByTokenHash(String tokenHash);
 
     Optional<RefreshToken> findByTokenHashAndRevokedFalse(
             String tokenHash
     );
 
-    // =========================================================
-    // REVOKE TOKENS
-    // =========================================================
-
     @Modifying(
             clearAutomatically = true,
             flushAutomatically = true
     )
     @Query("""
-        UPDATE RefreshToken t
-        SET t.revoked = true
-        WHERE t.userId = :userId
-          AND t.revoked = false
-    """)
+                UPDATE RefreshToken t
+                SET t.revoked = true
+                WHERE t.userId = :userId
+                  AND t.revoked = false
+            """)
     void revokeAllByUserId(
             @Param("userId") String userId
     );
 
-    // =========================================================
-    // MARIA DB SAFE PESSIMISTIC LOCK
-    // =========================================================
-
     @Query(value = """
-        SELECT *
-        FROM refresh_tokens
-        WHERE token_hash = :hash
-          AND revoked = false
-        LIMIT 1
-        FOR UPDATE
-        """, nativeQuery = true)
+            SELECT *
+            FROM refresh_tokens
+            WHERE token_hash = :hash
+              AND revoked = false
+            LIMIT 1
+            FOR UPDATE
+            """, nativeQuery = true)
     Optional<RefreshToken> findValidTokenForUpdate(
             @Param("hash") String hash
     );
-
-    // =========================================================
-    // DELETE USER TOKENS
-    // =========================================================
 
     void deleteByUserId(String userId);
 }

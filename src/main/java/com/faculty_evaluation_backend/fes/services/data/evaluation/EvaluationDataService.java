@@ -1,5 +1,6 @@
 package com.faculty_evaluation_backend.fes.services.data.evaluation;
 
+import com.faculty_evaluation_backend.fes.dto.data.SchoolYearAndSemesterDTO;
 import com.faculty_evaluation_backend.fes.dto.evaluation.BaseEvaluationDTO;
 import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationPrintResponse;
 import com.faculty_evaluation_backend.fes.entities.evaluation.CommitmentAndTransparency;
@@ -8,6 +9,8 @@ import com.faculty_evaluation_backend.fes.entities.evaluation.FacultyEvaluationS
 import com.faculty_evaluation_backend.fes.entities.evaluation.ManagementOfTeachingAndLearning;
 import com.faculty_evaluation_backend.fes.entities.evaluation.enums.RatingScale;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryStudent;
+import com.faculty_evaluation_backend.fes.entities.primary.enums.Status;
+import com.faculty_evaluation_backend.fes.repositories.data.SchoolYearAndSemesterRepository;
 import com.faculty_evaluation_backend.fes.repositories.evaluation.FacultyEvaluationScoreRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryFacultyRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryStudentLoadRepository;
@@ -19,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -31,7 +35,7 @@ public class EvaluationDataService {
     private final PrimaryFacultyRepository primaryFacultyRepository;
     private final PrimarySubjectRepository primarySubjectRepository;
     private final PrimaryStudentLoadRepository primaryStudentLoadRepository;
-
+    private final SchoolYearAndSemesterRepository schoolYearAndSemesterRepository;
     @Transactional(transactionManager = "primaryTransactionManager")
     public FacultyEvaluationScore submit(BaseEvaluationDTO baseEvaluationDTO) {
         log.info("Submitting {} evaluation", baseEvaluationDTO.getEvaluationType());
@@ -49,55 +53,83 @@ public class EvaluationDataService {
         return facultyEvaluationScoreRepository.save(evaluationScore);
     }
 
-    public List<FacultyEvaluationPrintResponse> getFacultyEvaluationScoresByFacultyId(String facultyId) {
-        return facultyEvaluationScoreRepository.findByFacultyId(facultyId).stream()
-                .map(score -> FacultyEvaluationPrintResponse.builder()
-                        .facultyEvaluationScoreId(score.getFacultyEvaluationScoreId())
-                        .facultyId(score.getFacultyId())
-                        .facultyName(score.getFaculty().getFirstname() + " " + score.getFaculty().getMiddlename() + " " + score.getFaculty().getLastname())
-                        .evaluatorId(score.getEvaluatorId())
-                        .college(String.valueOf(score.getFaculty().getCollege()))
-                        .classCode(score.getClassCode())
-                        .position(score.getFaculty().getPosition())
-                        .semester(score.getSemester())
-                        .schoolYear(score.getSchoolYear())
-                        .subjectCode(score.getSubjectCode())
-                        .yearLevel(score.getYearLevel())
-                        .comments(score.getCommentsOrFeedbacks())
-                        .overallAverageScore(score.getOverallAverageScore())
-                        .overallInterpretation(score.getOverallInterpretation())
-                        .build()).toList();
-    }
+    public List<FacultyEvaluationPrintResponse> getSumOfAllFacultyEvaluationPerSubject(
+            String facultyId
+    ) {
 
-    public List<FacultyEvaluationPrintResponse> getAllFacultyEvaluationPerSubject(String facultyId, String classCode) {
-        List<FacultyEvaluationScore> evaluations = facultyEvaluationScoreRepository.findByFacultyIdAndClassCode(facultyId, classCode);
-        if (evaluations.isEmpty()) {
+        SchoolYearAndSemesterDTO schoolYearAndSemester =
+                schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE);
+
+        List<String> classCodes =
+                facultyEvaluationScoreRepository
+                        .findDistinctClassCodesByFacultyIdAndSchoolYearAndSemester(
+                                facultyId,
+                                schoolYearAndSemester.getSchoolYear(),
+                                schoolYearAndSemester.getSemester()
+                        );
+
+        if (classCodes.isEmpty()) {
             return List.of();
         }
-        double totalScore = evaluations.stream().mapToDouble(FacultyEvaluationScore::getOverallAverageScore).sum();
-        int totalEvaluations = evaluations.size();
-        double averageScore = totalScore / totalEvaluations;
-        averageScore = Math.round(averageScore * 100.0) / 100.0;
-        FacultyEvaluationScore first = evaluations.getFirst();
-        String combinedComments = evaluations.stream().map(FacultyEvaluationScore::getCommentsOrFeedbacks).filter(comment -> comment != null && !comment.isBlank()).distinct().reduce((a, b) -> a + "\n• " + b).orElse("-");
-        FacultyEvaluationPrintResponse response = FacultyEvaluationPrintResponse.builder()
-                .facultyEvaluationScoreId(first.getFacultyEvaluationScoreId())
-                .facultyId(first.getFacultyId())
-                .facultyName(first.getFaculty().getFirstname() + " " + first.getFaculty().getMiddlename() + " " + first.getFaculty().getLastname())
-                .evaluatorId(first.getEvaluatorId())
-                .college(String.valueOf(first.getFaculty().getCollege()))
-                .classCode(first.getClassCode())
-                .position(first.getFaculty().getPosition())
-                .semester(first.getSemester())
-                .schoolYear(first.getSchoolYear())
-                .subjectCode(first.getSubjectCode())
-                .yearLevel(first.getYearLevel())
-                .comments(combinedComments)
-                .overallAverageScore(averageScore)
-                .overallInterpretation(determineInterpretation(averageScore))
-                .numberOfStudents(totalEvaluations)
-                .build();
-        return List.of(response);
+
+        List<FacultyEvaluationPrintResponse> responses = new ArrayList<>();
+
+        for (String classCode : classCodes) {
+
+            List<FacultyEvaluationScore> evaluations =
+                    facultyEvaluationScoreRepository
+                            .findByFacultyIdAndClassCode(facultyId, classCode);
+
+            if (evaluations.isEmpty()) {
+                continue;
+            }
+
+            double totalScore = evaluations.stream()
+                    .mapToDouble(FacultyEvaluationScore::getOverallAverageScore)
+                    .sum();
+
+            int totalEvaluations = evaluations.size();
+
+            double averageScore = totalScore / totalEvaluations;
+
+            averageScore = Math.round(averageScore * 100.0) / 100.0;
+
+            FacultyEvaluationScore first = evaluations.getFirst();
+
+            String combinedComments = evaluations.stream()
+                    .map(FacultyEvaluationScore::getCommentsOrFeedbacks)
+                    .filter(comment -> comment != null && !comment.isBlank())
+                    .distinct()
+                    .reduce((a, b) -> a + "\n• " + b)
+                    .orElse("-");
+
+            FacultyEvaluationPrintResponse response =
+                    FacultyEvaluationPrintResponse.builder()
+                            .facultyEvaluationScoreId(first.getFacultyEvaluationScoreId())
+                            .facultyId(first.getFacultyId())
+                            .facultyName(
+                                    first.getFaculty().getFirstname() + " "
+                                            + first.getFaculty().getMiddlename() + " "
+                                            + first.getFaculty().getLastname()
+                            )
+                            .evaluatorId(first.getEvaluatorId())
+                            .college(String.valueOf(first.getFaculty().getCollege()))
+                            .classCode(first.getClassCode())
+                            .position(first.getFaculty().getPosition())
+                            .semester(first.getSemester())
+                            .schoolYear(first.getSchoolYear())
+                            .subjectCode(first.getSubjectCode())
+                            .yearLevel(first.getYearLevel())
+                            .comments(combinedComments)
+                            .overallAverageScore(averageScore)
+                            .overallInterpretation(determineInterpretation(averageScore))
+                            .numberOfStudents(totalEvaluations)
+                            .build();
+
+            responses.add(response);
+        }
+
+        return responses;
     }
 
     public Integer numberOfStudents(String classCode) {
