@@ -24,7 +24,18 @@ spring:
       idle-timeout: 600000
       connection-timeout: 30000
       max-lifetime: 1800000
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: fes-noreply@chmsu.edu.ph
+    password: lidx mrcq kcvw sapq
 
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
   cache:
     type: caffeine
 
