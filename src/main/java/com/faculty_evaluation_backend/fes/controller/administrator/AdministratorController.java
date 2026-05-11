@@ -2,11 +2,13 @@ package com.faculty_evaluation_backend.fes.controller.administrator;
 
 import com.faculty_evaluation_backend.fes.audit.AuditableAction;
 import com.faculty_evaluation_backend.fes.controller.evaluation.EvaluationController;
+import com.faculty_evaluation_backend.fes.dto.data.SchoolYearAndSemesterDTO;
 import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationPrintResponse;
 import com.faculty_evaluation_backend.fes.dto.response.FetchFacultyEvaluationScoreResponse;
 import com.faculty_evaluation_backend.fes.dto.response.FetchFacultyResponse;
 import com.faculty_evaluation_backend.fes.dto.response.FetchUserAccountsResponse;
 import com.faculty_evaluation_backend.fes.dto.student.PageResponse;
+import com.faculty_evaluation_backend.fes.entities.data.enums.Semester;
 import com.faculty_evaluation_backend.fes.entities.evaluation.FacultyEvaluationScore;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.College;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.Status;
@@ -14,6 +16,7 @@ import com.faculty_evaluation_backend.fes.services.data.admin.AdministratorServi
 import com.faculty_evaluation_backend.fes.services.data.evaluation.EvaluationDataService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -85,6 +88,98 @@ public class AdministratorController {
     }
 
     record ErrorResponse(String status, String message) {
+    }
+
+    @PutMapping("/school-year-semester")
+    public ResponseEntity<?> updateSchoolYearAndSemester(
+            @RequestParam Integer schoolYear,
+            @RequestParam Semester semester
+    ) {
+
+        try {
+
+            log.info(
+                    "Updating school year and semester | schoolYear={} | semester={}",
+                    schoolYear,
+                    semester
+            );
+
+            SchoolYearAndSemesterDTO response =
+                    administratorService
+                            .updateSchoolYearAndSemester(
+                                    schoolYear,
+                                    semester
+                            );
+
+            return ResponseEntity.ok(response);
+
+        } catch (RuntimeException e) {
+
+            log.error(
+                    "Failed to update school year and semester | error={}",
+                    e.getMessage(),
+                    e
+            );
+
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(e.getMessage());
+
+        } catch (Exception e) {
+
+            log.error(
+                    "Unexpected error updating school year and semester",
+                    e
+            );
+
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(
+                            "Failed to update school year and semester."
+                    );
+        }
+    }
+
+    @GetMapping("/school-year-semester")
+    public ResponseEntity<?> fetchCurrentSchoolYearAndSemester() {
+
+        try {
+
+            log.info(
+                    "Fetching current active school year and semester"
+            );
+
+            SchoolYearAndSemesterDTO response =
+                    administratorService
+                            .fetchCurrentSchoolYearAndSemester();
+
+            return ResponseEntity.ok(response);
+
+        } catch (RuntimeException e) {
+
+            log.error(
+                    "Failed to fetch current school year and semester | error={}",
+                    e.getMessage(),
+                    e
+            );
+
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body(e.getMessage());
+
+        } catch (Exception e) {
+
+            log.error(
+                    "Unexpected error fetching school year and semester",
+                    e
+            );
+
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(
+                            "Failed to fetch school year and semester."
+                    );
+        }
     }
 
 

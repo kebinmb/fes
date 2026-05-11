@@ -2,11 +2,11 @@ package com.faculty_evaluation_backend.fes.entities.data.enums;
 
 public enum Semester {
 
-    FIRST("1st"),
+    FIRST_SEMESTER("1st"),
 
-    SECOND("2nd"),
+    SECOND_SEMESTER("2nd"),
 
-    SUMMER("summer");
+    SUMMER_SEMESTER("summer");
 
     private final String value;
 

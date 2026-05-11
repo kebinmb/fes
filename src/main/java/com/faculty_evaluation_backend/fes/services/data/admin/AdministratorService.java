@@ -25,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -67,6 +68,27 @@ public class AdministratorService {
 
 
         return SchoolYearAndSemesterDTO.builder().id(savedRecord.getId()).schoolYear(savedRecord.getSchoolYear()).semester(savedRecord.getSemester()).status(savedRecord.getStatus()).createdAt(savedRecord.getCreatedAt()).build();
+    }
+
+    public SchoolYearAndSemesterDTO
+    fetchCurrentSchoolYearAndSemester() {
+
+        SchoolYearAndSemester data =
+                schoolYearAndSemesterRepository
+                        .findByStatus(Status.ACTIVE)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "No active semester found."
+                                )
+                        );
+
+        return SchoolYearAndSemesterDTO.builder()
+                .id(data.getId())
+                .schoolYear(data.getSchoolYear())
+                .semester(data.getSemester())
+                .status(data.getStatus())
+                .createdAt(data.getCreatedAt())
+                .build();
     }
 
     public PageResponse<FetchFacultyResponse> facultyList(int page, int size, String search) {
@@ -124,4 +146,5 @@ public class AdministratorService {
 
         return "Failed to update faculty.";
     }
+
 }
