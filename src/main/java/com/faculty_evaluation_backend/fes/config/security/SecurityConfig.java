@@ -57,7 +57,7 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/**").permitAll()
-                        .requestMatchers("/migration/**").hasRole("DEAN")
+                        .requestMatchers("/migration/**").hasRole("ADMIN")
                         .requestMatchers("/faculty/**").hasRole("DEAN")
                         .requestMatchers("/student/**").hasRole("STUDENT")
                         .requestMatchers("/evaluation/**").hasAnyRole("DEAN", "STUDENT")

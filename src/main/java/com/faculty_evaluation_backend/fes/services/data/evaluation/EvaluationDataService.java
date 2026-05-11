@@ -1,14 +1,13 @@
 package com.faculty_evaluation_backend.fes.services.data.evaluation;
 
-import com.faculty_evaluation_backend.fes.dto.data.SchoolYearAndSemesterDTO;
 import com.faculty_evaluation_backend.fes.dto.evaluation.BaseEvaluationDTO;
 import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationPrintResponse;
+import com.faculty_evaluation_backend.fes.entities.data.SchoolYearAndSemester;
 import com.faculty_evaluation_backend.fes.entities.evaluation.CommitmentAndTransparency;
 import com.faculty_evaluation_backend.fes.entities.evaluation.ContentKnowledgePedagogyAndTechnology;
 import com.faculty_evaluation_backend.fes.entities.evaluation.FacultyEvaluationScore;
 import com.faculty_evaluation_backend.fes.entities.evaluation.ManagementOfTeachingAndLearning;
 import com.faculty_evaluation_backend.fes.entities.evaluation.enums.RatingScale;
-import com.faculty_evaluation_backend.fes.entities.primary.PrimaryStudent;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.Status;
 import com.faculty_evaluation_backend.fes.repositories.data.SchoolYearAndSemesterRepository;
 import com.faculty_evaluation_backend.fes.repositories.evaluation.FacultyEvaluationScoreRepository;
@@ -57,22 +56,19 @@ public class EvaluationDataService {
     }
 
     public List<FacultyEvaluationPrintResponse> getSumOfAllFacultyEvaluationPerSubject(String facultyId) {
-
-        SchoolYearAndSemesterDTO schoolYearAndSemester = schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE);
-
-        List<String> classCodes = facultyEvaluationScoreRepository.findDistinctClassCodesByFacultyIdAndSchoolYearAndSemester(facultyId, schoolYearAndSemester.getSchoolYear(), schoolYearAndSemester.getSemester());
-
+        SchoolYearAndSemester schoolYearAndSemester = schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE).orElseThrow(() -> new RuntimeException("No active school year and semester found."));
+        List<String> classCodes = facultyEvaluationScoreRepository.findDistinctClassCodesByFacultyIdAndSchoolYearAndSemester(facultyId, schoolYearAndSemester.getSchoolYear(), schoolYearAndSemester.getSemester().getValue());
         if (classCodes.isEmpty()) {
+
             return List.of();
         }
-
         List<FacultyEvaluationPrintResponse> responses = new ArrayList<>();
-
         for (String classCode : classCodes) {
 
             List<FacultyEvaluationScore> evaluations = facultyEvaluationScoreRepository.findByFacultyIdAndClassCode(facultyId, classCode);
 
             if (evaluations.isEmpty()) {
+
                 continue;
             }
 
@@ -91,12 +87,15 @@ public class EvaluationDataService {
                 } else {
 
                     facultyEvaluations.add(evaluation);
-
                 }
             }
+
             double setRating = calculateAverage(studentEvaluations);
+
             double sefRating = calculateAverage(facultyEvaluations);
+
             FacultyEvaluationScore first = evaluations.getFirst();
+
             String studentComments = studentEvaluations.stream()
 
                     .map(FacultyEvaluationScore::getCommentsOrFeedbacks)
@@ -108,6 +107,7 @@ public class EvaluationDataService {
                     .reduce((a, b) -> a + "\n• " + b)
 
                     .orElse("-");
+
             String supervisorComments = facultyEvaluations.stream()
 
                     .map(FacultyEvaluationScore::getCommentsOrFeedbacks)
@@ -226,6 +226,5 @@ public class EvaluationDataService {
 
         return evaluation;
     }
-
 
 }
