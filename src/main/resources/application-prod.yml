@@ -7,8 +7,8 @@ spring:
       driver-class-name: com.mysql.cj.jdbc.Driver
 
     legacy:
-      jdbc-url: jdbc:mysql://119.92.126.122:3306/sisdatabase?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8
-      username: ict
+      jdbc-url: jdbc:mysql://10.100.168.14:3306/sisdatabase?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8
+      username: root
       password: ${LEGACY_DB_PASSWORD}
       driver-class-name: com.mysql.cj.jdbc.Driver
 
