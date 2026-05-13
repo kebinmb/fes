@@ -42,4 +42,13 @@ public interface PrimaryStudentRepository extends JpaRepository<PrimaryStudent, 
             String legacyDatabase,
             String legacyId
     );
+
+    @Query("""
+    SELECT ps.studentId
+    FROM PrimaryStudent ps
+    WHERE ps.legacyId = :studentId
+""")
+    Optional<String> findByLegacyStudentId(
+            @Param("studentId") String studentId
+    );
 }

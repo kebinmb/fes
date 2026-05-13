@@ -10,6 +10,7 @@ import com.faculty_evaluation_backend.fes.exceptions.BadRequestException;
 import com.faculty_evaluation_backend.fes.exceptions.ResourceNotFoundException;
 import com.faculty_evaluation_backend.fes.exceptions.UnauthorizedException;
 import com.faculty_evaluation_backend.fes.repositories.authentication.StudentAccessCodeRepository;
+import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryStudentRepository;
 import com.faculty_evaluation_backend.fes.repositories.tokens.RefreshTokenRepository;
 import com.faculty_evaluation_backend.fes.services.cache.StudentCacheService;
 import com.faculty_evaluation_backend.fes.services.jwt.JwtService;
@@ -35,6 +36,7 @@ import java.util.Optional;
 public class StudentAuthenticationService {
 
     private final StudentAccessCodeRepository studentAccessCodeRepository;
+    private final PrimaryStudentRepository primaryStudentRepository;
     private final JwtService jwtService;
     private final StudentCacheService studentCacheService;
     private final RateLimitingService rateLimitingService;
@@ -202,11 +204,19 @@ public class StudentAuthenticationService {
         String tokenHash = TokenHashUtil.sha256(refreshToken);
         String rawDevice = request.getHeader("User-Agent");
         String deviceInfo = TokenHashUtil.sha256(rawDevice != null ? rawDevice : "unknown").substring(0, 16);
+        String transformedStudentId =
+                primaryStudentRepository
+                        .findByLegacyStudentId(studentId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Student ID not found: " + studentId
+                                )
+                        );
         refreshTokenRepository.revokeAllByUserId(studentId);
         refreshTokenRepository.save(RefreshToken.builder().userId(studentId).tokenHash(tokenHash).expiryDate(Instant.now().plusMillis(jwtConfig.getRefreshExpiration())).revoked(false).deviceInfo(deviceInfo).build());
         log.info("Student {} authenticated", studentId);
 
-        return AuthenticationResponse.builder().accessToken(accessToken).refreshToken(refreshToken).accessCode(accessCode).tokenType("Bearer").expiresIn(jwtConfig.getExpiration()).studentId(studentId).build();
+        return AuthenticationResponse.builder().accessToken(accessToken).refreshToken(refreshToken).accessCode(accessCode).tokenType("Bearer").expiresIn(jwtConfig.getExpiration()).studentId(transformedStudentId).build();
     }
     private static final String CHARSET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private final SecureRandom random = new SecureRandom();
