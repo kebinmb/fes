@@ -1,6 +1,7 @@
 package com.faculty_evaluation_backend.fes.entities.primary;
 
 import com.faculty_evaluation_backend.fes.audit.Auditable;
+import com.faculty_evaluation_backend.fes.migration.entity.MigratableEntity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -13,7 +14,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "primary_section")
-public class PrimarySection extends Auditable {
+public class PrimarySection extends MigratableEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "primary_section_id")

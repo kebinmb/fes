@@ -1,5 +1,6 @@
 package com.faculty_evaluation_backend.fes.migration.services;
 
+import com.faculty_evaluation_backend.fes.config.database.LegacyDatabase;
 import com.faculty_evaluation_backend.fes.entities.data.SchoolYearAndSemester;
 import com.faculty_evaluation_backend.fes.entities.legacy.LegacyClass;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryClass;
@@ -17,54 +18,135 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class ClassMigration {
+public class ClassMigration extends BaseMigrationService {
 
+    private static final int BATCH_SIZE = 1000;
     private final LegacyClassRepository legacyClassRepository;
     private final PrimaryClassRepository primaryClassRepository;
     private final ParallelMigrationExecutor parallelMigrationExecutor;
     private final SchoolYearAndSemesterRepository schoolYearAndSemesterRepository;
-    private static final int BATCH_SIZE = 1000;
 
     public void migrate() {
-        log.info("Starting Class Migration");
-        SchoolYearAndSemester filterData = schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE).orElseThrow(() -> new RuntimeException("No active school year and semester found."));
-        List<LegacyClass> data = legacyClassRepository.findBySemesterAndSchoolYear(filterData.getSemester().getValue(), filterData.getSchoolYear());
 
-        log.info("Found {} legacy class records for migration.", data.size());
-        parallelMigrationExecutor.processInParallel(data, BATCH_SIZE, batch -> {
+        executePerCampus(database -> {
 
-            List<PrimaryClass> toSave = batch.stream().filter(lc -> lc != null && lc.getId() != null).map(this::map).toList();
+            log.info("Starting Class Migration : {}", database.name());
 
-            try {
+            SchoolYearAndSemester filterData =
+                    schoolYearAndSemesterRepository
+                            .findByStatus(Status.ACTIVE)
+                            .orElseThrow(() ->
+                                    new RuntimeException(
+                                            "No active school year and semester found."
+                                    )
+                            );
 
-                primaryClassRepository.saveAll(toSave);
+            List<LegacyClass> data =
+                    legacyClassRepository.findBySemesterAndSchoolYear(
+                            filterData.getSemester().getValue(),
+                            filterData.getSchoolYear()
+                    );
 
-                log.info("Saved {} class records.", toSave.size());
+            log.info(
+                    "Found {} legacy class records for migration from {}",
+                    data.size(),
+                    database.name()
+            );
 
-            } catch (Exception e) {
+            parallelMigrationExecutor.processInParallel(
+                    data,
+                    BATCH_SIZE,
+                    batch -> {
 
-                log.warn("Batch failed due to duplicates or constraint issues", e);
-            }
+                        List<PrimaryClass> toSave = batch.stream()
+                                .filter(lc -> lc != null && lc.getId() != null)
+                                .filter(lc ->
+                                        !primaryClassRepository
+                                                .existsByLegacyDatabaseAndLegacyId(
+                                                        database.name(),
+                                                        lc.getId()
+                                                                .getClassCode()
+                                                                .toString()
+                                                )
+                                )
+                                .map(lc -> map(lc, database))
+                                .toList();
+
+                        if (!toSave.isEmpty()) {
+
+                            primaryClassRepository.saveAll(toSave);
+
+                            log.info(
+                                    "Saved {} class records from {}",
+                                    toSave.size(),
+                                    database.name()
+                            );
+                        }
+                    });
+
+            log.info(
+                    "Class Migration Completed : {}",
+                    database.name()
+            );
         });
-
-        log.info("Class Migration Completed");
     }
 
-    private PrimaryClass map(LegacyClass legacyClass) {
+    private PrimaryClass map(
+            LegacyClass legacyClass,
+            LegacyDatabase database
+    ) {
 
         PrimaryClass primaryClass = new PrimaryClass();
 
-        primaryClass.setClassCode(legacyClass.getId().getClassCode().toString());
+        primaryClass.setClassCode(
+                MigrationIdGenerator.generateStringId(
+                        database,
+                        legacyClass.getId()
+                                .getClassCode()
+                                .toString()
+                )
+        );
 
-        primaryClass.setFacultyId(legacyClass.getFacultyId());
+        primaryClass.setFacultyId(
+                MigrationIdGenerator.generateStringId(
+                        database,
+                        legacyClass.getFacultyId()
+                )
+        );
 
-        primaryClass.setSubjectCode(legacyClass.getSubjectCode());
+        primaryClass.setSubjectCode(
+                MigrationIdGenerator.generateStringId(
+                        database,
+                        legacyClass.getSubjectCode()
+                )
+        );
 
-        primaryClass.setSectionId(legacyClass.getId().getSectionId());
+        primaryClass.setSectionId(
+                MigrationIdGenerator.generateNumericId(
+                        database,
+                        legacyClass.getId().getSectionId()
+                )
+        );
 
-        primaryClass.setSemester(legacyClass.getId().getSemester());
+        primaryClass.setSemester(
+                legacyClass.getId().getSemester()
+        );
 
-        primaryClass.setSchoolYear(legacyClass.getId().getSchoolYear());
+        primaryClass.setSchoolYear(
+                legacyClass.getId().getSchoolYear()
+        );
+
+        // MIGRATION METADATA
+
+        primaryClass.setSourceCampus(database);
+
+        primaryClass.setLegacyDatabase(database.name());
+
+        primaryClass.setLegacyId(
+                legacyClass.getId()
+                        .getClassCode()
+                        .toString()
+        );
 
         return primaryClass;
     }

@@ -123,5 +123,8 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
             @Param("schoolYear") Integer schoolYear,
             @Param("semester") String semester
     );
-
+    boolean existsByLegacyDatabaseAndLegacyId(
+            String legacyDatabase,
+            String legacyId
+    );
 }

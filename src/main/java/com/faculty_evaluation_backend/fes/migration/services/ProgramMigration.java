@@ -1,5 +1,6 @@
 package com.faculty_evaluation_backend.fes.migration.services;
 
+import com.faculty_evaluation_backend.fes.config.database.LegacyDatabase;
 import com.faculty_evaluation_backend.fes.entities.legacy.LegacyProgram;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryProgram;
 import com.faculty_evaluation_backend.fes.migration.engine.ParallelMigrationExecutor;
@@ -14,37 +15,71 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class ProgramMigration {
+public class ProgramMigration extends BaseMigrationService {
+
     private final LegacyProgramRepository legacyProgramRepository;
     private final PrimaryProgramRepository primaryProgramRepository;
     private final ParallelMigrationExecutor parallelMigrationExecutor;
 
     private static final int BATCH_SIZE = 1000;
 
-    public void migrate(){
-        log.info("Starting program migration");
-        List<LegacyProgram> data =  legacyProgramRepository.findAll();
-        parallelMigrationExecutor.processInParallel(data, BATCH_SIZE, batch -> {
-            List<PrimaryProgram> toSave = batch.stream()
-                    .filter(legacyProgram -> legacyProgram != null && legacyProgram.getId() != null)
-                    .filter(legacyProgram -> !primaryProgramRepository.existsByProgramCodeAndProgramTitleAndYearGrantedAndCollegeCode(
-                            legacyProgram.getId().getProgramCode(),
-                            legacyProgram.getId().getProgramTitle(),
-                            legacyProgram.getYearGranted(),
-                            legacyProgram.getCollegeCode()
-                    ))
-                    .map(this::map)
-                    .toList();
-            primaryProgramRepository.saveAll(toSave);
+    public void migrate() {
+
+        executePerCampus(database -> {
+
+            log.info("Starting program migration : {}", database.name());
+
+            List<LegacyProgram> data =
+                    legacyProgramRepository.findAll();
+
+            parallelMigrationExecutor.processInParallel(
+                    data,
+                    BATCH_SIZE,
+                    batch -> {
+
+                        List<PrimaryProgram> toSave = batch.stream()
+                                .filter(lp -> lp != null && lp.getId() != null)
+                                .map(lp -> map(lp, database))
+                                .toList();
+
+                        primaryProgramRepository.saveAll(toSave);
+                    });
+
+            log.info("Program migration completed : {}", database.name());
         });
     }
 
-    private PrimaryProgram map(LegacyProgram legacyProgram){
+    private PrimaryProgram map(
+            LegacyProgram legacyProgram,
+            LegacyDatabase database
+    ) {
+
         PrimaryProgram primaryProgram = new PrimaryProgram();
-        primaryProgram.setProgramCode(legacyProgram.getCollegeCode());
-        primaryProgram.setProgramTitle(legacyProgram.getId().getProgramTitle());
-        primaryProgram.setCollegeCode(legacyProgram.getCollegeCode());
-        primaryProgram.setYearGranted(legacyProgram.getYearGranted());
+
+        primaryProgram.setProgramCode(
+                legacyProgram.getId().getProgramCode()
+        );
+
+        primaryProgram.setProgramTitle(
+                legacyProgram.getId().getProgramTitle()
+        );
+
+        primaryProgram.setCollegeCode(
+                legacyProgram.getCollegeCode()
+        );
+
+        primaryProgram.setYearGranted(
+                legacyProgram.getYearGranted()
+        );
+
+        primaryProgram.setSourceCampus(database);
+
+        primaryProgram.setLegacyDatabase(database.name());
+
+        primaryProgram.setLegacyId(
+                legacyProgram.getId().getProgramCode()
+        );
+
         return primaryProgram;
     }
 }

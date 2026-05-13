@@ -27,7 +27,7 @@ public class StudentAuthenticationLookUpService {
 
         // Check student_user
         Optional<StudentUser> studentUser =
-                studentUserRepository.findByStudentId(studentId);
+                studentUserRepository.findByLegacyId(studentId);
 
         if (studentUser.isPresent()) {
 
@@ -45,7 +45,7 @@ public class StudentAuthenticationLookUpService {
 
         // Check student_user_a
         Optional<StudentUserA> studentUserA =
-                studentUserARepository.findByStudentId(studentId);
+                studentUserARepository.findByLegacyId(studentId);
 
         if (studentUserA.isPresent()) {
 
@@ -63,7 +63,7 @@ public class StudentAuthenticationLookUpService {
 
         // Check student_user_b
         Optional<StudentUserB> studentUserB =
-                studentUserBRepository.findByStudentId(studentId);
+                studentUserBRepository.findByLegacyId(studentId);
 
         if (studentUserB.isPresent()) {
 
@@ -81,7 +81,7 @@ public class StudentAuthenticationLookUpService {
 
         // Check student_user_ft
         Optional<StudentUserFT> studentUserFT =
-                studentUserFTRepository.findByStudentId(studentId);
+                studentUserFTRepository.findByLegacyId(studentId);
 
         if (studentUserFT.isPresent()) {
 

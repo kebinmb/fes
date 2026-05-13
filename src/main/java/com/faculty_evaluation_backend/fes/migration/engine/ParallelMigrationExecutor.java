@@ -1,5 +1,7 @@
 package com.faculty_evaluation_backend.fes.migration.engine;
 
+import com.faculty_evaluation_backend.fes.config.database.LegacyDataSourceContext;
+import com.faculty_evaluation_backend.fes.config.database.LegacyDatabase;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Component;
@@ -12,7 +14,8 @@ import java.util.stream.IntStream;
 @Component
 public class ParallelMigrationExecutor {
     private final ThreadPoolTaskExecutor threadPoolTaskExecutor;
-    public ParallelMigrationExecutor(){
+
+    public ParallelMigrationExecutor() {
         threadPoolTaskExecutor = new ThreadPoolTaskExecutor();
         threadPoolTaskExecutor.setCorePoolSize(8);
         threadPoolTaskExecutor.setMaxPoolSize(16);
@@ -24,19 +27,26 @@ public class ParallelMigrationExecutor {
     public <T> void processInParallel(List<T> data, int batchSize, BatchProcessor<T> processor) {
         int total = data.size();
 
-        List<CompletableFuture<Void>> futures =
-                IntStream.range(0, (total + batchSize - 1) / batchSize)
-                        .mapToObj(i -> {
-                            int start = i * batchSize;
-                            int end = Math.min(start + batchSize, total);
-                            List<T> batch = data.subList(start, end);
+        List<CompletableFuture<Void>> futures = IntStream.range(0, (total + batchSize - 1) / batchSize).mapToObj(i -> {
+            int start = i * batchSize;
+            int end = Math.min(start + batchSize, total);
+            List<T> batch = data.subList(start, end);
+            LegacyDatabase currentDb = LegacyDataSourceContext.get();
+            return CompletableFuture.runAsync(() -> {
 
-                            return CompletableFuture.runAsync(() -> {
-                                // ❌ DO NOT catch here → let it fail
-                                processor.process(batch);
-                            }, threadPoolTaskExecutor);
-                        })
-                        .toList();
+                LegacyDataSourceContext.set(currentDb);
+
+                try {
+
+                    processor.process(batch);
+
+                } finally {
+
+                    LegacyDataSourceContext.clear();
+                }
+
+            }, threadPoolTaskExecutor);
+        }).toList();
 
         try {
             // 🔥 This will THROW if any batch fails
@@ -61,7 +71,7 @@ public class ParallelMigrationExecutor {
     }
 
     @FunctionalInterface
-    public interface BatchProcessor<T>{
+    public interface BatchProcessor<T> {
         void process(List<T> batch);
     }
 }

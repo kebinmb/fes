@@ -68,4 +68,9 @@ public interface PrimaryStudentLoadRepository extends JpaRepository<PrimaryStude
     Integer findTotalStudentsInClass(
             @Param("classCode") String classCode
     );
+
+    boolean existsByLegacyDatabaseAndLegacyId(
+            String legacyDatabase,
+            String legacyId
+    );
 }

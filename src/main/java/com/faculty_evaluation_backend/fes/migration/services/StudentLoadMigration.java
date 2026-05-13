@@ -1,8 +1,8 @@
 package com.faculty_evaluation_backend.fes.migration.services;
 
+import com.faculty_evaluation_backend.fes.config.database.LegacyDatabase;
 import com.faculty_evaluation_backend.fes.entities.legacy.LegacyStudentLoad;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryClass;
-import com.faculty_evaluation_backend.fes.entities.primary.PrimaryStudent;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryStudentLoad;
 import com.faculty_evaluation_backend.fes.migration.engine.ParallelMigrationExecutor;
 import com.faculty_evaluation_backend.fes.repositories.legacy.LegacyStudentLoadRepository;
@@ -19,37 +19,127 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class StudentLoadMigration {
+public class StudentLoadMigration extends BaseMigrationService {
+
     private final LegacyStudentLoadRepository legacyStudentLoadRepository;
     private final PrimaryStudentLoadRepository primaryStudentLoadRepository;
     private final ParallelMigrationExecutor parallelMigrationExecutor;
-    private final PrimaryClassRepository  primaryClassRepository;
+    private final PrimaryClassRepository primaryClassRepository;
+
     private static final int BATCH_SIZE = 1000;
 
     public void migrate() {
-        log.info("Starting Student Load Migration");
 
-        List<LegacyStudentLoad> data = legacyStudentLoadRepository.findAll();
-        Set<String> validClassCodes = primaryClassRepository.findAll()
-                .stream()
-                .map(PrimaryClass::getClassCode)
-                .collect(Collectors.toSet());
-        parallelMigrationExecutor.processInParallel(data, BATCH_SIZE, batch -> {
-            List<PrimaryStudentLoad> toSave = batch.stream()
-                    .filter(ls -> ls != null && ls.getId() != null)
-                    .filter(ls -> validClassCodes.contains(ls.getId().getClassCode().toString()))
-                    .map(this::map)
-                    .toList();
-            primaryStudentLoadRepository.saveAll(toSave);
+        executePerCampus(database -> {
+
+            log.info(
+                    "Starting Student Load Migration : {}",
+                    database.name()
+            );
+
+            List<LegacyStudentLoad> data =
+                    legacyStudentLoadRepository.findAll();
+
+            Set<String> validClassCodes =
+                    primaryClassRepository.findAll()
+                            .stream()
+                            .filter(pc ->
+                                    database.name().equals(
+                                            pc.getLegacyDatabase()
+                                    )
+                            )
+                            .map(PrimaryClass::getLegacyId)
+                            .collect(Collectors.toSet());
+
+            parallelMigrationExecutor.processInParallel(
+                    data,
+                    BATCH_SIZE,
+                    batch -> {
+
+                        List<PrimaryStudentLoad> toSave = batch.stream()
+                                .filter(ls -> ls != null && ls.getId() != null)
+                                .filter(ls ->
+                                        validClassCodes.contains(
+                                                ls.getId()
+                                                        .getClassCode()
+                                                        .toString()
+                                        )
+                                )
+                                .filter(ls ->
+                                        !primaryStudentLoadRepository
+                                                .existsByLegacyDatabaseAndLegacyId(
+                                                        database.name(),
+                                                        ls.getId()
+                                                                .getLoadId()
+                                                                .toString()
+                                                )
+                                )
+                                .map(ls -> map(ls, database))
+                                .toList();
+
+                        if (!toSave.isEmpty()) {
+
+                            primaryStudentLoadRepository.saveAll(toSave);
+
+                            log.info(
+                                    "Saved {} student load records from {}",
+                                    toSave.size(),
+                                    database.name()
+                            );
+                        }
+                    });
+
+            log.info(
+                    "Student Load Migration Completed : {}",
+                    database.name()
+            );
         });
     }
 
-    private PrimaryStudentLoad map(LegacyStudentLoad legacyStudentLoad){
-        PrimaryStudentLoad primaryStudentLoad = new PrimaryStudentLoad();
-        primaryStudentLoad.setStudentId(legacyStudentLoad.getId().getStudentId());
-        primaryStudentLoad.setLoadId(legacyStudentLoad.getId().getLoadId());
-        primaryStudentLoad.setYearLevel(legacyStudentLoad.getId().getYearLevel());
-        primaryStudentLoad.setClassCode(legacyStudentLoad.getId().getClassCode().toString());
+    private PrimaryStudentLoad map(
+            LegacyStudentLoad legacyStudentLoad,
+            LegacyDatabase database
+    ) {
+
+        PrimaryStudentLoad primaryStudentLoad =
+                new PrimaryStudentLoad();
+
+        primaryStudentLoad.setStudentId(
+                MigrationIdGenerator.generateStringId(
+                        database,
+                        legacyStudentLoad.getId().getStudentId()
+                )
+        );
+
+        primaryStudentLoad.setLoadId(
+                legacyStudentLoad.getId().getLoadId()
+        );
+
+        primaryStudentLoad.setYearLevel(
+                legacyStudentLoad.getId().getYearLevel()
+        );
+
+        primaryStudentLoad.setClassCode(
+                MigrationIdGenerator.generateStringId(
+                        database,
+                        legacyStudentLoad.getId()
+                                .getClassCode()
+                                .toString()
+                )
+        );
+
+        // MIGRATION METADATA
+
+        primaryStudentLoad.setSourceCampus(database);
+
+        primaryStudentLoad.setLegacyDatabase(database.name());
+
+        primaryStudentLoad.setLegacyId(
+                legacyStudentLoad.getId()
+                        .getLoadId()
+                        .toString()
+        );
+
         return primaryStudentLoad;
     }
 }

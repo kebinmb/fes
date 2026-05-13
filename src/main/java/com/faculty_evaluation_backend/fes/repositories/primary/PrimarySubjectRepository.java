@@ -20,5 +20,10 @@ public interface PrimarySubjectRepository extends JpaRepository<PrimarySubject, 
             @Param("subjectCode") String subjectCode,
             @Param("descriptiveTitle") String descriptiveTitle
     );
+
+    boolean existsByLegacyDatabaseAndLegacyId(
+            String legacyDatabase,
+            String legacyId
+    );
 }
 
