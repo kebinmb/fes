@@ -137,16 +137,20 @@ public class StudentAuthenticationService {
             }
         }
 
-        // =========================================================
-        // GENERATE NEW ACCESS CODE
-        // =========================================================
-
+        String transformedStudentId =
+                primaryStudentRepository
+                        .findByLegacyStudentId(studentId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Student ID not found: " + studentId
+                                )
+                        );
         String accessCode =
                 generateAccessCodeSecure();
 
         StudentAccessCode newAccessCode =
                 StudentAccessCode.builder()
-                        .studentId(studentId)
+                        .studentId(transformedStudentId)
                         .accessCode(accessCode)
                         .expiresAt(
                                 Instant.now().plusSeconds(
@@ -186,7 +190,15 @@ public class StudentAuthenticationService {
     public AuthenticationResponse authenticateWithAccessCode(String studentId, String accessCode, HttpServletRequest request) {
         rateLimitingService.consumeStudentRequest(studentId, "AUTHENTICATE_STUDENT");
         String normalizedAccessCode = accessCode.trim().toUpperCase();
-        StudentAccessCode code = studentAccessCodeRepository.findForUpdate(studentId, normalizedAccessCode).orElseThrow(() -> new UnauthorizedException("Invalid access code"));
+        String transformedStudentId =
+                primaryStudentRepository
+                        .findByLegacyStudentId(studentId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Student ID not found: " + studentId
+                                )
+                        );
+        StudentAccessCode code = studentAccessCodeRepository.findForUpdate(transformedStudentId, normalizedAccessCode).orElseThrow(() -> new UnauthorizedException("Invalid access code"));
         if (!code.isValid()) {
             throw new UnauthorizedException("Invalid, expired, or already used access code");
         }
@@ -204,14 +216,6 @@ public class StudentAuthenticationService {
         String tokenHash = TokenHashUtil.sha256(refreshToken);
         String rawDevice = request.getHeader("User-Agent");
         String deviceInfo = TokenHashUtil.sha256(rawDevice != null ? rawDevice : "unknown").substring(0, 16);
-        String transformedStudentId =
-                primaryStudentRepository
-                        .findByLegacyStudentId(studentId)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Student ID not found: " + studentId
-                                )
-                        );
         refreshTokenRepository.revokeAllByUserId(studentId);
         refreshTokenRepository.save(RefreshToken.builder().userId(studentId).tokenHash(tokenHash).expiryDate(Instant.now().plusMillis(jwtConfig.getRefreshExpiration())).revoked(false).deviceInfo(deviceInfo).build());
         log.info("Student {} authenticated", studentId);

@@ -45,6 +45,7 @@ public class EvaluationDataService {
         primarySubjectRepository.findBySubjectCode(baseEvaluationDTO.getSubjectCode()).orElseThrow(() -> new RuntimeException("Subject not found"));
         EvaluationStrategy evaluationStrategy = factory.getStrategy(baseEvaluationDTO.getEvaluationType());
         evaluationStrategy.validate(baseEvaluationDTO);
+        System.out.println(evaluationStrategy.isDuplicate(baseEvaluationDTO));
         if (evaluationStrategy.isDuplicate(baseEvaluationDTO)) {
             throw new RuntimeException("Duplicate Evaluation");
         }
