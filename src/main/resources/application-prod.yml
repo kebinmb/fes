@@ -1,34 +1,58 @@
 spring:
   datasource:
     primary:
-      jdbc-url: jdbc:mysql://68.178.161.177:3306/syndicateadmin_faculty_evaluation_db?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8
+      jdbc-url: jdbc:mysql://68.178.161.177:3306/syndicateadmin_faculty_evaluation_db?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=true
       username: syndicateadmin_faculty_evaluation_db
       password: ${DB_PASSWORD}
       driver-class-name: com.mysql.cj.jdbc.Driver
 
-    legacy:
-      jdbc-url: jdbc:mysql://119.92.126.122:3306/sisdatabase_fes?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8
+    legacy-talisay:
+      jdbc-url: jdbc:mysql://119.92.126.122:3306/sisdatabase?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=true
       username: ict
       password: ${LEGACY_DB_PASSWORD}
       driver-class-name: com.mysql.cj.jdbc.Driver
 
+    legacy-alijis:
+      jdbc-url: jdbc:mysql://210.213.125.90:3306/sisdatabase?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=true
+      username: mis
+      password: ${LEGACY_ALIJIS_DB_PASSWORD}
+      driver-class-name: com.mysql.cj.jdbc.Driver
+
+    legacy-binalbagan:
+      jdbc-url: jdbc:mysql://103.107.83.3:3306/sisdatabase?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=true
+      username: root
+      password: ${LEGACY_BINALBAGAN_DB_PASSWORD}
+      driver-class-name: com.mysql.cj.jdbc.Driver
+
+    legacy-ft:
+      jdbc-url: jdbc:mysql://122.55.216.26:3306/sisdatabase?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=true
+      username: mis1
+      password: ${LEGACY_FT_DB_PASSWORD}
+      driver-class-name: com.mysql.cj.jdbc.Driver
+
     authentication:
-      jdbc-url: jdbc:mysql://localhost:3306/syndicateadmin_sis?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      jdbc-url: jdbc:mysql://localhost:3306/syndicateadmin_sis?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true
       username: syndicateadmin_sis
       password: ${AUTHENTICATION_DB_PASSWORD}
       driver-class-name: com.mysql.cj.jdbc.Driver
 
     hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
-      idle-timeout: 600000
+      pool-name: FacultyEvaluationHikariPool
+      maximum-pool-size: 100
+      minimum-idle: 20
+      idle-timeout: 300000
       connection-timeout: 30000
+      validation-timeout: 5000
       max-lifetime: 1800000
+      keepalive-time: 30000
+      leak-detection-threshold: 60000
+      auto-commit: false
+
   mail:
     host: smtp.gmail.com
     port: 587
     username: fes-noreply@chmsu.edu.ph
-    password: lidx mrcq kcvw sapq
+    password: ${MAIL_PASSWORD}
 
     properties:
       mail:
@@ -36,43 +60,77 @@ spring:
           auth: true
           starttls:
             enable: true
+          connectiontimeout: 10000
+          timeout: 10000
+          writetimeout: 10000
+
   cache:
     type: caffeine
+
+  task:
+    execution:
+      pool:
+        core-size: 50
+        max-size: 200
+        queue-capacity: 1000
+        keep-alive: 60s
+
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
 
   jpa:
     hibernate:
       ddl-auto: validate
 
-    show-sql: true
+    show-sql: false
+
+    open-in-view: false
 
     properties:
       hibernate:
-        format_sql: true
         dialect: org.hibernate.dialect.MariaDBDialect
+        format_sql: false
+        jdbc:
+          batch_size: 1000
+          fetch_size: 100
+          batch_versioned_data: true
+        order_inserts: true
+        order_updates: true
+        generate_statistics: false
+        connection:
+          provider_disables_autocommit: true
 
   flyway:
     clean-disabled: true
     validate-on-migrate: true
+    baseline-on-migrate: true
 
 server:
   port: 9000
   forward-headers-strategy: framework
 
+  tomcat:
+    threads:
+      max: 1000
+      min-spare: 50
+
+    max-connections: 10000
+    accept-count: 1000
+
+    connection-timeout: 20000
+    keep-alive-timeout: 15000
+    max-keep-alive-requests: 100
+
 logging:
   level:
     root: INFO
-
-    # Show generated SQL
-    org.hibernate.SQL: DEBUG
-
-    # Show SQL parameters
-    org.hibernate.orm.jdbc.bind: TRACE
-
-    # Hibernate warnings/errors
+    org.hibernate.SQL: WARN
+    org.hibernate.orm.jdbc.bind: WARN
     org.hibernate.orm.jdbc.error: DEBUG
-
-    # Spring Security logs
     org.springframework.security: WARN
+    com.zaxxer.hikari: INFO
 
 management:
   endpoints:
