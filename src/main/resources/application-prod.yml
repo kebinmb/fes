@@ -46,7 +46,7 @@ spring:
       max-lifetime: 1800000
       keepalive-time: 30000
       leak-detection-threshold: 60000
-      auto-commit: false
+      auto-commit: true
 
   mail:
     host: smtp.gmail.com
@@ -85,7 +85,6 @@ spring:
       ddl-auto: validate
 
     show-sql: false
-
     open-in-view: false
 
     properties:
@@ -99,8 +98,6 @@ spring:
         order_inserts: true
         order_updates: true
         generate_statistics: false
-        connection:
-          provider_disables_autocommit: true
 
   flyway:
     clean-disabled: true
