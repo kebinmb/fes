@@ -78,7 +78,7 @@ public class EvaluationDataService {
 
             for (FacultyEvaluationScore evaluation : evaluations) {
 
-                boolean isStudent = primaryStudentRepository.existsByStudentId(evaluation.getEvaluatorId());
+                boolean isStudent = primaryStudentRepository.existsByLegacyId(evaluation.getEvaluatorId());
 
                 if (isStudent) {
 

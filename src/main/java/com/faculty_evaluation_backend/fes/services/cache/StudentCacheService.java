@@ -23,7 +23,7 @@ public class StudentCacheService {
 
     @Cacheable(value = "studentExists", key = "#studentId")
     public boolean studentExists(String studentId){
-        return primaryStudentRepository.existsByStudentId(studentId);
+        return primaryStudentRepository.existsByLegacyId(studentId);
     }
     @Cacheable(value = "studentLoadCount", key = "#studentId")
     public int getTotalLoad(String studentId){

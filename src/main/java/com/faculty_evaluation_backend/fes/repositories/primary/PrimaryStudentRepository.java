@@ -36,7 +36,7 @@ public interface PrimaryStudentRepository extends JpaRepository<PrimaryStudent, 
 
     Optional<PrimaryStudent> findByStudentId(String studentId);
 
-    boolean existsByStudentId(String studentId);
+    boolean existsByLegacyId(String legacyId);
 
     boolean existsByLegacyDatabaseAndLegacyId(
             String legacyDatabase,
