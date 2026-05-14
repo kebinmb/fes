@@ -20,11 +20,28 @@ public abstract class BaseMigrationService {
 
                 action.execute(database);
 
+                log.info(
+                        "Migration completed successfully for {}",
+                        database.name()
+                );
+
+            } catch (Exception ex) {
+
+                log.error(
+                        "Migration failed for campus : {}",
+                        database.name(),
+                        ex
+                );
+
             } finally {
 
                 LegacyDataSourceContext.clear();
 
-                log.info("CLEARED DATASOURCE CONTEXT : {}", database.name());
+                log.info(
+                        "CLEARED DATASOURCE CONTEXT : {}",
+                        database.name()
+                );
+
                 log.info("=================================================");
             }
         }

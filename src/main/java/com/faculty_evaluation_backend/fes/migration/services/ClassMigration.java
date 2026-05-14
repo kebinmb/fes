@@ -20,7 +20,7 @@ import java.util.List;
 @Slf4j
 public class ClassMigration extends BaseMigrationService {
 
-    private static final int BATCH_SIZE = 1000;
+    private static final int BATCH_SIZE = 10;
     private final LegacyClassRepository legacyClassRepository;
     private final PrimaryClassRepository primaryClassRepository;
     private final ParallelMigrationExecutor parallelMigrationExecutor;

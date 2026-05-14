@@ -21,7 +21,7 @@ public class SubjectMigrationService extends BaseMigrationService {
     private final PrimarySubjectRepository primarySubjectRepository;
     private final ParallelMigrationExecutor parallelMigrationExecutor;
 
-    private static final int BATCH_SIZE = 1000;
+    private static final int BATCH_SIZE = 10;
 
     public void migrate() {
 
@@ -34,6 +34,12 @@ public class SubjectMigrationService extends BaseMigrationService {
 
             List<LegacySubject> data =
                     legacySubjectRepository.findAll();
+
+            log.info(
+                    "Fetched {} subject records from {}",
+                    data.size(),
+                    database.name()
+            );
 
             parallelMigrationExecutor.processInParallel(
                     data,

@@ -21,7 +21,7 @@ public class ProgramMigration extends BaseMigrationService {
     private final PrimaryProgramRepository primaryProgramRepository;
     private final ParallelMigrationExecutor parallelMigrationExecutor;
 
-    private static final int BATCH_SIZE = 1000;
+    private static final int BATCH_SIZE = 10;
 
     public void migrate() {
 
@@ -31,7 +31,11 @@ public class ProgramMigration extends BaseMigrationService {
 
             List<LegacyProgram> data =
                     legacyProgramRepository.findAll();
-
+            log.info(
+                    "Fetched {} subject records from {}",
+                    data.size(),
+                    database.name()
+            );
             parallelMigrationExecutor.processInParallel(
                     data,
                     BATCH_SIZE,

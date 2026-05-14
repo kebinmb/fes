@@ -26,7 +26,7 @@ public class StudentLoadMigration extends BaseMigrationService {
     private final ParallelMigrationExecutor parallelMigrationExecutor;
     private final PrimaryClassRepository primaryClassRepository;
 
-    private static final int BATCH_SIZE = 1000;
+    private static final int BATCH_SIZE = 10;
 
     public void migrate() {
 
@@ -39,7 +39,11 @@ public class StudentLoadMigration extends BaseMigrationService {
 
             List<LegacyStudentLoad> data =
                     legacyStudentLoadRepository.findAll();
-
+            log.info(
+                    "Fetched {} subject records from {}",
+                    data.size(),
+                    database.name()
+            );
             Set<String> validClassCodes =
                     primaryClassRepository.findAll()
                             .stream()

@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -25,5 +26,12 @@ public interface PrimarySubjectRepository extends JpaRepository<PrimarySubject, 
             String legacyDatabase,
             String legacyId
     );
+
+    @Query("""
+    SELECT ps.legacyId
+    FROM PrimarySubject ps
+    WHERE ps.legacyDatabase = :database
+""")
+    List<String> findLegacyIdsByDatabase(String database);
 }
 

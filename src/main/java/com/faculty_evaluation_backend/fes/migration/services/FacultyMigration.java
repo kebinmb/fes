@@ -23,7 +23,7 @@ public class FacultyMigration extends BaseMigrationService {
     private final PrimaryFacultyRepository primaryFacultyRepository;
     private final ParallelMigrationExecutor parallelMigrationExecutor;
 
-    private static final int BATCH_SIZE = 1000;
+    private static final int BATCH_SIZE = 10;
 
     public void migrate() {
 
@@ -33,7 +33,11 @@ public class FacultyMigration extends BaseMigrationService {
 
             List<LegacyFaculty> legacyList =
                     legacyFacultyRepository.findAll();
-
+            log.info(
+                    "Fetched {} subject records from {}",
+                    legacyList.size(),
+                    database.name()
+            );
             parallelMigrationExecutor.processInParallel(
                     legacyList,
                     BATCH_SIZE,
