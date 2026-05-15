@@ -1,6 +1,7 @@
 package com.faculty_evaluation_backend.fes.entities.authentication;
 
 import com.faculty_evaluation_backend.fes.entities.primary.enums.College;
+import com.faculty_evaluation_backend.fes.entities.primary.enums.Programs;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.Role;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.Status;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -83,6 +84,10 @@ public class UserAccounts {
     @Column(name = "college")
     @Enumerated(EnumType.STRING)
     private College college;
+
+    @Column(name = "program")
+    @Enumerated(EnumType.STRING)
+    private Programs programs;
 
     @Column(name = "status")
     @Enumerated(EnumType.STRING)

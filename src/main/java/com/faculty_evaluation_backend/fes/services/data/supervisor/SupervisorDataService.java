@@ -3,6 +3,7 @@ package com.faculty_evaluation_backend.fes.services.data.supervisor;
 import com.faculty_evaluation_backend.fes.dto.data.SchoolYearAndSemesterDTO;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassDTO;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyDTO;
+import com.faculty_evaluation_backend.fes.dto.faculty.FacultyLoadDTO;
 import com.faculty_evaluation_backend.fes.entities.data.SchoolYearAndSemester;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryFaculty;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.College;
@@ -43,18 +44,45 @@ public class SupervisorDataService {
     }
 
     @Transactional(transactionManager = "primaryTransactionManager", readOnly = true)
+    public List<FacultyLoadDTO> getFacultyLoadsByProgram(String programCode) {
+
+        List<Object[]> results = primaryClassRepository.findFacultyLoadsByProgram(programCode);
+
+        return results.stream().map(row -> new FacultyLoadDTO((String) row[0], // facultyId
+
+                (String) row[1], // firstname
+                (String) row[2], // lastname
+                (String) row[3], // middlename
+
+                (String) row[4], // position
+
+                (String) row[5], // subjectCode
+
+                (String) row[6], // programYearSection
+
+                (String) row[7], // campus
+
+                ((Number) row[8]).doubleValue(), // loadLimit
+
+                (String) row[9] // typeOfLoad
+        )).toList();
+    }
+
+    @Transactional(transactionManager = "primaryTransactionManager", readOnly = true)
     @Cacheable(value = "facultyClasses", key = "#facultyId")
-    public List<FacultyClassDTO> findFacultyClasses(String facultyId) {
+    public List<FacultyClassDTO> findFacultyClasses(String facultyId, String program) {
         SchoolYearAndSemester data = schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE).orElseThrow(() -> new RuntimeException("No active school year and semester found."));
         log.debug("Fetching classes | facultyId={} | schoolYear={} | semester={}", facultyId, data.getSchoolYear(), data.getSemester());
-        List<FacultyClassDTO> result = primaryClassRepository.findFacultyClasses(facultyId, data.getSchoolYear(), data.getSemester().getValue());
+        List<FacultyClassDTO> result = primaryClassRepository.findFacultyClasses(facultyId,program, data.getSchoolYear(), data.getSemester().getValue());
         log.info("Classes fetched | facultyId={} | count={}", facultyId, result.size());
         return result;
     }
+
     @Transactional(transactionManager = "primaryTransactionManager", readOnly = true)
     public boolean hasEvaluated(String facultyId, String evaluatorId, String classCode, String subjectCode, String yearLevel, String semester, Integer schoolYear) {
         return facultyEvaluationScoreRepository.existsByFacultyIdAndEvaluatorIdAndClassCodeAndSubjectCodeAndYearLevelAndSemesterAndSchoolYear(facultyId, evaluatorId, classCode, subjectCode, yearLevel, semester, schoolYear);
     }
+
     private College parseCollege(String college) {
         try {
             return College.valueOf(college.toUpperCase());

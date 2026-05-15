@@ -25,9 +25,10 @@ public class SupervisorAccountsAuthenticationService {
     private final RateLimitingService rateLimitingService;
     private final JwtService jwtService;
     private final JwtConfig jwtConfig;
+
     @AuditableAction(action = "AUTHENTICATE_SUPERVISOR", entity = "SUPERVISOR_AUTHENTICATION")
     @Transactional(transactionManager = "primaryTransactionManager")
-    public UserAuthenticationResponse login(LoginRequest loginRequest){
+    public UserAuthenticationResponse login(LoginRequest loginRequest) {
 
         String identifier = loginRequest.getUsernameOrEmail();
 
@@ -36,12 +37,7 @@ public class SupervisorAccountsAuthenticationService {
         log.info("Login attempt for identifier: {}", identifier);
 
         try {
-            Authentication auth = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(
-                            identifier,
-                            loginRequest.getPassword()
-                    )
-            );
+            Authentication auth = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(identifier, loginRequest.getPassword()));
 
             CustomUserDetails userDetails = (CustomUserDetails) auth.getPrincipal();
             Long userId = userDetails.getUserId();
@@ -55,14 +51,7 @@ public class SupervisorAccountsAuthenticationService {
 
             log.info("Login successful for userId = {}", userAccount.getUserId());
 
-            return UserAuthenticationResponse.builder()
-                    .accessToken(accessToken)
-                    .refreshToken(refreshToken)
-                    .tokenType("Bearer")
-                    .expiresIn(jwtConfig.getExpiration())
-                    .evaluatorId(userId.toString())
-                    .college(userAccount.getCollege())
-                    .build();
+            return UserAuthenticationResponse.builder().accessToken(accessToken).refreshToken(refreshToken).tokenType("Bearer").expiresIn(jwtConfig.getExpiration()).evaluatorId(userId.toString()).college(userAccount.getCollege()).programs(userAccount.getPrograms()).build();
 
         } catch (BadCredentialsException e) {
             log.warn("Invalid credentials for identifier: {}", identifier);
