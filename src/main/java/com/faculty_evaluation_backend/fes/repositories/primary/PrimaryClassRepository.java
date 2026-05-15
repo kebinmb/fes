@@ -2,6 +2,7 @@ package com.faculty_evaluation_backend.fes.repositories.primary;
 
 
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassDTO;
+import com.faculty_evaluation_backend.fes.dto.faculty.FacultyLoadDTO;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryClass;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -83,51 +84,42 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
     boolean existsByLegacyDatabaseAndLegacyId(String legacyDatabase, String legacyId);
 
     @Query(value = """
-        SELECT 
-            pf.faculty_id AS facultyId,
+    SELECT DISTINCT
 
-            pf.firstname AS firstname,
-            pf.lastname AS lastname,
-            pf.middlename AS middlename,
+        pf.faculty_id AS facultyId,
 
-            pf.position AS position,
+        pf.firstname AS firstname,
+        pf.lastname AS lastname,
+        pf.middlename AS middlename,
 
-            pc.subject_code AS subjectCode,
+        pf.position AS position,
 
-            CONCAT(
-                ps.program_code,
-                ' ',
-                ps.year_level,
-                ps.section_code
-            ) AS programYearSection,
+        pc.source_campus AS campus,
 
-            pc.source_campus AS campus,
+        pf.load_limit AS loadLimit,
 
-            pf.load_limit AS loadLimit,
+        CASE
+            WHEN COUNT(*) OVER (PARTITION BY pc.faculty_id) > pf.load_limit
+                THEN 'OVERLOAD'
+            ELSE 'REGULAR'
+        END AS typeOfLoad
 
-            CASE
-                WHEN COUNT(*) OVER (PARTITION BY pc.faculty_id) > pf.load_limit
-                    THEN 'OVERLOAD'
-                ELSE 'REGULAR'
-            END AS typeOfLoad
+    FROM primary_class pc
 
-        FROM primary_class pc
+    INNER JOIN primary_faculty pf
+        ON pc.faculty_id = pf.faculty_id
 
-        INNER JOIN primary_faculty pf
-            ON pc.faculty_id = pf.faculty_id
+    INNER JOIN primary_section ps
+        ON pc.section_id = ps.section_id
 
-        INNER JOIN primary_section ps
-            ON pc.section_id = ps.section_id
+    WHERE pc.class_code IS NOT NULL
+        AND ps.program_code = :programCode
 
-        WHERE pc.class_code IS NOT NULL
-            AND ps.program_code LIKE %:programCode%
-
-        ORDER BY
-            pf.faculty_id,
-            pc.subject_code,
-            ps.program_code,
-            ps.year_level,
-            ps.section_code
-        """, nativeQuery = true)
-    List<Object[]> findFacultyLoadsByProgram(@Param("programCode") String programCode);
+    ORDER BY
+        pf.lastname,
+        pf.firstname
+    """, nativeQuery = true)
+    List<FacultyLoadDTO> findFacultyLoadsByProgram(
+            @Param("programCode") String programCode
+    );
 }

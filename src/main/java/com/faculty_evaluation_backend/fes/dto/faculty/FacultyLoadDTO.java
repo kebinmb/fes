@@ -19,10 +19,6 @@ public class FacultyLoadDTO {
 
     private String position;
 
-    private String subjectCode;
-
-
-    private String programYearSection;
 
     private String campus;
 

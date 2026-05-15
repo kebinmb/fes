@@ -43,29 +43,17 @@ public class SupervisorDataService {
         return primaryFacultyRepository.findByCollegeAndStatus(collegeEnum, statusEnum).stream().map(f -> new FacultyDTO(f.getFacultyId(), f.getLastname(), f.getFirstname(), f.getPosition(), f.getLoadLimit(), f.getMiddlename(), f.getCollege().name(), f.getStatus().name())).toList();
     }
 
-    @Transactional(transactionManager = "primaryTransactionManager", readOnly = true)
-    public List<FacultyLoadDTO> getFacultyLoadsByProgram(String programCode) {
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
+    public List<FacultyLoadDTO> getFacultyLoadsByProgram(
+            String programCode
+    ) {
 
-        List<Object[]> results = primaryClassRepository.findFacultyLoadsByProgram(programCode);
+        return primaryClassRepository
+                .findFacultyLoadsByProgram(programCode);
 
-        return results.stream().map(row -> new FacultyLoadDTO((String) row[0], // facultyId
-
-                (String) row[1], // firstname
-                (String) row[2], // lastname
-                (String) row[3], // middlename
-
-                (String) row[4], // position
-
-                (String) row[5], // subjectCode
-
-                (String) row[6], // programYearSection
-
-                (String) row[7], // campus
-
-                ((Number) row[8]).doubleValue(), // loadLimit
-
-                (String) row[9] // typeOfLoad
-        )).toList();
     }
 
     @Transactional(transactionManager = "primaryTransactionManager", readOnly = true)
