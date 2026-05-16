@@ -46,35 +46,44 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
     Object[] findClassWithDetailsForStudentNative(@Param("classCode") String classCode, @Param("studentId") String studentId);
 
     @Query(value = """
-        SELECT DISTINCT
-            pc.subject_code AS subjectCode,
-            pc.faculty_id AS facultyId,
-            pc.school_year AS schoolYear,
-            pc.semester AS semester,
-            pc.class_code AS classCode,
-            psl.year_level AS yearLevel,
-            ps.program_code AS programCode,
-            ps.section_code AS sectionCode
+    SELECT
+        pc.subject_code AS subjectCode,
+        pc.faculty_id AS facultyId,
+        pc.school_year AS schoolYear,
+        pc.semester AS semester,
 
-        FROM primary_class pc
+        MIN(pc.class_code) AS classCode,
 
-        INNER JOIN primary_student_load psl 
-            ON pc.class_code = psl.class_code
+        MIN(psl.year_level) AS yearLevel,
 
-        INNER JOIN primary_section ps
-            ON pc.section_id = ps.section_id
+        ps.program_code AS programCode,
 
-        WHERE pc.faculty_id = :facultyId
-          AND ps.program_code = :program
-          AND pc.school_year = :schoolYear
-          AND pc.semester = :semester
+        MIN(ps.section_code) AS sectionCode
 
-        ORDER BY
-            pc.subject_code,
-            ps.program_code,
-            psl.year_level,
-            ps.section_code
-        """, nativeQuery = true)
+    FROM primary_class pc
+
+    INNER JOIN primary_student_load psl
+        ON pc.class_code = psl.class_code
+
+    INNER JOIN primary_section ps
+        ON pc.section_id = ps.section_id
+
+    WHERE pc.faculty_id = :facultyId
+      AND ps.program_code = :program
+      AND pc.school_year = :schoolYear
+      AND pc.semester = :semester
+
+    GROUP BY
+        pc.subject_code,
+        pc.faculty_id,
+        pc.school_year,
+        pc.semester,
+        ps.program_code
+
+    ORDER BY
+        pc.subject_code,
+        ps.program_code
+    """, nativeQuery = true)
     List<FacultyClassDTO> findFacultyClasses(
             @Param("facultyId") String facultyId,
             @Param("program") String program,
