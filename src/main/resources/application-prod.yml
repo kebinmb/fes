@@ -3,34 +3,74 @@ spring:
   datasource:
 
     primary:
-      jdbc-url: jdbc:mysql://68.178.161.177:3306/syndicateadmin_faculty_evaluation_db?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=false&tcpKeepAlive=true&connectTimeout=30000&socketTimeout=600000
+      jdbc-url: jdbc:mysql://68.178.161.177:3306/syndicateadmin_faculty_evaluation_db?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=false&tcpKeepAlive=true&connectTimeout=3000&socketTimeout=600000
       username: syndicateadmin_faculty_evaluation_db
       password: ${DB_PASSWORD}
       driver-class-name: com.mysql.cj.jdbc.Driver
 
     legacy-talisay:
-      jdbc-url: jdbc:mysql://119.92.126.122:3306/sisdatabase?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=false&tcpKeepAlive=true&connectTimeout=30000&socketTimeout=600000
+      jdbc-url: jdbc:mysql://119.92.126.122:3306/sisdatabase?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=false&tcpKeepAlive=true&connectTimeout=3000&socketTimeout=600000
       username: ict
       password: ${LEGACY_DB_PASSWORD}
       driver-class-name: com.mysql.cj.jdbc.Driver
+
+      hikari:
+        initialization-fail-timeout: -1
+        connection-timeout: 3000
+        validation-timeout: 3000
+        maximum-pool-size: 2
+        minimum-idle: 0
+        idle-timeout: 10000
+        max-lifetime: 30000
+        keepalive-time: 15000
 
     legacy-alijis:
-      jdbc-url: jdbc:mysql://119.92.126.122:3306/sisdatabase_alijis?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=false&tcpKeepAlive=true&connectTimeout=30000&socketTimeout=600000
+      jdbc-url: jdbc:mysql://119.92.126.122:3306/sisdatabase_alijis?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=false&tcpKeepAlive=true&connectTimeout=3000&socketTimeout=600000
       username: ict
-      password: ${LEGACY_DB_PASSWORD}
+      password: ${LEGACY_ALIJIS_DB_PASSWORD}
       driver-class-name: com.mysql.cj.jdbc.Driver
+
+      hikari:
+        initialization-fail-timeout: -1
+        connection-timeout: 3000
+        validation-timeout: 3000
+        maximum-pool-size: 2
+        minimum-idle: 0
+        idle-timeout: 10000
+        max-lifetime: 30000
+        keepalive-time: 15000
 
     legacy-binalbagan:
-      jdbc-url: jdbc:mysql://119.92.126.122:3306/sisdatabase_binalbagan?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=false&tcpKeepAlive=true&connectTimeout=30000&socketTimeout=600000
+      jdbc-url: jdbc:mysql://119.92.126.122:3306/sisdatabase_binalbagan?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=false&tcpKeepAlive=true&connectTimeout=3000&socketTimeout=600000
       username: ict
-      password: ${LEGACY_DB_PASSWORD}
+      password: ${LEGACY_BINALBAGAN_DB_PASSWORD}
       driver-class-name: com.mysql.cj.jdbc.Driver
 
+      hikari:
+        initialization-fail-timeout: -1
+        connection-timeout: 3000
+        validation-timeout: 3000
+        maximum-pool-size: 2
+        minimum-idle: 0
+        idle-timeout: 10000
+        max-lifetime: 30000
+        keepalive-time: 15000
+
     legacy-ft:
-      jdbc-url: jdbc:mysql://119.92.126.122:3306/sisdatabase_ft?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=false&tcpKeepAlive=true&connectTimeout=30000&socketTimeout=600000
+      jdbc-url: jdbc:mysql://119.92.126.122:3306/sisdatabase_ft?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=false&tcpKeepAlive=true&connectTimeout=3000&socketTimeout=600000
       username: ict
-      password: ${LEGACY_DB_PASSWORD}
+      password: ${LEGACY_FT_DB_PASSWORD}
       driver-class-name: com.mysql.cj.jdbc.Driver
+
+      hikari:
+        initialization-fail-timeout: -1
+        connection-timeout: 3000
+        validation-timeout: 3000
+        maximum-pool-size: 2
+        minimum-idle: 0
+        idle-timeout: 10000
+        max-lifetime: 30000
+        keepalive-time: 15000
 
     authentication:
       jdbc-url: jdbc:mysql://localhost:3306/syndicateadmin_sis?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true
@@ -73,8 +113,10 @@ spring:
       mail:
         smtp:
           auth: true
+
           starttls:
             enable: true
+
           connectiontimeout: 10000
           timeout: 10000
           writetimeout: 10000
@@ -99,7 +141,14 @@ spring:
 
       hibernate:
         dialect: org.hibernate.dialect.MariaDBDialect
+
         format_sql: false
+
+        boot:
+          allow_jdbc_metadata_access: false
+
+        temp:
+          use_jdbc_metadata_defaults: false
 
         jdbc:
           batch_size: 25
@@ -108,12 +157,14 @@ spring:
 
         order_inserts: true
         order_updates: true
+
         generate_statistics: false
 
   flyway:
     clean-disabled: true
     validate-on-migrate: true
     baseline-on-migrate: true
+
   security:
     oauth2:
       client:
@@ -121,12 +172,11 @@ spring:
           google:
             client-id: ${GOOGLE_CLIENT_ID}
             client-secret: ${GOOGLE_CLIENT_SECRET}
+
             scope:
               - email
               - profile
-  app:
-    oauth2:
-      redirect-url: ${REDIRECT_URL}
+
 server:
 
   port: 9000
@@ -153,10 +203,13 @@ logging:
 
   level:
     root: INFO
+
     org.hibernate.SQL: WARN
     org.hibernate.orm.jdbc.bind: WARN
     org.hibernate.orm.jdbc.error: DEBUG
+
     org.springframework.security: WARN
+
     com.zaxxer.hikari: INFO
 
 management:
@@ -164,7 +217,10 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,prometheus
+        include:
+          - health
+          - info
+          - prometheus
 
   endpoint:
     health:
@@ -172,3 +228,7 @@ management:
 
 jwt:
   secret: ${JWT_SECRET}
+
+app:
+  oauth2:
+    redirect-url: https://dev-feva.chmsu.edu.ph/oauth-success

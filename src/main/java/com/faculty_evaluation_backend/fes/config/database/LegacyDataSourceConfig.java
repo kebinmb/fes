@@ -19,11 +19,7 @@ import java.util.Map;
 
 @Configuration
 @EnableTransactionManagement
-@EnableJpaRepositories(
-        basePackages = "com.faculty_evaluation_backend.fes.repositories.legacy",
-        entityManagerFactoryRef = "legacyEntityManagerFactory",
-        transactionManagerRef = "legacyTransactionManager"
-)
+@EnableJpaRepositories(basePackages = "com.faculty_evaluation_backend.fes.repositories.legacy", entityManagerFactoryRef = "legacyEntityManagerFactory", transactionManagerRef = "legacyTransactionManager")
 public class LegacyDataSourceConfig {
 
     @Bean(name = "legacyTalisayDataSource")
@@ -55,34 +51,19 @@ public class LegacyDataSourceConfig {
 
         Map<Object, Object> targetDataSources = new HashMap<>();
 
-        targetDataSources.put(
-                LegacyDatabase.LEGACY_TALISAY,
-                legacyTalisayDataSource()
-        );
+        targetDataSources.put(LegacyDatabase.LEGACY_TALISAY, legacyTalisayDataSource());
 
-        targetDataSources.put(
-                LegacyDatabase.LEGACY_ALIJIS,
-                legacyAlijisDataSource()
-        );
+        targetDataSources.put(LegacyDatabase.LEGACY_ALIJIS, legacyAlijisDataSource());
 
-        targetDataSources.put(
-                LegacyDatabase.LEGACY_BINALBAGAN,
-                legacyBinalbaganDataSource()
-        );
+        targetDataSources.put(LegacyDatabase.LEGACY_BINALBAGAN, legacyBinalbaganDataSource());
 
-        targetDataSources.put(
-                LegacyDatabase.LEGACY_FT,
-                legacyFtDataSource()
-        );
+        targetDataSources.put(LegacyDatabase.LEGACY_FT, legacyFtDataSource());
 
-        LegacyRoutingDataSource routingDataSource =
-                new LegacyRoutingDataSource();
+        LegacyRoutingDataSource routingDataSource = new LegacyRoutingDataSource();
 
         routingDataSource.setTargetDataSources(targetDataSources);
 
-        routingDataSource.setDefaultTargetDataSource(
-                legacyTalisayDataSource()
-        );
+        routingDataSource.setDefaultTargetDataSource(legacyTalisayDataSource());
 
         routingDataSource.afterPropertiesSet();
 
@@ -90,35 +71,24 @@ public class LegacyDataSourceConfig {
     }
 
     @Bean(name = "legacyEntityManagerFactory")
-    public LocalContainerEntityManagerFactoryBean legacyEntityManagerFactory(
-            EntityManagerFactoryBuilder entityManagerFactoryBuilder,
-            @Qualifier("legacyDataSource") DataSource dataSource
-    ) {
+    public LocalContainerEntityManagerFactoryBean legacyEntityManagerFactory(EntityManagerFactoryBuilder entityManagerFactoryBuilder, @Qualifier("legacyDataSource") DataSource dataSource) {
 
         Map<String, Object> properties = new HashMap<>();
 
         properties.put("hibernate.hbm2ddl.auto", "none");
 
-        properties.put(
-                "hibernate.dialect",
-                "org.hibernate.dialect.MySQLDialect"
-        );
+        properties.put("hibernate.dialect", "org.hibernate.dialect.MySQLDialect");
+
+        properties.put("hibernate.boot.allow_jdbc_metadata_access", false);
+
+        properties.put("hibernate.temp.use_jdbc_metadata_defaults", false);
 
         properties.put("hibernate.format_sql", true);
-
-        return entityManagerFactoryBuilder
-                .dataSource(dataSource)
-                .packages("com.faculty_evaluation_backend.fes.entities.legacy")
-                .persistenceUnit("legacy")
-                .properties(properties)
-                .build();
+        return entityManagerFactoryBuilder.dataSource(dataSource).packages("com.faculty_evaluation_backend.fes.entities.legacy").persistenceUnit("legacy").properties(properties).build();
     }
 
     @Bean(name = "legacyTransactionManager")
-    public PlatformTransactionManager legacyTransactionManager(
-            @Qualifier("legacyEntityManagerFactory")
-            EntityManagerFactory entityManagerFactory
-    ) {
+    public PlatformTransactionManager legacyTransactionManager(@Qualifier("legacyEntityManagerFactory") EntityManagerFactory entityManagerFactory) {
         return new JpaTransactionManager(entityManagerFactory);
     }
 }
