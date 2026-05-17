@@ -67,15 +67,15 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             refreshCookieName = "supervisor_refresh";
         }
 
-        ResponseCookie accessCookie = ResponseCookie.from(accessCookieName, accessToken).httpOnly(true).secure(false).path("/").sameSite("Lax").maxAge(Math.max(1, jwtConfig.getExpiration() / 1000)).build();
+        ResponseCookie accessCookie = ResponseCookie.from(accessCookieName, accessToken).httpOnly(true).secure(true).path("/").sameSite("None").maxAge(Math.max(1, jwtConfig.getExpiration() / 1000)).build();
 
-        ResponseCookie refreshCookie = ResponseCookie.from(refreshCookieName, refreshToken).httpOnly(true).secure(false).path("/").sameSite("Lax").maxAge(jwtConfig.getRefreshExpiration() / 1000).build();
+        ResponseCookie refreshCookie = ResponseCookie.from(refreshCookieName, refreshToken).httpOnly(true).secure(true).path("/").sameSite("None").maxAge(jwtConfig.getRefreshExpiration() / 1000).build();
 
         response.addHeader("Set-Cookie", accessCookie.toString());
 
         response.addHeader("Set-Cookie", refreshCookie.toString());
 
-        response.sendRedirect("https://dev-feva.chmsu.edu.ph/oauth-succes");
+        response.sendRedirect("https://dev-feva.chmsu.edu.ph/oauth-success");
     }
 }
 

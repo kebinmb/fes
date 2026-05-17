@@ -35,31 +35,73 @@ public class AuthenticationController {
     private final RefreshTokenRepository refreshTokenRepository;
 
     private ResponseCookie buildStudentAccessTokenCookie(String token) {
-        return ResponseCookie.from("student_access", token).httpOnly(true).secure(false).path("/").sameSite("Lax").maxAge(Math.max(1, jwtConfig.getExpiration() / 1000)).build();
+        return ResponseCookie.from("student_access", token)
+                .httpOnly(true)
+                .secure(true)
+                .path("/")
+                .sameSite("None")
+                .maxAge(Math.max(1, jwtConfig.getExpiration() / 1000))
+                .build();
     }
 
     private ResponseCookie buildStudentRefreshTokenCookie(String token) {
-        return ResponseCookie.from("student_refresh", token).httpOnly(true).secure(false).path("/").sameSite("Lax").maxAge(jwtConfig.getRefreshExpiration() / 1000).build();
+        return ResponseCookie.from("student_refresh", token)
+                .httpOnly(true)
+                .secure(true)
+                .path("/")
+                .sameSite("None")
+                .maxAge(jwtConfig.getRefreshExpiration() / 1000)
+                .build();
     }
 
     private ResponseCookie buildSupervisorAccessTokenCookie(String token) {
-        return ResponseCookie.from("supervisor_access", token).httpOnly(true).secure(false).path("/").sameSite("Lax").maxAge(Math.max(1, jwtConfig.getExpiration() / 1000)).build();
+        return ResponseCookie.from("supervisor_access", token)
+                .httpOnly(true)
+                .secure(true)
+                .path("/")
+                .sameSite("None")
+                .maxAge(Math.max(1, jwtConfig.getExpiration() / 1000))
+                .build();
     }
 
     private ResponseCookie buildSupervisorRefreshTokenCookie(String token) {
-        return ResponseCookie.from("supervisor_refresh", token).httpOnly(true).secure(false).path("/").sameSite("Lax").maxAge(Math.max(1, jwtConfig.getRefreshExpiration() / 1000)).build();
+        return ResponseCookie.from("supervisor_refresh", token)
+                .httpOnly(true)
+                .secure(true)
+                .path("/")
+                .sameSite("None")
+                .maxAge(Math.max(1, jwtConfig.getRefreshExpiration() / 1000))
+                .build();
     }
 
     private ResponseCookie buildAdministratorAccessTokenCookie(String token) {
-        return ResponseCookie.from("administrator_access", token).httpOnly(true).secure(false).path("/").sameSite("Lax").maxAge(Math.max(1, jwtConfig.getExpiration() / 1000)).build();
+        return ResponseCookie.from("administrator_access", token)
+                .httpOnly(true)
+                .secure(true)
+                .path("/")
+                .sameSite("None")
+                .maxAge(Math.max(1, jwtConfig.getExpiration() / 1000))
+                .build();
     }
 
     private ResponseCookie buildAdministratorRefreshTokenCookie(String token) {
-        return ResponseCookie.from("administrator_refresh", token).httpOnly(true).secure(false).path("/").sameSite("Lax").maxAge(Math.max(1, jwtConfig.getRefreshExpiration() / 1000)).build();
+        return ResponseCookie.from("administrator_refresh", token)
+                .httpOnly(true)
+                .secure(true)
+                .path("/")
+                .sameSite("None")
+                .maxAge(jwtConfig.getRefreshExpiration() / 1000)
+                .build();
     }
 
     private ResponseCookie deleteCookie(String name) {
-        return ResponseCookie.from(name, "").httpOnly(true).secure(false).path("/").sameSite("Lax").maxAge(0).build();
+        return ResponseCookie.from(name, "")
+                .httpOnly(true)
+                .secure(true)
+                .path("/")
+                .sameSite("None")
+                .maxAge(0)
+                .build();
     }
 
     @PostMapping("/access-code/generate")
