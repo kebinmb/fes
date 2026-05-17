@@ -2,13 +2,14 @@ package com.faculty_evaluation_backend.fes.config.security;
 
 import com.faculty_evaluation_backend.fes.config.jwt.JwtAuthenticationFilter;
 import com.faculty_evaluation_backend.fes.config.jwt.JwtRefreshFilter;
+import com.faculty_evaluation_backend.fes.config.oauth2.OAuth2FailureHandler;
+import com.faculty_evaluation_backend.fes.config.oauth2.OAuth2SuccessHandler;
 import com.faculty_evaluation_backend.fes.services.authentication.CustomUserDetailsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
-
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -30,59 +31,82 @@ import java.util.List;
 @EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
+
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JwtRefreshFilter jwtRefreshFilter;
     private final CustomUserDetailsService customUserDetailsService;
+
+    private final OAuth2SuccessHandler oAuth2SuccessHandler;
+    private final OAuth2FailureHandler oAuth2FailureHandler;
+
     @Bean
-    public PasswordEncoder passwordEncoder(){
+    public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
+
     @Bean
-    public AuthenticationProvider authenticationProvider(){
+    public AuthenticationProvider authenticationProvider() {
+
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider(customUserDetailsService);
+
         provider.setPasswordEncoder(passwordEncoder());
+
         return provider;
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception{
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
+
         return configuration.getAuthenticationManager();
     }
+
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception{
-        http
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(csrf -> csrf.disable())
-                .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/**").permitAll()
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+
+        http.cors(cors -> cors.configurationSource(corsConfigurationSource())).csrf(csrf -> csrf.disable()).sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)).authorizeHttpRequests(auth -> auth.requestMatchers("/auth/**", "/oauth2/**", "/login/**").permitAll()
+
                         .requestMatchers("/migration/**").hasRole("ADMIN")
+
                         .requestMatchers("/faculty/**").hasRole("DEAN")
+
                         .requestMatchers("/student/**").hasRole("STUDENT")
+
                         .requestMatchers("/evaluation/**").hasAnyRole("DEAN", "STUDENT")
+
                         .requestMatchers("/admin/**").hasRole("ADMIN")
-                        .anyRequest().authenticated()
-                )
+
+                        .anyRequest().authenticated())
+
+                .oauth2Login(oauth -> oauth.successHandler(oAuth2SuccessHandler).failureHandler(oAuth2FailureHandler))
+
                 .authenticationProvider(authenticationProvider())
+
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+
                 .addFilterAfter(jwtRefreshFilter, JwtAuthenticationFilter.class);
 
         return http.build();
-
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
+
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:4200","https://dev-feva.chmsu.edu.ph/"));
+
+        configuration.setAllowedOrigins(List.of("http://localhost:4200", "https://dev-feva.chmsu.edu.ph"));
+
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+
         configuration.setAllowedHeaders(List.of("*"));
+
         configuration.setAllowCredentials(true);
+
         configuration.setExposedHeaders(List.of("Authorization"));
+
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+
         source.registerCorsConfiguration("/**", configuration);
 
         return source;

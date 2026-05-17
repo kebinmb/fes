@@ -96,11 +96,42 @@ public class AuthenticationController {
             return ResponseEntity.status(401).build();
         }
 
-        String role = authentication.getAuthorities().stream().findFirst().map(Object::toString).orElse("ROLE_STUDENT");
+        String role = authentication.getAuthorities()
+                .stream()
+                .findFirst()
+                .map(Object::toString)
+                .orElse("ROLE_STUDENT");
 
-        String userId = authentication.getName();
+        Long userId =
+                Long.parseLong(authentication.getName());
 
-        return ResponseEntity.ok(Map.of("authenticated", true, "userId", userId, "role", role));
+        if (
+                role.equals("ROLE_DEAN") ||
+                        role.equals("ROLE_PROGRAM_CHAIR")
+        ) {
+
+            UserAccounts user =
+                    supervisorAccountsAuthenticationService
+                            .findByUserId(userId);
+
+            return ResponseEntity.ok(
+                    Map.of(
+                            "authenticated", true,
+                            "userId", user.getUserId(),
+                            "role", role,
+                            "college", user.getCollege(),
+                            "program", user.getPrograms()
+                    )
+            );
+        }
+
+        return ResponseEntity.ok(
+                Map.of(
+                        "authenticated", true,
+                        "userId", userId,
+                        "role", role
+                )
+        );
     }
 
     @PostMapping("/logout")

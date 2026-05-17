@@ -3,6 +3,7 @@ package com.faculty_evaluation_backend.fes.repositories.authentication;
 
 import com.faculty_evaluation_backend.fes.entities.authentication.UserAccounts;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.Role;
+import com.faculty_evaluation_backend.fes.entities.primary.enums.Status;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -43,5 +44,12 @@ public interface UserAccountsRepository extends JpaRepository<UserAccounts, Long
 
     @Query("SELECT u FROM UserAccounts u WHERE u.username = :username AND u.isEnabled = true AND u.isLocked = false")
     Optional<UserAccounts> findActiveUserByUsername(@Param("username") String username);
+
+    Optional<UserAccounts>
+    findByEmailAndRoleInAndStatus(
+            String email,
+            List<Role> roles,
+            Status status
+    );
 }
 

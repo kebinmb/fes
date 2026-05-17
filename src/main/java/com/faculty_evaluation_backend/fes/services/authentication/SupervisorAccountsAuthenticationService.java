@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.*;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -65,5 +66,14 @@ public class SupervisorAccountsAuthenticationService {
             log.warn("Login attempt for locked account: {}", identifier);
             throw new LockedException("Account is locked");
         }
+    }
+    public UserAccounts findByUserId(Long userId) {
+
+        return userAccountsRepository
+                .findById(userId)
+                .orElseThrow(() ->
+                        new UsernameNotFoundException(
+                                "User not found"
+                        ));
     }
 }

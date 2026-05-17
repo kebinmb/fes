@@ -11,16 +11,19 @@ spring:
       username: root
       password: root
       driver-class-name: com.mysql.cj.jdbc.Driver
+
     legacy-alijis:
       jdbc-url: jdbc:mysql://localhost:3306/sisdatabase_alijis?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
       username: root
       password: root
       driver-class-name: com.mysql.cj.jdbc.Driver
+
     legacy-binalbagan:
       jdbc-url: jdbc:mysql://localhost:3306/sisdatabase_binalbagan?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
       username: root
       password: root
       driver-class-name: com.mysql.cj.jdbc.Driver
+
     legacy-ft:
       jdbc-url: jdbc:mysql://localhost:3306/sisdatabase_ft?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
       username: root
@@ -65,6 +68,19 @@ spring:
   flyway:
     clean-disabled: false
 
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: 30269263780-8uafu6al7sqkhr6u4kk8a690lm04tu1h.apps.googleusercontent.com
+            client-secret: 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
+            scope:
+              - email
+              - profile
+  app:
+    oauth2:
+      redirect-url: http://localhost:4200/oauth-success
 logging:
   level:
     root: DEBUG
@@ -77,3 +93,5 @@ server:
 
 jwt:
   secret: this-is-a-dev-secret-key-change-me
+  expiration: 900000
+  refresh-expiration: 604800000
