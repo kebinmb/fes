@@ -27,8 +27,6 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     private final JwtService jwtService;
     private final JwtConfig jwtConfig;
 
-    @Value("${app.oauth2.redirect-url}")
-    private String redirect;
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException {
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
@@ -77,7 +75,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         response.addHeader("Set-Cookie", refreshCookie.toString());
 
-        response.sendRedirect(redirect);
+        response.sendRedirect("https://dev-feva.chmsu.edu.ph/oauth-succes");
     }
 }
 

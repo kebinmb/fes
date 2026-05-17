@@ -228,7 +228,3 @@ management:
 
 jwt:
   secret: ${JWT_SECRET}
-
-app:
-  oauth2:
-    redirect-url: https://dev-feva.chmsu.edu.ph/oauth-success
