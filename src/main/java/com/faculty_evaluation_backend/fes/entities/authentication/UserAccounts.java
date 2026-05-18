@@ -1,9 +1,6 @@
 package com.faculty_evaluation_backend.fes.entities.authentication;
 
-import com.faculty_evaluation_backend.fes.entities.primary.enums.College;
-import com.faculty_evaluation_backend.fes.entities.primary.enums.Programs;
-import com.faculty_evaluation_backend.fes.entities.primary.enums.Role;
-import com.faculty_evaluation_backend.fes.entities.primary.enums.Status;
+import com.faculty_evaluation_backend.fes.entities.primary.enums.*;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
@@ -88,6 +85,10 @@ public class UserAccounts {
     @Column(name = "program")
     @Enumerated(EnumType.STRING)
     private Programs programs;
+
+    @Column(name = "major")
+    @Enumerated(EnumType.STRING)
+    private Majors majors;
 
     @Column(name = "status")
     @Enumerated(EnumType.STRING)

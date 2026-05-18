@@ -7,9 +7,11 @@ import com.faculty_evaluation_backend.fes.dto.faculty.FacultyLoadDTO;
 import com.faculty_evaluation_backend.fes.entities.data.SchoolYearAndSemester;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryFaculty;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.College;
+import com.faculty_evaluation_backend.fes.entities.primary.enums.Majors;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.Programs;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.Status;
 import com.faculty_evaluation_backend.fes.exceptions.BadRequestException;
+import com.faculty_evaluation_backend.fes.repositories.authentication.UserAccountsRepository;
 import com.faculty_evaluation_backend.fes.repositories.data.SchoolYearAndSemesterRepository;
 import com.faculty_evaluation_backend.fes.repositories.evaluation.FacultyEvaluationScoreRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryClassRepository;
@@ -32,7 +34,7 @@ public class SupervisorDataService {
     private final PrimaryClassRepository primaryClassRepository;
     private final FacultyEvaluationScoreRepository facultyEvaluationScoreRepository;
     private final SchoolYearAndSemesterRepository schoolYearAndSemesterRepository;
-
+    private final UserAccountsRepository userAccountsRepository;
     @Transactional(transactionManager = "primaryTransactionManager", readOnly = true)
     public List<FacultyDTO> getFacultiesByCollegeAndStatus(String college, String status) {
 
@@ -55,11 +57,16 @@ public class SupervisorDataService {
 
         try {
 
-            return primaryClassRepository
-                    .findFacultyLoadsByProgram(
-                            programCode.getValue(),
-                            userId
-                    );
+            Majors majors = userAccountsRepository
+                    .findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found"))
+                    .getMajors();
+
+            return primaryClassRepository.findFacultyLoadsByProgram(
+                    programCode.getValue(),
+                    majors.getDatabaseValue(),
+                    userId
+            );
 
         } catch (Exception e) {
 

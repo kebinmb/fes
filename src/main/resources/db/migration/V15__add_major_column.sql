@@ -1,0 +1,19 @@
+ALTER TABLE user_accounts
+ADD COLUMN major VARCHAR(100) NULL;
+
+UPDATE user_accounts
+SET major = 'None'
+WHERE major IS NULL OR major = '';
+
+ALTER TABLE user_accounts
+MODIFY COLUMN major ENUM(
+'BSED_ENG',
+'BSED_FIL',
+'BSED_FILIPINO',
+'BSED_MATH',
+'BSED_SCI',
+'BSED_SP_FIL_2',
+'BSED_TLE_SPC_SUMMER',
+'BSED4ASP',
+'NONE'
+) NOT NULL;

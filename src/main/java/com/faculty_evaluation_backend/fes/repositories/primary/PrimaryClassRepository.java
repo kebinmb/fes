@@ -126,6 +126,7 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
 
     WHERE pc.class_code IS NOT NULL
         AND ps.program_code = :programCode
+        AND ps.section_code LIKE CONCAT('%', :sectionCode, '%')
         AND ua.user_id = :userId
 
     ORDER BY
@@ -134,6 +135,7 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
     """, nativeQuery = true)
     List<FacultyLoadDTO> findFacultyLoadsByProgram(
             @Param("programCode") String programCode,
+            @Param("sectionCode") String sectionCode,
             @Param("userId") Long userId
     );
 }
