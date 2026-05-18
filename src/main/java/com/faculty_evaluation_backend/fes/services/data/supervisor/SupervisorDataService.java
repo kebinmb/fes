@@ -62,9 +62,20 @@ public class SupervisorDataService {
                     .orElseThrow(() -> new RuntimeException("User not found"))
                     .getMajors();
 
+            // SANITIZE SECTION CODE
+            String sectionCode = null;
+
+            if (majors != null
+                    && majors.getDatabaseValue() != null
+                    && !majors.getDatabaseValue().trim().isEmpty()
+                    && !majors.getDatabaseValue().equalsIgnoreCase("None")) {
+
+                sectionCode = majors.getDatabaseValue().trim();
+            }
+
             return primaryClassRepository.findFacultyLoadsByProgram(
                     programCode.getValue(),
-                    majors.getDatabaseValue(),
+                    sectionCode,
                     userId
             );
 

@@ -67,11 +67,11 @@ public class SecurityConfig {
 
                         .requestMatchers("/migration/**").hasRole("ADMIN")
 
-                        .requestMatchers("/faculty/**").hasRole("DEAN")
+                        .requestMatchers("/faculty/**").hasAnyRole("DEAN","PROGRAM_CHAIR")
 
                         .requestMatchers("/student/**").hasRole("STUDENT")
 
-                        .requestMatchers("/evaluation/**").hasAnyRole("DEAN", "STUDENT")
+                        .requestMatchers("/evaluation/**").hasAnyRole("DEAN", "STUDENT","PROGRAM_CHAIR")
 
                         .requestMatchers("/admin/**").hasRole("ADMIN")
 

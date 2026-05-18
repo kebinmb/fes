@@ -93,46 +93,48 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
     boolean existsByLegacyDatabaseAndLegacyId(String legacyDatabase, String legacyId);
 
     @Query(value = """
-    SELECT DISTINCT
+SELECT DISTINCT
 
-        pf.faculty_id AS facultyId,
+    pf.faculty_id AS facultyId,
+    pf.firstname AS firstname,
+    pf.lastname AS lastname,
+    pf.middlename AS middlename,
+    pf.position AS position,
+    pc.source_campus AS campus,
+    pf.load_limit AS loadLimit,
 
-        pf.firstname AS firstname,
-        pf.lastname AS lastname,
-        pf.middlename AS middlename,
+    CASE
+        WHEN COUNT(*) OVER (PARTITION BY pc.faculty_id) > pf.load_limit
+            THEN 'OVERLOAD'
+        ELSE 'REGULAR'
+    END AS typeOfLoad
 
-        pf.position AS position,
+FROM primary_class pc
 
-        pc.source_campus AS campus,
+INNER JOIN primary_faculty pf
+    ON pc.faculty_id = pf.faculty_id
 
-        pf.load_limit AS loadLimit,
+INNER JOIN primary_section ps
+    ON pc.section_id = ps.section_id
 
-        CASE
-            WHEN COUNT(*) OVER (PARTITION BY pc.faculty_id) > pf.load_limit
-                THEN 'OVERLOAD'
-            ELSE 'REGULAR'
-        END AS typeOfLoad
+INNER JOIN user_accounts ua
+    ON ua.data_source = pf.legacy_database
 
-    FROM primary_class pc
+WHERE pc.class_code IS NOT NULL
+    AND ps.program_code = :programCode
 
-    INNER JOIN primary_faculty pf
-        ON pc.faculty_id = pf.faculty_id
+    AND (
+        :sectionCode IS NULL
+        OR :sectionCode = ''
+        OR ps.section_code LIKE CONCAT('%', :sectionCode, '%')
+    )
 
-    INNER JOIN primary_section ps
-        ON pc.section_id = ps.section_id
+    AND ua.user_id = :userId
 
-    INNER JOIN user_accounts ua
-        ON ua.data_source = pf.legacy_database
-
-    WHERE pc.class_code IS NOT NULL
-        AND ps.program_code = :programCode
-        AND ps.section_code LIKE CONCAT('%', :sectionCode, '%')
-        AND ua.user_id = :userId
-
-    ORDER BY
-        pf.lastname,
-        pf.firstname
-    """, nativeQuery = true)
+ORDER BY
+    pf.lastname,
+    pf.firstname
+""", nativeQuery = true)
     List<FacultyLoadDTO> findFacultyLoadsByProgram(
             @Param("programCode") String programCode,
             @Param("sectionCode") String sectionCode,

@@ -14,6 +14,7 @@ public class EvaluationStrategyFactory {
         return switch (evaluationType){
             case ROLE_STUDENT -> studentEvaluationStrategy;
             case ROLE_DEAN -> supervisorEvaluationStrategy;
+            case ROLE_PROGRAM_CHAIR -> supervisorEvaluationStrategy;
         };
     }
 }
