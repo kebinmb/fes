@@ -7,5 +7,6 @@ MODIFY COLUMN college ENUM(
     'CCJ',
     'CCS',
     'COF',
+    'CBMA',
     'FOR_MIGRATION'
 );

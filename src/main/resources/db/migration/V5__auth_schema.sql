@@ -11,7 +11,8 @@ CREATE TABLE user_accounts (
                                created_at DATETIME(6),
                                updated_at DATETIME(6),
                                reset_token VARCHAR(255),
-                               reset_token_expiry DATETIME(6)
+                               reset_token_expiry DATETIME(6),
+                               status ENUM('ACTIVE','INACTIVE') NOT NULL
 );
 
 CREATE TABLE user_login_otp (

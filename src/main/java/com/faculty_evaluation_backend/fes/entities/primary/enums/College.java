@@ -8,5 +8,6 @@ public enum College {
     CCS,
     CCJ,
     COF,
+    CBMA,
     FOR_MIGRATION
 }

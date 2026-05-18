@@ -176,13 +176,14 @@ spring:
             scope:
               - email
               - profile
+app:
+  oauth2:
+    redirect-url-success: "${OAUTH2_REDIRECT_URL_SUCCESS:http://localhost:4200/oauth-success}"
+    redirect-url-failure: "${OAUTH2_REDIRECT_URL_FAILURE:http://localhost:4200/oauth-failure}"
 
 server:
-
   port: 9000
-
   forward-headers-strategy: framework
-
   tomcat:
 
     threads:
