@@ -5,6 +5,7 @@ import com.faculty_evaluation_backend.fes.dto.faculty.FacultyDTO;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyLoadDTO;
 import com.faculty_evaluation_backend.fes.dto.response.EvaluationCheckResponse;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.College;
+import com.faculty_evaluation_backend.fes.entities.primary.enums.Programs;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.Status;
 import com.faculty_evaluation_backend.fes.services.data.supervisor.SupervisorDataService;
 import jakarta.validation.constraints.NotBlank;
@@ -43,9 +44,10 @@ public class SupervisorDataController {
     }
 
     @GetMapping("/faculty-loads")
-    public ResponseEntity<List<FacultyLoadDTO>> getFacultyLoadsByProgram(@RequestParam String programCode) {
+    public ResponseEntity<List<FacultyLoadDTO>> getFacultyLoadsByProgram(@RequestParam String programCode,
+                                                                         @RequestParam Long userId) {
 
-        List<FacultyLoadDTO> response = supervisorDataService.getFacultyLoadsByProgram(programCode);
+        List<FacultyLoadDTO> response = supervisorDataService.getFacultyLoadsByProgram(Programs.valueOf(programCode), userId);
 
         return ResponseEntity.ok(response);
     }
@@ -54,7 +56,7 @@ public class SupervisorDataController {
     public ResponseEntity<List<FacultyClassDTO>> getFacultyClasses(@RequestParam @NotBlank String facultyId, @RequestParam @NotBlank String program) {
         log.info("API Request → Fetch faculty classes | facultyId={} | schoolYear={} | semester={}", facultyId);
 
-        return ResponseEntity.ok(supervisorDataService.findFacultyClasses(facultyId, program));
+        return ResponseEntity.ok(supervisorDataService.findFacultyClasses(facultyId, Programs.valueOf(program)));
     }
 
     @GetMapping("/check")

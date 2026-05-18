@@ -93,6 +93,9 @@ public class UserAccounts {
     @Enumerated(EnumType.STRING)
     private Status status;
 
+    @Column(name = "data_source")
+    private String dataSource;
+
     public void addOtp(UserLoginOtp otp) {
         otps.add(otp);
         otp.setUserAccount(this);

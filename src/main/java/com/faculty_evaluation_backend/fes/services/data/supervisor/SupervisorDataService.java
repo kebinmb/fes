@@ -7,6 +7,7 @@ import com.faculty_evaluation_backend.fes.dto.faculty.FacultyLoadDTO;
 import com.faculty_evaluation_backend.fes.entities.data.SchoolYearAndSemester;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryFaculty;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.College;
+import com.faculty_evaluation_backend.fes.entities.primary.enums.Programs;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.Status;
 import com.faculty_evaluation_backend.fes.exceptions.BadRequestException;
 import com.faculty_evaluation_backend.fes.repositories.data.SchoolYearAndSemesterRepository;
@@ -48,20 +49,37 @@ public class SupervisorDataService {
             readOnly = true
     )
     public List<FacultyLoadDTO> getFacultyLoadsByProgram(
-            String programCode
+            Programs programCode,
+            Long userId
     ) {
 
-        return primaryClassRepository
-                .findFacultyLoadsByProgram(programCode);
+        try {
 
+            return primaryClassRepository
+                    .findFacultyLoadsByProgram(
+                            programCode.getValue(),
+                            userId
+                    );
+
+        } catch (Exception e) {
+
+            throw new RuntimeException(
+                    "Failed to load faculty loads for program: "
+                            + programCode.getValue()
+                            + " and userId: "
+                            + userId,
+                    e
+            );
+
+        }
     }
 
     @Transactional(transactionManager = "primaryTransactionManager", readOnly = true)
     @Cacheable(value = "facultyClasses", key = "#facultyId")
-    public List<FacultyClassDTO> findFacultyClasses(String facultyId, String program) {
+    public List<FacultyClassDTO> findFacultyClasses(String facultyId, Programs program) {
         SchoolYearAndSemester data = schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE).orElseThrow(() -> new RuntimeException("No active school year and semester found."));
         log.debug("Fetching classes | facultyId={} | schoolYear={} | semester={}", facultyId, data.getSchoolYear(), data.getSemester());
-        List<FacultyClassDTO> result = primaryClassRepository.findFacultyClasses(facultyId,program, data.getSchoolYear(), data.getSemester().getValue());
+        List<FacultyClassDTO> result = primaryClassRepository.findFacultyClasses(facultyId,program.getValue(), data.getSchoolYear(), data.getSemester().getValue());
         log.info("Classes fetched | facultyId={} | count={}", facultyId, result.size());
         return result;
     }

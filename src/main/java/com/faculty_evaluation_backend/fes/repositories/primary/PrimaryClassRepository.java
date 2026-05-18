@@ -121,14 +121,19 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
     INNER JOIN primary_section ps
         ON pc.section_id = ps.section_id
 
+    INNER JOIN user_accounts ua
+        ON ua.data_source = pf.legacy_database
+
     WHERE pc.class_code IS NOT NULL
         AND ps.program_code = :programCode
+        AND ua.user_id = :userId
 
     ORDER BY
         pf.lastname,
         pf.firstname
     """, nativeQuery = true)
     List<FacultyLoadDTO> findFacultyLoadsByProgram(
-            @Param("programCode") String programCode
+            @Param("programCode") String programCode,
+            @Param("userId") Long userId
     );
 }
