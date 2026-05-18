@@ -1,7 +1,5 @@
 spring:
-
   datasource:
-
     primary:
       jdbc-url: jdbc:mysql://68.178.161.177:3306/syndicateadmin_faculty_evaluation_db?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=false&tcpKeepAlive=true&connectTimeout=3000&socketTimeout=600000
       username: syndicateadmin_faculty_evaluation_db
@@ -27,7 +25,7 @@ spring:
     legacy-alijis:
       jdbc-url: jdbc:mysql://119.92.126.122:3306/sisdatabase_alijis?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=false&tcpKeepAlive=true&connectTimeout=3000&socketTimeout=600000
       username: ict
-      password: ${LEGACY_ALIJIS_DB_PASSWORD}
+      password: ${LEGACY_DB_PASSWORD}
       driver-class-name: com.mysql.cj.jdbc.Driver
 
       hikari:
@@ -43,7 +41,7 @@ spring:
     legacy-binalbagan:
       jdbc-url: jdbc:mysql://119.92.126.122:3306/sisdatabase_binalbagan?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=false&tcpKeepAlive=true&connectTimeout=3000&socketTimeout=600000
       username: ict
-      password: ${LEGACY_BINALBAGAN_DB_PASSWORD}
+      password: ${LEGACY_DB_PASSWORD}
       driver-class-name: com.mysql.cj.jdbc.Driver
 
       hikari:
@@ -59,7 +57,7 @@ spring:
     legacy-ft:
       jdbc-url: jdbc:mysql://119.92.126.122:3306/sisdatabase_ft?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=false&tcpKeepAlive=true&connectTimeout=3000&socketTimeout=600000
       username: ict
-      password: ${LEGACY_FT_DB_PASSWORD}
+      password: ${LEGACY_DB_PASSWORD}
       driver-class-name: com.mysql.cj.jdbc.Driver
 
       hikari:
