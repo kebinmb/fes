@@ -68,7 +68,7 @@ public enum Programs {
 
     BSIS("BSIS"),
 
-    BSIND("BSIND"),
+    BSIND("BS IND TECH"),
 
     BSHRM("BSHRM"),
 
@@ -98,7 +98,7 @@ public enum Programs {
 
     BS_PSYCH("BS PSYCH"),
 
-    BS_IND_TECH("BS IND TECH"),
+//    BS_IND_TECH("BS IND TECH"),
 
     BS_ECE("BS ECE"),
 

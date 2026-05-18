@@ -46,98 +46,122 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
     Object[] findClassWithDetailsForStudentNative(@Param("classCode") String classCode, @Param("studentId") String studentId);
 
     @Query(value = """
-    SELECT
-        pc.subject_code AS subjectCode,
-        pc.faculty_id AS facultyId,
-        pc.school_year AS schoolYear,
-        pc.semester AS semester,
+            
+                    SELECT
+                                                      pc.subject_code AS subjectCode,
+                                                      pc.faculty_id AS facultyId,
+                                                      pc.school_year AS schoolYear,
+                                                      pc.semester AS semester,
+            
+                                                      GROUP_CONCAT(DISTINCT pc.class_code ORDER BY pc.class_code) AS classCodes,
+            
+                                                      GROUP_CONCAT(DISTINCT psl.yearLevels ORDER BY psl.yearLevels) AS yearLevels,
+            
+                                                      ps.program_code AS programCode,
+            
+                                                      GROUP_CONCAT(DISTINCT ps.section_code ORDER BY ps.section_code) AS sectionCodes
+            
+                                                  FROM primary_class pc
+            
+                                                  INNER JOIN primary_section ps
+                                                      ON pc.section_id = ps.section_id
+            
+                                                  LEFT JOIN (
+                                                      SELECT
+                                                          class_code,
+                                                          GROUP_CONCAT(DISTINCT year_level ORDER BY year_level) AS yearLevels
+                                                      FROM primary_student_load
+                                                      GROUP BY class_code
+                                                  ) psl
+                                                      ON pc.class_code = psl.class_code
+            
+                                                  WHERE pc.faculty_id = :facultyId
+                                                    AND ps.program_code = :program
+                                                    AND pc.school_year = :schoolYear
+                                                    AND pc.semester = :semester
+            
+                                                  GROUP BY
+                                                      pc.subject_code,
+                                                      pc.faculty_id,
+                                                      pc.school_year,
+                                                      pc.semester,
+                                                      ps.program_code
+            
+                                                  ORDER BY
+                                                      pc.subject_code,
+                                                      ps.program_code
+            """, nativeQuery = true)
+    List<FacultyClassDTO> findFacultyClasses(@Param("facultyId") String facultyId, @Param("program") String program, @Param("schoolYear") Integer schoolYear, @Param("semester") String semester);
 
-        MIN(pc.class_code) AS classCode,
-
-        MIN(psl.year_level) AS yearLevel,
-
-        ps.program_code AS programCode,
-
-        MIN(ps.section_code) AS sectionCode
-
-    FROM primary_class pc
-
-    INNER JOIN primary_student_load psl
-        ON pc.class_code = psl.class_code
-
-    INNER JOIN primary_section ps
-        ON pc.section_id = ps.section_id
-
-    WHERE pc.faculty_id = :facultyId
-      AND ps.program_code = :program
-      AND pc.school_year = :schoolYear
-      AND pc.semester = :semester
-
-    GROUP BY
-        pc.subject_code,
-        pc.faculty_id,
-        pc.school_year,
-        pc.semester,
-        ps.program_code
-
-    ORDER BY
-        pc.subject_code,
-        ps.program_code
-    """, nativeQuery = true)
-    List<FacultyClassDTO> findFacultyClasses(
-            @Param("facultyId") String facultyId,
-            @Param("program") String program,
-            @Param("schoolYear") Integer schoolYear,
-            @Param("semester") String semester
-    );
     boolean existsByLegacyDatabaseAndLegacyId(String legacyDatabase, String legacyId);
 
     @Query(value = """
-SELECT DISTINCT
-
-    pf.faculty_id AS facultyId,
-    pf.firstname AS firstname,
-    pf.lastname AS lastname,
-    pf.middlename AS middlename,
-    pf.position AS position,
-    pc.source_campus AS campus,
-    pf.load_limit AS loadLimit,
-
-    CASE
-        WHEN COUNT(*) OVER (PARTITION BY pc.faculty_id) > pf.load_limit
-            THEN 'OVERLOAD'
-        ELSE 'REGULAR'
-    END AS typeOfLoad
-
-FROM primary_class pc
-
-INNER JOIN primary_faculty pf
-    ON pc.faculty_id = pf.faculty_id
-
-INNER JOIN primary_section ps
-    ON pc.section_id = ps.section_id
-
-INNER JOIN user_accounts ua
-    ON ua.data_source = pf.legacy_database
-
-WHERE pc.class_code IS NOT NULL
-    AND ps.program_code = :programCode
-
-    AND (
-        :sectionCode IS NULL
-        OR :sectionCode = ''
-        OR ps.section_code LIKE CONCAT('%', :sectionCode, '%')
-    )
-
-    AND ua.user_id = :userId
-
-ORDER BY
-    pf.lastname,
-    pf.firstname
-""", nativeQuery = true)
-    List<FacultyLoadDTO> findFacultyLoadsByProgram(
-            @Param("programCode") String programCode,
-            @Param("sectionCode") String sectionCode,
-            @Param("userId") Long userId
-    );
+            SELECT
+            
+                pf.faculty_id AS facultyId,
+                pf.firstname AS firstname,
+                pf.lastname AS lastname,
+                pf.middlename AS middlename,
+                pf.position AS position,
+                pc.source_campus AS campus,
+                pf.load_limit AS loadLimit,
+            
+                CASE
+                    WHEN faculty_load.total_load > pf.load_limit
+                        THEN 'OVERLOAD'
+                    ELSE 'REGULAR'
+                END AS typeOfLoad
+            
+            FROM primary_faculty pf
+            
+            INNER JOIN (
+                SELECT
+                    pc.faculty_id,
+                    COUNT(DISTINCT pc.subject_code) AS total_load
+                FROM primary_class pc
+                INNER JOIN primary_section ps
+                    ON pc.section_id = ps.section_id
+                WHERE ps.program_code = :programCode
+                GROUP BY pc.faculty_id
+            ) faculty_load
+                ON faculty_load.faculty_id = pf.faculty_id
+            
+            INNER JOIN primary_class pc
+                ON pc.faculty_id = pf.faculty_id
+            
+            INNER JOIN primary_section ps
+                ON pc.section_id = ps.section_id
+            
+            WHERE pc.class_code IS NOT NULL
+            
+              AND ps.program_code = :programCode
+            
+              AND (
+                  :sectionCode IS NULL
+                  OR :sectionCode = ''
+                  OR ps.section_code LIKE CONCAT('%', :sectionCode, '%')
+              )
+            
+              AND EXISTS (
+                  SELECT 1
+                  FROM user_accounts ua
+                  WHERE ua.user_id = :userId
+                    AND ua.data_source = pf.legacy_database
+              )
+            
+            GROUP BY
+                pf.faculty_id,
+                pf.firstname,
+                pf.lastname,
+                pf.middlename,
+                pf.position,
+                pc.source_campus,
+                pf.load_limit,
+                faculty_load.total_load
+            
+            ORDER BY
+                pf.lastname,
+                pf.firstname
+            """, nativeQuery = true)
+    List<FacultyLoadDTO> findFacultyLoadsByProgram(@Param("programCode") String programCode, @Param("sectionCode") String sectionCode, @Param("userId") Long userId);
 }

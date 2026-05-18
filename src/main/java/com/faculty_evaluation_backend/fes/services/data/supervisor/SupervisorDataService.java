@@ -62,7 +62,6 @@ public class SupervisorDataService {
                     .orElseThrow(() -> new RuntimeException("User not found"))
                     .getMajors();
 
-            // SANITIZE SECTION CODE
             String sectionCode = null;
 
             if (majors != null
@@ -93,7 +92,10 @@ public class SupervisorDataService {
     }
 
     @Transactional(transactionManager = "primaryTransactionManager", readOnly = true)
-    @Cacheable(value = "facultyClasses", key = "#facultyId")
+    @Cacheable(
+            value = "facultyClasses",
+            key = "#facultyId + '-' + #program.getValue()"
+    )
     public List<FacultyClassDTO> findFacultyClasses(String facultyId, Programs program) {
         SchoolYearAndSemester data = schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE).orElseThrow(() -> new RuntimeException("No active school year and semester found."));
         log.debug("Fetching classes | facultyId={} | schoolYear={} | semester={}", facultyId, data.getSchoolYear(), data.getSemester());
