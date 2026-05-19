@@ -96,72 +96,99 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
     boolean existsByLegacyDatabaseAndLegacyId(String legacyDatabase, String legacyId);
 
     @Query(value = """
+        SELECT
+        
+            pf.faculty_id AS facultyId,
+            pf.firstname AS firstname,
+            pf.lastname AS lastname,
+            pf.middlename AS middlename,
+            pf.position AS position,
+            pc.source_campus AS campus,
+            pf.load_limit AS loadLimit,
+        
+            CASE
+                WHEN faculty_load.total_load > pf.load_limit
+                    THEN 'OVERLOAD'
+                ELSE 'REGULAR'
+            END AS typeOfLoad
+        
+        FROM primary_faculty pf
+        
+        INNER JOIN (
             SELECT
-            
-                pf.faculty_id AS facultyId,
-                pf.firstname AS firstname,
-                pf.lastname AS lastname,
-                pf.middlename AS middlename,
-                pf.position AS position,
-                pc.source_campus AS campus,
-                pf.load_limit AS loadLimit,
-            
-                CASE
-                    WHEN faculty_load.total_load > pf.load_limit
-                        THEN 'OVERLOAD'
-                    ELSE 'REGULAR'
-                END AS typeOfLoad
-            
-            FROM primary_faculty pf
-            
-            INNER JOIN (
-                SELECT
-                    pc.faculty_id,
-                    COUNT(DISTINCT pc.subject_code) AS total_load
-                FROM primary_class pc
-                INNER JOIN primary_section ps
-                    ON pc.section_id = ps.section_id
-                WHERE ps.program_code = :programCode
-                GROUP BY pc.faculty_id
-            ) faculty_load
-                ON faculty_load.faculty_id = pf.faculty_id
-            
-            INNER JOIN primary_class pc
-                ON pc.faculty_id = pf.faculty_id
+                pc.faculty_id,
+                COUNT(DISTINCT pc.subject_code) AS total_load
+            FROM primary_class pc
             
             INNER JOIN primary_section ps
                 ON pc.section_id = ps.section_id
+                
+            WHERE ps.program_code COLLATE utf8mb4_unicode_ci =
+                  CAST(:programCode AS CHAR) COLLATE utf8mb4_unicode_ci
             
-            WHERE pc.class_code IS NOT NULL
-            
-              AND ps.program_code = :programCode
-            
-              AND (
-                  :sectionCode IS NULL
-                  OR :sectionCode = ''
-                  OR ps.section_code LIKE CONCAT('%', :sectionCode, '%')
-              )
-            
-              AND EXISTS (
-                  SELECT 1
-                  FROM user_accounts ua
-                  WHERE ua.user_id = :userId
-                    AND ua.data_source = pf.legacy_database
-              )
-            
-            GROUP BY
-                pf.faculty_id,
-                pf.firstname,
-                pf.lastname,
-                pf.middlename,
-                pf.position,
-                pc.source_campus,
-                pf.load_limit,
-                faculty_load.total_load
-            
-            ORDER BY
-                pf.lastname,
-                pf.firstname
-            """, nativeQuery = true)
-    List<FacultyLoadDTO> findFacultyLoadsByProgram(@Param("programCode") String programCode, @Param("sectionCode") String sectionCode, @Param("userId") Long userId);
+            GROUP BY pc.faculty_id
+        ) faculty_load
+            ON faculty_load.faculty_id = pf.faculty_id
+        
+        INNER JOIN primary_class pc
+            ON pc.faculty_id = pf.faculty_id
+        
+        INNER JOIN primary_section ps
+            ON pc.section_id = ps.section_id
+        
+        WHERE pc.class_code IS NOT NULL
+        
+          AND ps.program_code COLLATE utf8mb4_unicode_ci =
+              CAST(:programCode AS CHAR) COLLATE utf8mb4_unicode_ci
+        
+          AND (
+              :sectionCode IS NULL
+              OR :sectionCode = ''
+              OR :sectionCode = 'NONE'
+              OR ps.section_code COLLATE utf8mb4_unicode_ci
+                 LIKE CONCAT(
+                     '%',
+                     CAST(:sectionCode AS CHAR) COLLATE utf8mb4_unicode_ci,
+                     '%'
+                 )
+          )
+        
+          AND EXISTS (
+              SELECT 1
+              FROM user_accounts ua
+              WHERE ua.user_id = :userId
+        
+                AND ua.data_source COLLATE utf8mb4_unicode_ci =
+                    pf.legacy_database COLLATE utf8mb4_unicode_ci
+        
+                AND ua.college COLLATE utf8mb4_unicode_ci =
+                    pf.college COLLATE utf8mb4_unicode_ci
+          )
+        
+          AND NOT EXISTS (
+              SELECT 1
+              FROM user_accounts ua2
+              WHERE ua2.lastname COLLATE utf8mb4_unicode_ci =
+                    pf.lastname COLLATE utf8mb4_unicode_ci
+          )
+        
+        GROUP BY
+            pf.faculty_id,
+            pf.firstname,
+            pf.lastname,
+            pf.middlename,
+            pf.position,
+            pc.source_campus,
+            pf.load_limit,
+            faculty_load.total_load
+        
+        ORDER BY
+            pf.lastname,
+            pf.firstname
+        """, nativeQuery = true)
+    List<FacultyLoadDTO> findFacultyLoadsByProgram(
+            @Param("programCode") String programCode,
+            @Param("sectionCode") String sectionCode,
+            @Param("userId") Long userId
+    );
 }

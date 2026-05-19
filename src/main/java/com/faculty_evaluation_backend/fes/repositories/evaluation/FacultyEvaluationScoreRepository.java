@@ -48,5 +48,13 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
             @Param("schoolYear") Integer schoolYear,
             @Param("semester") String semester
     );
+
+    List<FacultyEvaluationScore>
+    findByFacultyIdAndClassCodeAndSchoolYearAndSemester(
+            String facultyId,
+            String classCode,
+            Integer schoolYear,
+            String semester
+    );
 }
 
