@@ -3,6 +3,7 @@ package com.faculty_evaluation_backend.fes.entities.evaluation;
 import com.faculty_evaluation_backend.fes.audit.Auditable;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryFaculty;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryStudent;
+import com.faculty_evaluation_backend.fes.entities.primary.enums.EvaluationType;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -113,6 +114,9 @@ public class FacultyEvaluationScore extends Auditable {
     @Column(name = "overall_interpretation", length = 20)
     private String overallInterpretation;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "evaluation_type")
+    private EvaluationType evaluationType;
     /* =========================================================
        OVERALL COMPUTATION
        ========================================================= */

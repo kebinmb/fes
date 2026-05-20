@@ -56,30 +56,67 @@ public class EvaluationDataService {
         return facultyEvaluationScoreRepository.save(evaluationScore);
     }
 
-    public List<FacultyEvaluationPrintResponse> getSumOfAllFacultyEvaluationPerSubject(String facultyId) {
-        SchoolYearAndSemester schoolYearAndSemester = schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE).orElseThrow(() -> new RuntimeException("No active school year and semester found."));
-        List<String> classCodes = facultyEvaluationScoreRepository.findDistinctClassCodesByFacultyIdAndSchoolYearAndSemester(facultyId, schoolYearAndSemester.getSchoolYear(), schoolYearAndSemester.getSemester().getValue());
-        if (classCodes.isEmpty()) {
+    public List<FacultyEvaluationPrintResponse>
+    getSumOfAllFacultyEvaluationPerSubject(
+            String facultyId
+    ) {
 
+        SchoolYearAndSemester schoolYearAndSemester =
+                schoolYearAndSemesterRepository
+                        .findByStatus(Status.ACTIVE)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "No active school year and semester found."
+                                )
+                        );
+
+        List<String> classCodes =
+                facultyEvaluationScoreRepository
+                        .findDistinctClassCodesByFacultyIdAndSchoolYearAndSemester(
+                                facultyId,
+                                schoolYearAndSemester.getSchoolYear(),
+                                schoolYearAndSemester.getSemester().getValue()
+                        );
+
+        if (classCodes.isEmpty()) {
             return List.of();
         }
-        List<FacultyEvaluationPrintResponse> responses = new ArrayList<>();
+
+        List<FacultyEvaluationPrintResponse> responses =
+                new ArrayList<>();
+
         for (String classCode : classCodes) {
 
-            List<FacultyEvaluationScore> evaluations = facultyEvaluationScoreRepository.findByFacultyIdAndClassCode(facultyId, classCode);
+            List<FacultyEvaluationScore> evaluations =
+                    facultyEvaluationScoreRepository
+                            .findByFacultyIdAndClassCodeAndSchoolYearAndSemester(
+                                    facultyId,
+                                    classCode,
+                                    schoolYearAndSemester.getSchoolYear(),
+                                    schoolYearAndSemester.getSemester().getValue()
+                            );
 
             if (evaluations.isEmpty()) {
-
                 continue;
             }
 
-            List<FacultyEvaluationScore> studentEvaluations = new ArrayList<>();
+        /* =====================================================
+           SEPARATE STUDENT / SUPERVISOR EVALUATIONS
+           ===================================================== */
 
-            List<FacultyEvaluationScore> facultyEvaluations = new ArrayList<>();
+            List<FacultyEvaluationScore> studentEvaluations =
+                    new ArrayList<>();
+
+            List<FacultyEvaluationScore> supervisorEvaluations =
+                    new ArrayList<>();
 
             for (FacultyEvaluationScore evaluation : evaluations) {
 
-                boolean isStudent = primaryStudentRepository.existsByLegacyId(evaluation.getEvaluatorId());
+                boolean isStudent =
+                        primaryStudentRepository
+                                .existsByStudentId(
+                                        evaluation.getEvaluatorId()
+                                );
 
                 if (isStudent) {
 
@@ -87,77 +124,184 @@ public class EvaluationDataService {
 
                 } else {
 
-                    facultyEvaluations.add(evaluation);
+                    supervisorEvaluations.add(evaluation);
                 }
             }
 
-            double setRating = calculateAverage(studentEvaluations);
+        /* =====================================================
+           COMPUTE RATINGS
+           ===================================================== */
 
-            double sefRating = calculateAverage(facultyEvaluations);
+            double setRating =
+                    calculateAverage(studentEvaluations);
 
-            FacultyEvaluationScore first = evaluations.getFirst();
+            double sefRating =
+                    calculateAverage(supervisorEvaluations);
 
-            String studentComments = studentEvaluations.stream()
+            FacultyEvaluationScore first =
+                    evaluations.getFirst();
 
-                    .map(FacultyEvaluationScore::getCommentsOrFeedbacks)
+        /* =====================================================
+           STUDENT COMMENTS
+           ===================================================== */
 
-                    .filter(comment -> comment != null && !comment.isBlank())
+            String studentComments =
+                    studentEvaluations.stream()
 
-                    .distinct()
+                            .map(
+                                    FacultyEvaluationScore
+                                            ::getCommentsOrFeedbacks
+                            )
 
-                    .reduce((a, b) -> a + "\n• " + b)
+                            .filter(comment ->
+                                    comment != null
+                                            && !comment.isBlank()
+                            )
 
-                    .orElse("-");
+                            .distinct()
 
-            String supervisorComments = facultyEvaluations.stream()
+                            .reduce((a, b) ->
+                                    a + "\n• " + b
+                            )
 
-                    .map(FacultyEvaluationScore::getCommentsOrFeedbacks)
+                            .orElse("-");
 
-                    .filter(comment -> comment != null && !comment.isBlank())
+        /* =====================================================
+           SUPERVISOR COMMENTS
+           ===================================================== */
 
-                    .distinct()
+            String supervisorComments =
+                    supervisorEvaluations.stream()
 
-                    .reduce((a, b) -> a + "\n• " + b)
+                            .map(
+                                    FacultyEvaluationScore
+                                            ::getCommentsOrFeedbacks
+                            )
 
-                    .orElse("-");
+                            .filter(comment ->
+                                    comment != null
+                                            && !comment.isBlank()
+                            )
 
-            FacultyEvaluationPrintResponse response = FacultyEvaluationPrintResponse.builder()
+                            .distinct()
 
-                    .facultyEvaluationScoreId(first.getFacultyEvaluationScoreId())
+                            .reduce((a, b) ->
+                                    a + "\n• " + b
+                            )
 
-                    .facultyId(first.getFacultyId())
+                            .orElse("-");
 
-                    .facultyName(first.getFaculty().getFirstname() + " " + first.getFaculty().getMiddlename() + " " + first.getFaculty().getLastname())
+        /* =====================================================
+           DETERMINE EVALUATOR TYPE
+           ===================================================== */
 
-                    .college(String.valueOf(first.getFaculty().getCollege()))
+            String evaluatorType;
 
-                    .classCode(first.getClassCode())
+            boolean isStudent =
+                    primaryStudentRepository
+                            .existsByLegacyId(
+                                    first.getEvaluatorId()
+                            );
 
-                    .position(first.getFaculty().getPosition())
+            if (isStudent) {
 
-                    .semester(first.getSemester())
+                evaluatorType = "SET";
 
-                    .schoolYear(first.getSchoolYear())
+            } else {
 
-                    .subjectCode(first.getSubjectCode())
+                evaluatorType = "SEF";
+            }
 
-                    .yearLevel(first.getYearLevel())
+        /* =====================================================
+           BUILD RESPONSE
+           ===================================================== */
 
-                    .studentComments(studentComments)
+            FacultyEvaluationPrintResponse response =
+                    FacultyEvaluationPrintResponse.builder()
 
-                    .supervisorComments(supervisorComments)
+                            .facultyEvaluationScoreId(
+                                    first.getFacultyEvaluationScoreId()
+                            )
 
-                    .overallAverageScore(setRating)
+                            .facultyId(
+                                    first.getFacultyId()
+                            )
 
-                    .overallInterpretation(determineInterpretation(setRating))
+                            .facultyName(
+                                    first.getFaculty().getFirstname()
+                                            + " "
+                                            + first.getFaculty().getMiddlename()
+                                            + " "
+                                            + first.getFaculty().getLastname()
+                            )
 
-                    .numberOfStudents(studentEvaluations.size())
+                            .evaluatorId(
+                                    first.getEvaluatorId()
+                            )
 
-                    .setRating(setRating)
+                            .evaluatorType(
+                                    evaluatorType
+                            )
 
-                    .sefRating(sefRating)
+                            .college(
+                                    String.valueOf(
+                                            first.getFaculty().getCollege()
+                                    )
+                            )
 
-                    .build();
+                            .classCode(
+                                    first.getClassCode()
+                            )
+
+                            .position(
+                                    first.getFaculty().getPosition()
+                            )
+
+                            .semester(
+                                    first.getSemester()
+                            )
+
+                            .schoolYear(
+                                    first.getSchoolYear()
+                            )
+
+                            .subjectCode(
+                                    first.getSubjectCode()
+                            )
+
+                            .yearLevel(
+                                    first.getYearLevel()
+                            )
+
+                            .studentComments(
+                                    studentComments
+                            )
+
+                            .supervisorComments(
+                                    supervisorComments
+                            )
+
+                            .overallAverageScore(
+                                    setRating
+                            )
+
+                            .overallInterpretation(
+                                    determineInterpretation(setRating)
+                            )
+
+                            .numberOfStudents(
+                                    studentEvaluations.size()
+                            )
+
+                            .setRating(
+                                    setRating
+                            )
+
+                            .sefRating(
+                                    sefRating
+                            )
+
+                            .build();
 
             responses.add(response);
         }
@@ -221,7 +365,7 @@ public class EvaluationDataService {
 
         CommitmentAndTransparency commitment = CommitmentAndTransparency.builder().facultyId(dto.getFacultyId()).diversityRecognition(map(r, "diversityRecognition")).consultationSupport(map(r, "consultationSupport")).immediateFeedback(map(r, "immediateFeedback")).transparentGrading(map(r, "transparentGrading")).build();
 
-        FacultyEvaluationScore evaluation = FacultyEvaluationScore.builder().facultyId(dto.getFacultyId()).evaluatorId(dto.getEvaluatorId()).classCode(dto.getClassCode()).subjectCode(dto.getSubjectCode()).semester(dto.getSemester()).yearLevel(dto.getYearLevel()).schoolYear(dto.getSchoolYear()).managementOfTeachingAndLearning(teaching).contentKnowledgePedagogyAndTechnology(content).commitmentAndTransparency(commitment).commentsOrFeedbacks(dto.getCommentsOrFeedbacks()).build();
+        FacultyEvaluationScore evaluation = FacultyEvaluationScore.builder().facultyId(dto.getFacultyId()).evaluatorId(dto.getEvaluatorId()).evaluationType(dto.getEvaluationType()).classCode(dto.getClassCode()).subjectCode(dto.getSubjectCode()).semester(dto.getSemester()).yearLevel(dto.getYearLevel()).schoolYear(dto.getSchoolYear()).managementOfTeachingAndLearning(teaching).contentKnowledgePedagogyAndTechnology(content).commitmentAndTransparency(commitment).commentsOrFeedbacks(dto.getCommentsOrFeedbacks()).build();
 
         evaluation.calculateOverallScore();
 
