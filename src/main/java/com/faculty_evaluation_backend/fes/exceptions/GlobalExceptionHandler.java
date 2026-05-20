@@ -1,18 +1,33 @@
 package com.faculty_evaluation_backend.fes.exceptions;
 
 import com.faculty_evaluation_backend.fes.dto.error.ApiErrorResponse;
+
+import jakarta.persistence.EntityNotFoundException;
+
 import jakarta.servlet.http.HttpServletRequest;
+
 import jakarta.validation.ConstraintViolationException;
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DataRetrievalFailureException;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+
 import org.springframework.security.authentication.BadCredentialsException;
+
 import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.Instant;
+
 import java.util.stream.Collectors;
 
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(RateLimitExceededException.class)
@@ -20,6 +35,9 @@ public class GlobalExceptionHandler {
             RateLimitExceededException ex,
             HttpServletRequest request
     ) {
+
+        log.warn("Rate limit exceeded: {}", ex.getMessage());
+
         return buildResponse(ex, HttpStatus.TOO_MANY_REQUESTS, request);
     }
 
@@ -28,7 +46,25 @@ public class GlobalExceptionHandler {
             ResourceNotFoundException ex,
             HttpServletRequest request
     ) {
+
+        log.warn("Resource not found: {}", ex.getMessage());
+
         return buildResponse(ex, HttpStatus.NOT_FOUND, request);
+    }
+
+    @ExceptionHandler(EntityNotFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handleEntityNotFound(
+            EntityNotFoundException ex,
+            HttpServletRequest request
+    ) {
+
+        log.warn("Entity not found: {}", ex.getMessage());
+
+        return buildResponse(
+                new Exception(ex.getMessage()),
+                HttpStatus.NOT_FOUND,
+                request
+        );
     }
 
     @ExceptionHandler(BadRequestException.class)
@@ -36,6 +72,9 @@ public class GlobalExceptionHandler {
             BadRequestException ex,
             HttpServletRequest request
     ) {
+
+        log.warn("Bad request: {}", ex.getMessage());
+
         return buildResponse(ex, HttpStatus.BAD_REQUEST, request);
     }
 
@@ -44,6 +83,9 @@ public class GlobalExceptionHandler {
             UnauthorizedException ex,
             HttpServletRequest request
     ) {
+
+        log.warn("Unauthorized access: {}", ex.getMessage());
+
         return buildResponse(ex, HttpStatus.UNAUTHORIZED, request);
     }
 
@@ -52,18 +94,22 @@ public class GlobalExceptionHandler {
             IllegalArgumentException ex,
             HttpServletRequest request
     ) {
+
+        log.warn("Invalid parameter: {}", ex.getMessage());
+
         return buildResponse(
                 new Exception("Invalid request parameter value"),
                 HttpStatus.BAD_REQUEST,
                 request
         );
     }
-    // ✅ Handle @Valid body errors
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiErrorResponse> handleValidationErrors(
             MethodArgumentNotValidException ex,
             HttpServletRequest request
     ) {
+
         String message = ex.getBindingResult()
                 .getFieldErrors()
                 .stream()
@@ -71,53 +117,97 @@ public class GlobalExceptionHandler {
                 .findFirst()
                 .orElse("Validation error");
 
-        return buildResponse(new Exception(message), HttpStatus.BAD_REQUEST, request);
+        log.warn("Validation failed: {}", message);
+
+        return buildResponse(
+                new Exception(message),
+                HttpStatus.BAD_REQUEST,
+                request
+        );
     }
 
-    // ✅ Handle @RequestParam validation errors
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ApiErrorResponse> handleConstraintViolation(
             ConstraintViolationException ex,
             HttpServletRequest request
     ) {
+
         String message = ex.getConstraintViolations()
                 .stream()
                 .map(v -> v.getPropertyPath() + ": " + v.getMessage())
                 .collect(Collectors.joining(", "));
 
-        return buildResponse(new Exception(message), HttpStatus.BAD_REQUEST, request);
+        log.warn("Constraint violation: {}", message);
+
+        return buildResponse(
+                new Exception(message),
+                HttpStatus.BAD_REQUEST,
+                request
+        );
     }
 
     @ExceptionHandler(DuplicateEvaluationException.class)
-    public ResponseEntity<ApiErrorResponse> handleConstraintViolation(
+    public ResponseEntity<ApiErrorResponse> handleDuplicateEvaluation(
             DuplicateEvaluationException ex,
             HttpServletRequest request
     ) {
+
+        log.warn("Duplicate evaluation: {}", ex.getMessage());
+
         return buildResponse(ex, HttpStatus.BAD_REQUEST, request);
     }
+
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ApiErrorResponse> handleBadCredentials(
             BadCredentialsException ex,
             HttpServletRequest request
     ) {
+
+        log.warn("Bad credentials attempt");
+
         ApiErrorResponse error = new ApiErrorResponse(
                 Instant.now(),
-                401,
-                "Unauthorized",
+                HttpStatus.UNAUTHORIZED.value(),
+                HttpStatus.UNAUTHORIZED.getReasonPhrase(),
                 ex.getMessage(),
                 request.getRequestURI()
         );
 
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(error);
     }
-    // ✅ Fallback (safe message)
+
+    @ExceptionHandler({
+            DataAccessException.class,
+            DataRetrievalFailureException.class
+    })
+    public ResponseEntity<ApiErrorResponse> handleDatabaseException(
+            Exception ex,
+            HttpServletRequest request
+    ) {
+
+        log.error("Database error", ex);
+
+        return buildResponse(
+                new Exception("Database operation failed."),
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                request
+        );
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleGeneric(
             Exception ex,
             HttpServletRequest request
     ) {
+
+        log.error("Unhandled exception", ex);
+
         return buildResponse(
-                new Exception("Something went wrong. Please contact support."),
+                new Exception(
+                        "Something went wrong. Please contact support."
+                ),
                 HttpStatus.INTERNAL_SERVER_ERROR,
                 request
         );
@@ -128,6 +218,7 @@ public class GlobalExceptionHandler {
             HttpStatus status,
             HttpServletRequest request
     ) {
+
         ApiErrorResponse response = new ApiErrorResponse(
                 Instant.now(),
                 status.value(),

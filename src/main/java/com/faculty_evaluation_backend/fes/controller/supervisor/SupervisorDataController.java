@@ -44,10 +44,34 @@ public class SupervisorDataController {
     }
 
     @GetMapping("/faculty-loads")
-    public ResponseEntity<List<FacultyLoadDTO>> getFacultyLoadsByProgram(@RequestParam String programCode,
-                                                                         @RequestParam Long userId) {
+    public ResponseEntity<Page<FacultyLoadDTO>> getFacultyLoadsByProgram(
 
-        List<FacultyLoadDTO> response = supervisorDataService.getFacultyLoadsByProgram(Programs.valueOf(programCode), userId);
+            @RequestParam String programCode,
+
+            @RequestParam Long userId,
+
+            @RequestParam(required = false, defaultValue = "") String search,
+
+            @PageableDefault(
+                    page = 0,
+                    size = 10,
+                    sort = "lastname"
+            ) Pageable pageable) {
+        log.info("Search received: [{}]", search);
+        log.info(
+                "API Request → Faculty loads | program={} | userId={} | search={}",
+                programCode,
+                userId,
+                search
+        );
+
+        Page<FacultyLoadDTO> response =
+                supervisorDataService.getFacultyLoadsByProgram(
+                        Programs.valueOf(programCode.toUpperCase()),
+                        userId,
+                        search,
+                        pageable
+                );
 
         return ResponseEntity.ok(response);
     }

@@ -16,9 +16,11 @@ import com.faculty_evaluation_backend.fes.repositories.data.SchoolYearAndSemeste
 import com.faculty_evaluation_backend.fes.repositories.evaluation.FacultyEvaluationScoreRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryClassRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryFacultyRepository;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.dao.DataRetrievalFailureException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -35,6 +37,7 @@ public class SupervisorDataService {
     private final FacultyEvaluationScoreRepository facultyEvaluationScoreRepository;
     private final SchoolYearAndSemesterRepository schoolYearAndSemesterRepository;
     private final UserAccountsRepository userAccountsRepository;
+
     @Transactional(transactionManager = "primaryTransactionManager", readOnly = true)
     public List<FacultyDTO> getFacultiesByCollegeAndStatus(String college, String status) {
 
@@ -50,56 +53,73 @@ public class SupervisorDataService {
             transactionManager = "primaryTransactionManager",
             readOnly = true
     )
-    public List<FacultyLoadDTO> getFacultyLoadsByProgram(
+    public Page<FacultyLoadDTO> getFacultyLoadsByProgram(
+
             Programs programCode,
-            Long userId
-    ) {
 
-        try {
+            Long userId,
 
-            Majors majors = userAccountsRepository
-                    .findById(userId)
-                    .orElseThrow(() -> new RuntimeException("User not found"))
-                    .getMajors();
+            String search,
 
-            String sectionCode = null;
+            Pageable pageable) {
 
-            if (majors != null
-                    && majors.getDatabaseValue() != null
-                    && !majors.getDatabaseValue().trim().isEmpty()
-                    && !majors.getDatabaseValue().equalsIgnoreCase("None")) {
+        log.info(
+                "Fetching faculty loads | program={} | userId={} | search={} | page={} | size={}",
+                programCode,
+                userId,
+                search,
+                pageable.getPageNumber(),
+                pageable.getPageSize()
+        );
 
-                sectionCode = majors.getDatabaseValue().trim();
-            }
+        var user = userAccountsRepository.findById(userId)
+                .orElseThrow(() ->
+                        new EntityNotFoundException(
+                                "User not found with id: " + userId
+                        )
+                );
 
-            return primaryClassRepository.findFacultyLoadsByProgram(
-                    programCode.getValue(),
-                    sectionCode,
-                    userId
-            );
+        String sectionCode =
+                extractSectionCode(user.getMajors());
 
-        } catch (Exception e) {
+        Page<FacultyLoadDTO> result =
+                primaryClassRepository.findFacultyLoadsByProgram(
+                        programCode.getValue(),
+                        sectionCode,
+                        userId,
+                        search,
+                        pageable
+                );
 
-            throw new RuntimeException(
-                    "Failed to load faculty loads for program: "
-                            + programCode.getValue()
-                            + " and userId: "
-                            + userId,
-                    e
-            );
+        log.info(
+                "Faculty loads fetched successfully | totalElements={}",
+                result.getTotalElements()
+        );
 
+        return result;
+    }
+
+    private String extractSectionCode(Majors majors) {
+
+        if (majors == null) {
+            return null;
         }
+
+        String value = majors.getDatabaseValue();
+
+        if (value == null || value.isBlank() || value.equalsIgnoreCase("NONE")) {
+            return null;
+        }
+
+        return value.trim();
     }
 
     @Transactional(transactionManager = "primaryTransactionManager", readOnly = true)
-    @Cacheable(
-            value = "facultyClasses",
-            key = "#facultyId + '-' + #program.getValue()"
-    )
+    @Cacheable(value = "facultyClasses", key = "#facultyId + '-' + #program.getValue()")
     public List<FacultyClassDTO> findFacultyClasses(String facultyId, Programs program) {
         SchoolYearAndSemester data = schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE).orElseThrow(() -> new RuntimeException("No active school year and semester found."));
         log.debug("Fetching classes | facultyId={} | schoolYear={} | semester={}", facultyId, data.getSchoolYear(), data.getSemester());
-        List<FacultyClassDTO> result = primaryClassRepository.findFacultyClasses(facultyId,program.getValue(), data.getSchoolYear(), data.getSemester().getValue());
+        List<FacultyClassDTO> result = primaryClassRepository.findFacultyClasses(facultyId, program.getValue(), data.getSchoolYear(), data.getSemester().getValue());
         log.info("Classes fetched | facultyId={} | count={}", facultyId, result.size());
         return result;
     }
