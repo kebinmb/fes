@@ -98,175 +98,178 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
     boolean existsByLegacyDatabaseAndLegacyId(String legacyDatabase, String legacyId);
 
     @Query(value = """
-        SELECT
-        
-            pf.faculty_id AS facultyId,
-            pf.firstname AS firstname,
-            pf.lastname AS lastname,
-            pf.middlename AS middlename,
-            pf.position AS position,
-            pc.source_campus AS campus,
-            pf.load_limit AS loadLimit,
-        
-            CASE
-                WHEN faculty_load.total_load > pf.load_limit
-                    THEN 'OVERLOAD'
-                ELSE 'REGULAR'
-            END AS typeOfLoad
-        
-        FROM primary_faculty pf
-        
-        INNER JOIN (
-            SELECT
-                pc.faculty_id,
-                COUNT(DISTINCT pc.subject_code) AS total_load
-            FROM primary_class pc
-        
-            INNER JOIN primary_section ps
-                ON pc.section_id = ps.section_id
-        
-            WHERE LOWER(ps.program_code) = LOWER(:programCode)
-        
-            GROUP BY pc.faculty_id
-        ) faculty_load
-            ON faculty_load.faculty_id = pf.faculty_id
-        
-        INNER JOIN primary_class pc
-            ON pc.faculty_id = pf.faculty_id
-        
-        INNER JOIN primary_section ps
-            ON pc.section_id = ps.section_id
-        
-        WHERE pc.class_code IS NOT NULL
-        
-          AND LOWER(ps.program_code) = LOWER(:programCode)
+    SELECT
 
-          AND (
-              :search IS NULL
-              OR :search = ''
-              OR LOWER(pf.firstname)
-                  LIKE LOWER(CONCAT('%', :search, '%'))
-              OR LOWER(pf.lastname)
-                  LIKE LOWER(CONCAT('%', :search, '%'))
-              OR LOWER(pf.middlename)
-                  LIKE LOWER(CONCAT('%', :search, '%'))
-              OR LOWER(CONCAT(
-                  pf.firstname,
-                  ' ',
-                  pf.lastname
-              ))
-                  LIKE LOWER(CONCAT('%', :search, '%'))
-              OR LOWER(CONCAT(
-                  pf.lastname,
-                  ', ',
-                  pf.firstname
-              ))
-                  LIKE LOWER(CONCAT('%', :search, '%'))
-          )
-        
-          AND (
-              :sectionCode IS NULL
-              OR :sectionCode = ''
-              OR :sectionCode = 'NONE'
-              OR LOWER(ps.section_code)
-                 LIKE LOWER(CONCAT('%', :sectionCode, '%'))
-          )
-        
-          AND EXISTS (
-              SELECT 1
-              FROM user_accounts ua
-              WHERE ua.user_id = :userId
-        
-                AND LOWER(ua.data_source) =
-                    LOWER(pf.legacy_database)
-        
-                AND LOWER(ua.college) =
-                    LOWER(pf.college)
-          )
-        
-          AND NOT EXISTS (
-              SELECT 1
-              FROM user_accounts ua2
-              WHERE LOWER(ua2.lastname) =
-                    LOWER(pf.lastname)
-          )
-        
-        GROUP BY
-            pf.faculty_id,
-            pf.firstname,
-            pf.lastname,
-            pf.middlename,
-            pf.position,
-            pc.source_campus,
-            pf.load_limit,
-            faculty_load.total_load
-        """,
+        pf.faculty_id AS facultyId,
+        pf.firstname AS firstname,
+        pf.lastname AS lastname,
+        pf.middlename AS middlename,
+        pf.position AS position,
+        MAX(pc.source_campus) AS campus,
+        pf.load_limit AS loadLimit,
+        pf.college AS college,
+
+        CASE
+            WHEN COALESCE(fl.total_load, 0) > pf.load_limit
+                THEN 'OVERLOAD'
+            ELSE 'REGULAR'
+        END AS typeOfLoad
+
+    FROM primary_faculty pf
+
+    INNER JOIN primary_class pc
+        ON pc.faculty_id = pf.faculty_id
+
+    INNER JOIN primary_section ps
+        ON ps.section_id = pc.section_id
+
+    LEFT JOIN (
+
+        SELECT
+            pc2.faculty_id,
+            COUNT(DISTINCT pc2.subject_code) AS total_load
+
+        FROM primary_class pc2
+
+        INNER JOIN primary_section ps2
+            ON ps2.section_id = pc2.section_id
+
+        WHERE LOWER(ps2.program_code) =
+              LOWER(:programCode)
+
+        GROUP BY pc2.faculty_id
+
+    ) fl
+        ON fl.faculty_id = pf.faculty_id
+
+    INNER JOIN user_accounts ua
+        ON ua.user_id = :userId
+        AND LOWER(ua.data_source) =
+            LOWER(pf.legacy_database)
+        AND LOWER(ua.college) =
+            LOWER(pf.college)
+
+    WHERE pc.class_code IS NOT NULL
+
+      AND LOWER(ps.program_code) =
+          LOWER(:programCode)
+
+      AND (
+            :sectionCode IS NULL
+            OR :sectionCode = ''
+            OR :sectionCode = 'NONE'
+            OR LOWER(ps.section_code)
+                LIKE LOWER(CONCAT('%', :sectionCode, '%'))
+      )
+
+      AND (
+            :search IS NULL
+            OR :search = ''
+            OR LOWER(pf.firstname)
+                LIKE LOWER(CONCAT('%', :search, '%'))
+            OR LOWER(pf.lastname)
+                LIKE LOWER(CONCAT('%', :search, '%'))
+            OR LOWER(pf.middlename)
+                LIKE LOWER(CONCAT('%', :search, '%'))
+            OR LOWER(CONCAT(
+                    pf.firstname,
+                    ' ',
+                    pf.lastname
+               ))
+               LIKE LOWER(CONCAT('%', :search, '%'))
+            OR LOWER(CONCAT(
+                    pf.lastname,
+                    ', ',
+                    pf.firstname
+               ))
+               LIKE LOWER(CONCAT('%', :search, '%'))
+      )
+
+      AND NOT EXISTS (
+            SELECT 1
+            FROM user_accounts ua2
+            WHERE LOWER(ua2.lastname) =
+                  LOWER(pf.lastname)
+              AND ua2.user_id != :userId
+      )
+
+    GROUP BY
+        pf.faculty_id,
+        pf.firstname,
+        pf.lastname,
+        pf.middlename,
+        pf.position,
+        pf.load_limit,
+        pf.college,
+        fl.total_load
+
+    ORDER BY
+        pf.lastname ASC,
+        pf.firstname ASC
+    """,
 
             countQuery = """
-                SELECT COUNT(DISTINCT pf.faculty_id)
-                
-                FROM primary_faculty pf
-                
-                INNER JOIN primary_class pc
-                    ON pc.faculty_id = pf.faculty_id
-                
-                INNER JOIN primary_section ps
-                    ON pc.section_id = ps.section_id
-                
-                WHERE pc.class_code IS NOT NULL
-                
-                  AND LOWER(ps.program_code) = LOWER(:programCode)
+        SELECT COUNT(DISTINCT pf.faculty_id)
 
-                  AND (
-                      :search IS NULL
-                      OR :search = ''
-                      OR LOWER(pf.firstname)
-                          LIKE LOWER(CONCAT('%', :search, '%'))
-                      OR LOWER(pf.lastname)
-                          LIKE LOWER(CONCAT('%', :search, '%'))
-                      OR LOWER(pf.middlename)
-                          LIKE LOWER(CONCAT('%', :search, '%'))
-                      OR LOWER(CONCAT(
-                          pf.firstname,
-                          ' ',
-                          pf.lastname
-                      ))
-                          LIKE LOWER(CONCAT('%', :search, '%'))
-                      OR LOWER(CONCAT(
-                          pf.lastname,
-                          ', ',
-                          pf.firstname
-                      ))
-                          LIKE LOWER(CONCAT('%', :search, '%'))
-                  )
+        FROM primary_faculty pf
 
-                  AND (
-                      :sectionCode IS NULL
-                      OR :sectionCode = ''
-                      OR :sectionCode = 'NONE'
-                      OR LOWER(ps.section_code)
-                         LIKE LOWER(CONCAT('%', :sectionCode, '%'))
-                  )
-                
-                  AND EXISTS (
-                      SELECT 1
-                      FROM user_accounts ua
-                      WHERE ua.user_id = :userId
-                
-                        AND LOWER(ua.data_source) =
-                            LOWER(pf.legacy_database)
-                
-                        AND LOWER(ua.college) =
-                            LOWER(pf.college)
-                  )
-                
-                  AND NOT EXISTS (
-                      SELECT 1
-                      FROM user_accounts ua2
-                      WHERE LOWER(ua2.lastname) =
-                            LOWER(pf.lastname)
-                  )
-                """,
+        INNER JOIN primary_class pc
+            ON pc.faculty_id = pf.faculty_id
+
+        INNER JOIN primary_section ps
+            ON ps.section_id = pc.section_id
+
+        INNER JOIN user_accounts ua
+            ON ua.user_id = :userId
+            AND LOWER(ua.data_source) =
+                LOWER(pf.legacy_database)
+            AND LOWER(ua.college) =
+                LOWER(pf.college)
+
+        WHERE pc.class_code IS NOT NULL
+
+          AND LOWER(ps.program_code) =
+              LOWER(:programCode)
+
+          AND (
+                :sectionCode IS NULL
+                OR :sectionCode = ''
+                OR :sectionCode = 'NONE'
+                OR LOWER(ps.section_code)
+                    LIKE LOWER(CONCAT('%', :sectionCode, '%'))
+          )
+
+          AND (
+                :search IS NULL
+                OR :search = ''
+                OR LOWER(pf.firstname)
+                    LIKE LOWER(CONCAT('%', :search, '%'))
+                OR LOWER(pf.lastname)
+                    LIKE LOWER(CONCAT('%', :search, '%'))
+                OR LOWER(pf.middlename)
+                    LIKE LOWER(CONCAT('%', :search, '%'))
+                OR LOWER(CONCAT(
+                        pf.firstname,
+                        ' ',
+                        pf.lastname
+                   ))
+                   LIKE LOWER(CONCAT('%', :search, '%'))
+                OR LOWER(CONCAT(
+                        pf.lastname,
+                        ', ',
+                        pf.firstname
+                   ))
+                   LIKE LOWER(CONCAT('%', :search, '%'))
+          )
+
+          AND NOT EXISTS (
+                SELECT 1
+                FROM user_accounts ua2
+                WHERE LOWER(ua2.lastname) =
+                      LOWER(pf.lastname)
+                  AND ua2.user_id != :userId
+          )
+    """,
 
             nativeQuery = true)
     Page<FacultyLoadDTO> findFacultyLoadsByProgram(
@@ -279,5 +282,6 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
 
             @Param("search") String search,
 
-            Pageable pageable);
+            Pageable pageable
+    );
 }

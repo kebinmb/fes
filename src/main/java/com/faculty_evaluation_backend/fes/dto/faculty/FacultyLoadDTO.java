@@ -23,6 +23,6 @@ public class FacultyLoadDTO {
     private String campus;
 
     private Double loadLimit;
-
+    private String college;
     private String typeOfLoad;
 }
