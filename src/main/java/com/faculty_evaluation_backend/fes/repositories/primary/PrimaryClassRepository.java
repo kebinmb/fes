@@ -49,62 +49,46 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
 
     @Query(value = """
 
-        SELECT
-            pc.subject_code AS subjectCode,
-            pc.faculty_id AS facultyId,
-            pc.school_year AS schoolYear,
-            pc.semester AS semester,
+    SELECT
 
-            GROUP_CONCAT(
-                DISTINCT pc.class_code
-                ORDER BY pc.class_code
-            ) AS classCodes,
+        pc.subject_code AS subjectCode,
 
-            GROUP_CONCAT(
-                DISTINCT psl.yearLevels
-                ORDER BY psl.yearLevels
-            ) AS yearLevels,
+        pc.faculty_id AS facultyId,
 
-            GROUP_CONCAT(
-                DISTINCT ps.program_code
-                ORDER BY ps.program_code
-            ) AS programCodes,
+        pc.school_year AS schoolYear,
 
-            GROUP_CONCAT(
-                DISTINCT ps.section_code
-                ORDER BY ps.section_code
-            ) AS sectionCodes
+        pc.semester AS semester,
 
-        FROM primary_class pc
+        MIN(pc.class_code) AS classCode,
 
-        INNER JOIN primary_section ps
-            ON pc.section_id = ps.section_id
+        MIN(psl.year_level) AS yearLevel,
 
-        LEFT JOIN (
-            SELECT
-                class_code,
-                GROUP_CONCAT(
-                    DISTINCT year_level
-                    ORDER BY year_level
-                ) AS yearLevels
-            FROM primary_student_load
-            GROUP BY class_code
-        ) psl
-            ON pc.class_code = psl.class_code
+        MIN(ps.program_code) AS programCode,
 
-        WHERE pc.faculty_id = :facultyId
-          AND pc.school_year = :schoolYear
-          AND pc.semester = :semester
+        MIN(ps.section_code) AS sectionCode
 
-        GROUP BY
-            pc.subject_code,
-            pc.faculty_id,
-            pc.school_year,
-            pc.semester
+    FROM primary_class pc
 
-        ORDER BY
-            pc.subject_code
-        """,
+    INNER JOIN primary_section ps
+        ON pc.section_id = ps.section_id
+
+    LEFT JOIN primary_student_load psl
+        ON pc.class_code = psl.class_code
+
+    WHERE pc.faculty_id = :facultyId
+      AND pc.school_year = :schoolYear
+      AND pc.semester = :semester
+
+    GROUP BY
+        pc.faculty_id,
+        pc.subject_code,
+        pc.school_year,
+        pc.semester
+
+    ORDER BY
+        pc.subject_code ASC
+
+    """,
             nativeQuery = true)
     List<FacultyClassDTO> findFacultyClasses(
 
