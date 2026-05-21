@@ -10,18 +10,12 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class FacultyLoadDTO {
-
     private String facultyId;
-
     private String firstname;
     private String lastname;
     private String middlename;
-
     private String position;
-
-
     private String campus;
-
     private Double loadLimit;
     private String college;
     private String typeOfLoad;

@@ -90,7 +90,7 @@ logging:
     org.springframework.security: DEBUG
 
 server:
-  port: 8900
+  port: 8090
 
 jwt:
   secret: this-is-a-dev-secret-key-change-me
