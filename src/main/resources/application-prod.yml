@@ -180,7 +180,7 @@ app:
     redirect-url-failure: "${OAUTH2_REDIRECT_URL_FAILURE:http://localhost:4200/oauth-failure}"
 
 server:
-  port: 9100
+  port: 9200
   forward-headers-strategy: framework
   tomcat:
 
