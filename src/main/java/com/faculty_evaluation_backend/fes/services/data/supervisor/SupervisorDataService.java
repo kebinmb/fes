@@ -55,37 +55,30 @@ public class SupervisorDataService {
     )
     public Page<FacultyLoadDTO> getFacultyLoadsByProgram(
 
-            Programs programCode,
-
             Long userId,
 
             String search,
 
-            Pageable pageable) {
+            Pageable pageable
+    ) {
 
         log.info(
-                "Fetching faculty loads | program={} | userId={} | search={} | page={} | size={}",
-                programCode,
+                "Fetching faculty loads | userId={} | search={} | page={} | size={}",
                 userId,
                 search,
                 pageable.getPageNumber(),
                 pageable.getPageSize()
         );
 
-        var user = userAccountsRepository.findById(userId)
+        userAccountsRepository.findById(userId)
                 .orElseThrow(() ->
                         new EntityNotFoundException(
                                 "User not found with id: " + userId
                         )
                 );
 
-        String sectionCode =
-                extractSectionCode(user.getMajors());
-
         Page<FacultyLoadDTO> result =
                 primaryClassRepository.findFacultyLoadsByProgram(
-                        programCode.getValue(),
-                        sectionCode,
                         userId,
                         search,
                         pageable
@@ -114,13 +107,47 @@ public class SupervisorDataService {
         return value.trim();
     }
 
-    @Transactional(transactionManager = "primaryTransactionManager", readOnly = true)
-    @Cacheable(value = "facultyClasses", key = "#facultyId + '-' + #program.getValue()")
-    public List<FacultyClassDTO> findFacultyClasses(String facultyId, Programs program) {
-        SchoolYearAndSemester data = schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE).orElseThrow(() -> new RuntimeException("No active school year and semester found."));
-        log.debug("Fetching classes | facultyId={} | schoolYear={} | semester={}", facultyId, data.getSchoolYear(), data.getSemester());
-        List<FacultyClassDTO> result = primaryClassRepository.findFacultyClasses(facultyId, program.getValue(), data.getSchoolYear(), data.getSemester().getValue());
-        log.info("Classes fetched | facultyId={} | count={}", facultyId, result.size());
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
+    @Cacheable(
+            value = "facultyClasses",
+            key = "#facultyId"
+    )
+    public List<FacultyClassDTO> findFacultyClasses(
+            String facultyId
+    ) {
+
+        SchoolYearAndSemester data =
+                schoolYearAndSemesterRepository
+                        .findByStatus(Status.ACTIVE)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "No active school year and semester found."
+                                )
+                        );
+
+        log.debug(
+                "Fetching classes | facultyId={} | schoolYear={} | semester={}",
+                facultyId,
+                data.getSchoolYear(),
+                data.getSemester()
+        );
+
+        List<FacultyClassDTO> result =
+                primaryClassRepository.findFacultyClasses(
+                        facultyId,
+                        data.getSchoolYear(),
+                        data.getSemester().getValue()
+                );
+
+        log.info(
+                "Classes fetched | facultyId={} | count={}",
+                facultyId,
+                result.size()
+        );
+
         return result;
     }
 

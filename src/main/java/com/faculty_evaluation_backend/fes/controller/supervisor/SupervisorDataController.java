@@ -46,8 +46,6 @@ public class SupervisorDataController {
     @GetMapping("/faculty-loads")
     public ResponseEntity<Page<FacultyLoadDTO>> getFacultyLoadsByProgram(
 
-            @RequestParam String programCode,
-
             @RequestParam Long userId,
 
             @RequestParam(required = false, defaultValue = "") String search,
@@ -56,18 +54,19 @@ public class SupervisorDataController {
                     page = 0,
                     size = 10,
                     sort = "lastname"
-            ) Pageable pageable) {
+            ) Pageable pageable
+    ) {
+
         log.info("Search received: [{}]", search);
+
         log.info(
-                "API Request → Faculty loads | program={} | userId={} | search={}",
-                programCode,
+                "API Request → Faculty loads | userId={} | search={}",
                 userId,
                 search
         );
 
         Page<FacultyLoadDTO> response =
                 supervisorDataService.getFacultyLoadsByProgram(
-                        Programs.valueOf(programCode.toUpperCase()),
                         userId,
                         search,
                         pageable
@@ -77,10 +76,23 @@ public class SupervisorDataController {
     }
 
     @GetMapping("/faculty-classes")
-    public ResponseEntity<List<FacultyClassDTO>> getFacultyClasses(@RequestParam @NotBlank String facultyId, @RequestParam @NotBlank String program) {
-        log.info("API Request → Fetch faculty classes | facultyId={} | schoolYear={} | semester={}", facultyId);
+    public ResponseEntity<List<FacultyClassDTO>> getFacultyClasses(
 
-        return ResponseEntity.ok(supervisorDataService.findFacultyClasses(facultyId, Programs.valueOf(program)));
+            @RequestParam
+            @NotBlank
+            String facultyId
+    ) {
+
+        log.info(
+                "API Request → Fetch faculty classes | facultyId={}",
+                facultyId
+        );
+
+        return ResponseEntity.ok(
+                supervisorDataService.findFacultyClasses(
+                        facultyId
+                )
+        );
     }
 
     @GetMapping("/check")

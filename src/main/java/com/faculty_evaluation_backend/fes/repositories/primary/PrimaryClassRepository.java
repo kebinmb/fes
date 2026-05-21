@@ -48,56 +48,76 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
     Object[] findClassWithDetailsForStudentNative(@Param("classCode") String classCode, @Param("studentId") String studentId);
 
     @Query(value = """
-            
-                    SELECT
-                                                      pc.subject_code AS subjectCode,
-                                                      pc.faculty_id AS facultyId,
-                                                      pc.school_year AS schoolYear,
-                                                      pc.semester AS semester,
-            
-                                                      GROUP_CONCAT(DISTINCT pc.class_code ORDER BY pc.class_code) AS classCodes,
-            
-                                                      GROUP_CONCAT(DISTINCT psl.yearLevels ORDER BY psl.yearLevels) AS yearLevels,
-            
-                                                      ps.program_code AS programCode,
-            
-                                                      GROUP_CONCAT(DISTINCT ps.section_code ORDER BY ps.section_code) AS sectionCodes
-            
-                                                  FROM primary_class pc
-            
-                                                  INNER JOIN primary_section ps
-                                                      ON pc.section_id = ps.section_id
-            
-                                                  LEFT JOIN (
-                                                      SELECT
-                                                          class_code,
-                                                          GROUP_CONCAT(DISTINCT year_level ORDER BY year_level) AS yearLevels
-                                                      FROM primary_student_load
-                                                      GROUP BY class_code
-                                                  ) psl
-                                                      ON pc.class_code = psl.class_code
-            
-                                                  WHERE pc.faculty_id = :facultyId
-                                                    AND ps.program_code = :program
-                                                    AND pc.school_year = :schoolYear
-                                                    AND pc.semester = :semester
-            
-                                                  GROUP BY
-                                                      pc.subject_code,
-                                                      pc.faculty_id,
-                                                      pc.school_year,
-                                                      pc.semester,
-                                                      ps.program_code
-            
-                                                  ORDER BY
-                                                      pc.subject_code,
-                                                      ps.program_code
-            """, nativeQuery = true)
-    List<FacultyClassDTO> findFacultyClasses(@Param("facultyId") String facultyId, @Param("program") String program, @Param("schoolYear") Integer schoolYear, @Param("semester") String semester);
 
+        SELECT
+            pc.subject_code AS subjectCode,
+            pc.faculty_id AS facultyId,
+            pc.school_year AS schoolYear,
+            pc.semester AS semester,
+
+            GROUP_CONCAT(
+                DISTINCT pc.class_code
+                ORDER BY pc.class_code
+            ) AS classCodes,
+
+            GROUP_CONCAT(
+                DISTINCT psl.yearLevels
+                ORDER BY psl.yearLevels
+            ) AS yearLevels,
+
+            GROUP_CONCAT(
+                DISTINCT ps.program_code
+                ORDER BY ps.program_code
+            ) AS programCodes,
+
+            GROUP_CONCAT(
+                DISTINCT ps.section_code
+                ORDER BY ps.section_code
+            ) AS sectionCodes
+
+        FROM primary_class pc
+
+        INNER JOIN primary_section ps
+            ON pc.section_id = ps.section_id
+
+        LEFT JOIN (
+            SELECT
+                class_code,
+                GROUP_CONCAT(
+                    DISTINCT year_level
+                    ORDER BY year_level
+                ) AS yearLevels
+            FROM primary_student_load
+            GROUP BY class_code
+        ) psl
+            ON pc.class_code = psl.class_code
+
+        WHERE pc.faculty_id = :facultyId
+          AND pc.school_year = :schoolYear
+          AND pc.semester = :semester
+
+        GROUP BY
+            pc.subject_code,
+            pc.faculty_id,
+            pc.school_year,
+            pc.semester
+
+        ORDER BY
+            pc.subject_code
+        """,
+            nativeQuery = true)
+    List<FacultyClassDTO> findFacultyClasses(
+
+            @Param("facultyId") String facultyId,
+
+            @Param("schoolYear") Integer schoolYear,
+
+            @Param("semester") String semester
+    );
     boolean existsByLegacyDatabaseAndLegacyId(String legacyDatabase, String legacyId);
 
     @Query(value = """
+
     SELECT
 
         pf.faculty_id AS facultyId,
@@ -115,13 +135,14 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
             ELSE 'REGULAR'
         END AS typeOfLoad
 
-    FROM primary_faculty pf
+    FROM primary_class pc
 
-    INNER JOIN primary_class pc
+    INNER JOIN primary_faculty pf
         ON pc.faculty_id = pf.faculty_id
 
-    INNER JOIN primary_section ps
-        ON ps.section_id = pc.section_id
+    /* LOGGED-IN USER */
+    INNER JOIN user_accounts ua
+        ON ua.user_id = :userId
 
     LEFT JOIN (
 
@@ -131,36 +152,32 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
 
         FROM primary_class pc2
 
-        INNER JOIN primary_section ps2
-            ON ps2.section_id = pc2.section_id
-
-        WHERE LOWER(ps2.program_code) =
-              LOWER(:programCode)
-
         GROUP BY pc2.faculty_id
 
     ) fl
         ON fl.faculty_id = pf.faculty_id
 
-    INNER JOIN user_accounts ua
-        ON ua.user_id = :userId
-        AND LOWER(ua.data_source) =
-            LOWER(pf.legacy_database)
-        AND LOWER(ua.college) =
-            LOWER(pf.college)
-
     WHERE pc.class_code IS NOT NULL
 
-      AND LOWER(ps.program_code) =
-          LOWER(:programCode)
+      AND LOWER(pf.status) = 'active'
 
-      AND (
-            :sectionCode IS NULL
-            OR :sectionCode = ''
-            OR :sectionCode = 'NONE'
-            OR LOWER(ps.section_code)
-                LIKE LOWER(CONCAT('%', :sectionCode, '%'))
-      )
+      /* SAME DATASOURCE ONLY */
+      AND LOWER(ua.data_source) =
+          LOWER(pf.legacy_database)
+
+      /* EXCLUDE LOGGED-IN USER */
+      AND LOWER(CONCAT(
+            COALESCE(ua.firstname, ''),
+            ' ',
+            COALESCE(ua.lastname, '')
+      )) != LOWER(CONCAT(
+            COALESCE(pf.firstname, ''),
+            ' ',
+            COALESCE(pf.lastname, '')
+      ))
+
+      /* EXCLUDE PROGRAM CHAIR */
+      AND LOWER(pf.position) != 'program_chair'
 
       AND (
             :search IS NULL
@@ -185,14 +202,6 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
                LIKE LOWER(CONCAT('%', :search, '%'))
       )
 
-      AND NOT EXISTS (
-            SELECT 1
-            FROM user_accounts ua2
-            WHERE LOWER(ua2.lastname) =
-                  LOWER(pf.lastname)
-              AND ua2.user_id != :userId
-      )
-
     GROUP BY
         pf.faculty_id,
         pf.firstname,
@@ -209,74 +218,65 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
     """,
 
             countQuery = """
-        SELECT COUNT(DISTINCT pf.faculty_id)
 
-        FROM primary_faculty pf
+    SELECT COUNT(DISTINCT pf.faculty_id)
 
-        INNER JOIN primary_class pc
-            ON pc.faculty_id = pf.faculty_id
+    FROM primary_class pc
 
-        INNER JOIN primary_section ps
-            ON ps.section_id = pc.section_id
+    INNER JOIN primary_faculty pf
+        ON pc.faculty_id = pf.faculty_id
 
-        INNER JOIN user_accounts ua
-            ON ua.user_id = :userId
-            AND LOWER(ua.data_source) =
-                LOWER(pf.legacy_database)
-            AND LOWER(ua.college) =
-                LOWER(pf.college)
+    INNER JOIN user_accounts ua
+        ON ua.user_id = :userId
 
-        WHERE pc.class_code IS NOT NULL
+    WHERE pc.class_code IS NOT NULL
 
-          AND LOWER(ps.program_code) =
-              LOWER(:programCode)
+      AND LOWER(pf.status) = 'active'
 
-          AND (
-                :sectionCode IS NULL
-                OR :sectionCode = ''
-                OR :sectionCode = 'NONE'
-                OR LOWER(ps.section_code)
-                    LIKE LOWER(CONCAT('%', :sectionCode, '%'))
-          )
+      /* SAME DATASOURCE ONLY */
+      AND LOWER(ua.data_source) =
+          LOWER(pf.legacy_database)
 
-          AND (
-                :search IS NULL
-                OR :search = ''
-                OR LOWER(pf.firstname)
-                    LIKE LOWER(CONCAT('%', :search, '%'))
-                OR LOWER(pf.lastname)
-                    LIKE LOWER(CONCAT('%', :search, '%'))
-                OR LOWER(pf.middlename)
-                    LIKE LOWER(CONCAT('%', :search, '%'))
-                OR LOWER(CONCAT(
-                        pf.firstname,
-                        ' ',
-                        pf.lastname
-                   ))
-                   LIKE LOWER(CONCAT('%', :search, '%'))
-                OR LOWER(CONCAT(
-                        pf.lastname,
-                        ', ',
-                        pf.firstname
-                   ))
-                   LIKE LOWER(CONCAT('%', :search, '%'))
-          )
+      /* EXCLUDE LOGGED-IN USER */
+      AND LOWER(CONCAT(
+            COALESCE(ua.firstname, ''),
+            ' ',
+            COALESCE(ua.lastname, '')
+      )) != LOWER(CONCAT(
+            COALESCE(pf.firstname, ''),
+            ' ',
+            COALESCE(pf.lastname, '')
+      ))
 
-          AND NOT EXISTS (
-                SELECT 1
-                FROM user_accounts ua2
-                WHERE LOWER(ua2.lastname) =
-                      LOWER(pf.lastname)
-                  AND ua2.user_id != :userId
-          )
+      /* EXCLUDE PROGRAM CHAIR */
+      AND LOWER(pf.position) != 'program_chair'
+
+      AND (
+            :search IS NULL
+            OR :search = ''
+            OR LOWER(pf.firstname)
+                LIKE LOWER(CONCAT('%', :search, '%'))
+            OR LOWER(pf.lastname)
+                LIKE LOWER(CONCAT('%', :search, '%'))
+            OR LOWER(pf.middlename)
+                LIKE LOWER(CONCAT('%', :search, '%'))
+            OR LOWER(CONCAT(
+                    pf.firstname,
+                    ' ',
+                    pf.lastname
+               ))
+               LIKE LOWER(CONCAT('%', :search, '%'))
+            OR LOWER(CONCAT(
+                    pf.lastname,
+                    ', ',
+                    pf.firstname
+               ))
+               LIKE LOWER(CONCAT('%', :search, '%'))
+      )
     """,
 
             nativeQuery = true)
     Page<FacultyLoadDTO> findFacultyLoadsByProgram(
-
-            @Param("programCode") String programCode,
-
-            @Param("sectionCode") String sectionCode,
 
             @Param("userId") Long userId,
 
