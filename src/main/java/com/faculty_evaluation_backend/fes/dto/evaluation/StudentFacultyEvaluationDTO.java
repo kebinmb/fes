@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @NoArgsConstructor
 @AllArgsConstructor
 @Data
@@ -17,4 +19,5 @@ public class StudentFacultyEvaluationDTO {
     private String facultyId;
     private String facultyFirstname;
     private String facultyLastname;
+    private LocalDateTime createdAt;
 }

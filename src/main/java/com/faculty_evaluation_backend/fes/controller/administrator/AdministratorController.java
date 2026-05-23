@@ -182,14 +182,36 @@ public class AdministratorController {
         }
     }
     @GetMapping("/student-faculty-evaluation")
-    public ResponseEntity<?> getStudentFacultyEvaluationDetails() {
+    public ResponseEntity<?> getStudentFacultyEvaluationDetails(
+
+            @RequestParam(defaultValue = "") String search,
+
+            @RequestParam(defaultValue = "0") int page,
+
+            @RequestParam(defaultValue = "10") int size,
+
+            @RequestParam(defaultValue = "created_at") String sortBy,
+
+            @RequestParam(defaultValue = "desc") String sortDirection
+    ) {
 
         try {
 
-            log.info("Fetching student faculty evaluation details");
+            log.info(
+                    "Fetching student faculty evaluation details | search={} | page={} | size={}",
+                    search,
+                    page,
+                    size
+            );
 
             return ResponseEntity.ok(
-                    administratorService.getStudentFacultyEvaluationDetails()
+                    administratorService.getStudentFacultyEvaluationDetails(
+                            search,
+                            page,
+                            size,
+                            sortBy,
+                            sortDirection
+                    )
             );
 
         } catch (RuntimeException e) {

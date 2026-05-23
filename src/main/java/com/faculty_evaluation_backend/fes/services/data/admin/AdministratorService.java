@@ -22,9 +22,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -147,23 +150,37 @@ public class AdministratorService {
 
         return "Failed to update faculty.";
     }
-    public List<StudentFacultyEvaluationDTO> getStudentFacultyEvaluationDetails() {
+    public Page<StudentFacultyEvaluationDTO> getStudentFacultyEvaluationDetails(
+            String search,
+            int page,
+            int size,
+            String sortBy,
+            String sortDirection
+    ) {
 
-        List<Object[]> rows =
-                facultyEvaluationScoreRepository.findStudentFacultyEvaluationDetails();
+        Sort sort = sortDirection.equalsIgnoreCase("asc")
+                ? Sort.by(sortBy).ascending()
+                : Sort.by(sortBy).descending();
 
-        return rows.stream()
-                .map(row -> new StudentFacultyEvaluationDTO(
-                        row[0] != null ? row[0].toString() : null,
-                        row[1] != null ? row[1].toString() : null,
-                        row[2] != null ? row[2].toString() : null,
-                        row[3] != null ? row[3].toString() : null,
-                        row[4] != null ? row[4].toString() : null,
-                        row[5] != null ? row[5].toString() : null,
-                        row[6] != null ? row[6].toString() : null,
-                        row[7] != null ? row[7].toString() : null,
-                        row[8] != null ? row[8].toString() : null
-                ))
-                .toList();
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        Page<Object[]> rows =
+                facultyEvaluationScoreRepository
+                        .findStudentFacultyEvaluationDetails(search, pageable);
+
+        return rows.map(row -> new StudentFacultyEvaluationDTO(
+                row[0] != null ? row[0].toString() : null,
+                row[1] != null ? row[1].toString() : null,
+                row[2] != null ? row[2].toString() : null,
+                row[3] != null ? row[3].toString() : null,
+                row[4] != null ? row[4].toString() : null,
+                row[5] != null ? row[5].toString() : null,
+                row[6] != null ? row[6].toString() : null,
+                row[7] != null ? row[7].toString() : null,
+                row[8] != null ? row[8].toString() : null,
+                row[9] != null
+                        ? (LocalDateTime) row[9]
+                        : null
+        ));
     }
 }
