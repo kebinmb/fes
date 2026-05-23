@@ -126,15 +126,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String path = request.getServletPath();
 
-        if (path.contains("/student")) {
+        if (path.contains("/student") && studentToken != null) {
             return studentToken;
         }
 
-        if (path.contains("/supervisor")) {
+        if (path.contains("/supervisor") && supervisorToken != null) {
             return supervisorToken;
         }
 
-        if (path.contains("/admin")) {
+        if (path.contains("/admin") && administratorToken != null) {
             return administratorToken;
         }
 

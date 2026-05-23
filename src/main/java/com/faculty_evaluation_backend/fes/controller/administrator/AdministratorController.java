@@ -181,6 +181,50 @@ public class AdministratorController {
                     );
         }
     }
+    @GetMapping("/student-faculty-evaluation")
+    public ResponseEntity<?> getStudentFacultyEvaluationDetails() {
 
+        try {
+
+            log.info("Fetching student faculty evaluation details");
+
+            return ResponseEntity.ok(
+                    administratorService.getStudentFacultyEvaluationDetails()
+            );
+
+        } catch (RuntimeException e) {
+
+            log.error(
+                    "Failed to fetch student faculty evaluation details | error={}",
+                    e.getMessage(),
+                    e
+            );
+
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(
+                            new ErrorResponse(
+                                    "FAILED",
+                                    e.getMessage()
+                            )
+                    );
+
+        } catch (Exception e) {
+
+            log.error(
+                    "Unexpected error fetching student faculty evaluation details",
+                    e
+            );
+
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(
+                            new ErrorResponse(
+                                    "FAILED",
+                                    "Failed to fetch student faculty evaluation details."
+                            )
+                    );
+        }
+    }
 
 }

@@ -1,6 +1,7 @@
 package com.faculty_evaluation_backend.fes.repositories.evaluation;
 
 
+import com.faculty_evaluation_backend.fes.dto.evaluation.StudentFacultyEvaluationDTO;
 import com.faculty_evaluation_backend.fes.entities.evaluation.FacultyEvaluationScore;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -56,5 +57,30 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
             Integer schoolYear,
             String semester
     );
+
+    @Query(value = """
+        SELECT
+            ps.student_id,
+            ps.student_firstname,
+            ps.student_lastname,
+            pc.class_code,
+            pse.program_code,
+            pse.section_code,
+            pc.faculty_id,
+            pf.firstname,
+            pf.lastname
+        FROM faculty_evaluation_score fes
+        INNER JOIN primary_student ps
+            ON fes.evaluator_id = ps.student_id
+        INNER JOIN primary_student_load psl
+            ON ps.student_id = psl.student_id
+        INNER JOIN primary_class pc
+            ON psl.class_code = pc.class_code
+        INNER JOIN primary_section pse
+            ON pc.section_id = pse.section_id
+        INNER JOIN primary_faculty pf
+            ON pc.faculty_id = pf.faculty_id
+        """, nativeQuery = true)
+    List<Object[]> findStudentFacultyEvaluationDetails();
 }
 

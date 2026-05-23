@@ -1,6 +1,7 @@
 package com.faculty_evaluation_backend.fes.services.data.admin;
 
 import com.faculty_evaluation_backend.fes.dto.data.SchoolYearAndSemesterDTO;
+import com.faculty_evaluation_backend.fes.dto.evaluation.StudentFacultyEvaluationDTO;
 import com.faculty_evaluation_backend.fes.dto.response.FetchFacultyEvaluationScoreResponse;
 import com.faculty_evaluation_backend.fes.dto.response.FetchFacultyResponse;
 import com.faculty_evaluation_backend.fes.dto.response.FetchUserAccountsResponse;
@@ -146,5 +147,23 @@ public class AdministratorService {
 
         return "Failed to update faculty.";
     }
+    public List<StudentFacultyEvaluationDTO> getStudentFacultyEvaluationDetails() {
 
+        List<Object[]> rows =
+                facultyEvaluationScoreRepository.findStudentFacultyEvaluationDetails();
+
+        return rows.stream()
+                .map(row -> new StudentFacultyEvaluationDTO(
+                        row[0] != null ? row[0].toString() : null,
+                        row[1] != null ? row[1].toString() : null,
+                        row[2] != null ? row[2].toString() : null,
+                        row[3] != null ? row[3].toString() : null,
+                        row[4] != null ? row[4].toString() : null,
+                        row[5] != null ? row[5].toString() : null,
+                        row[6] != null ? row[6].toString() : null,
+                        row[7] != null ? row[7].toString() : null,
+                        row[8] != null ? row[8].toString() : null
+                ))
+                .toList();
+    }
 }

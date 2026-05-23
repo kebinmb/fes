@@ -1,4 +1,4 @@
-UPDATE syndicateadmin_faculty_evaluation_db.primary_faculty pf
+UPDATE syndicateadmin_faculty_evaluation_db_prod.primary_faculty pf
 INNER JOIN primary_class pc
     ON pf.faculty_id = pc.faculty_id
 SET pf.college = 'CCJ'
