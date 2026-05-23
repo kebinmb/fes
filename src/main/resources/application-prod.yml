@@ -2,7 +2,7 @@ spring:
   datasource:
     primary:
       jdbc-url: jdbc:mysql://68.178.161.177:3306/syndicateadmin_faculty_evaluation_db?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=false&tcpKeepAlive=true&connectTimeout=3000&socketTimeout=600000
-      username: syndicateadmin_faculty_evaluation_db_prod
+      username: syndicateadmin_faculty_evaluation_db
       password: ${DB_PASSWORD}
       driver-class-name: com.mysql.cj.jdbc.Driver
 
