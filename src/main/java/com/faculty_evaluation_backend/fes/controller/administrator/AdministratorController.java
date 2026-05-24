@@ -8,6 +8,9 @@ import com.faculty_evaluation_backend.fes.dto.response.FetchFacultyEvaluationSco
 import com.faculty_evaluation_backend.fes.dto.response.FetchFacultyResponse;
 import com.faculty_evaluation_backend.fes.dto.response.FetchUserAccountsResponse;
 import com.faculty_evaluation_backend.fes.dto.student.PageResponse;
+import com.faculty_evaluation_backend.fes.dto.user_accounts.CreateUserAccountDTO;
+import com.faculty_evaluation_backend.fes.dto.user_accounts.UpdateUserAccountDTO;
+import com.faculty_evaluation_backend.fes.dto.user_accounts.UpdateUserPasswordDTO;
 import com.faculty_evaluation_backend.fes.entities.data.enums.Semester;
 import com.faculty_evaluation_backend.fes.entities.evaluation.FacultyEvaluationScore;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.College;
@@ -248,5 +251,33 @@ public class AdministratorController {
                     );
         }
     }
+    @PostMapping("/create-user")
+    public ResponseEntity<String> createUser(
+            @RequestBody CreateUserAccountDTO dto
+    ) {
 
+        return ResponseEntity.ok(
+                administratorService.createUserAccount(dto)
+        );
+    }
+
+    @PutMapping("/update-user")
+    public ResponseEntity<String> updateUser(
+            @RequestBody UpdateUserAccountDTO dto
+    ) {
+
+        return ResponseEntity.ok(
+                administratorService.updateUserAccount(dto)
+        );
+    }
+
+    @PutMapping("/update-password")
+    public ResponseEntity<String> updatePassword(
+            @RequestBody UpdateUserPasswordDTO dto
+    ) {
+
+        return ResponseEntity.ok(
+                administratorService.updateUserPassword(dto)
+        );
+    }
 }

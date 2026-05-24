@@ -6,6 +6,9 @@ import com.faculty_evaluation_backend.fes.dto.response.FetchFacultyEvaluationSco
 import com.faculty_evaluation_backend.fes.dto.response.FetchFacultyResponse;
 import com.faculty_evaluation_backend.fes.dto.response.FetchUserAccountsResponse;
 import com.faculty_evaluation_backend.fes.dto.student.PageResponse;
+import com.faculty_evaluation_backend.fes.dto.user_accounts.CreateUserAccountDTO;
+import com.faculty_evaluation_backend.fes.dto.user_accounts.UpdateUserAccountDTO;
+import com.faculty_evaluation_backend.fes.dto.user_accounts.UpdateUserPasswordDTO;
 import com.faculty_evaluation_backend.fes.entities.authentication.UserAccounts;
 import com.faculty_evaluation_backend.fes.entities.data.SchoolYearAndSemester;
 import com.faculty_evaluation_backend.fes.entities.data.enums.Semester;
@@ -13,20 +16,19 @@ import com.faculty_evaluation_backend.fes.entities.evaluation.FacultyEvaluationS
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryFaculty;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.College;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.Status;
+import com.faculty_evaluation_backend.fes.exceptions.BadRequestException;
+import com.faculty_evaluation_backend.fes.exceptions.ResourceNotFoundException;
 import com.faculty_evaluation_backend.fes.repositories.authentication.UserAccountsRepository;
 import com.faculty_evaluation_backend.fes.repositories.data.SchoolYearAndSemesterRepository;
 import com.faculty_evaluation_backend.fes.repositories.evaluation.FacultyEvaluationScoreRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryFacultyRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.*;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -37,26 +39,32 @@ import java.util.Optional;
 public class AdministratorService {
 
     private final PrimaryFacultyRepository primaryFacultyRepository;
+
     private final UserAccountsRepository userAccountsRepository;
+
     private final FacultyEvaluationScoreRepository facultyEvaluationScoreRepository;
+
     private final SchoolYearAndSemesterRepository schoolYearAndSemesterRepository;
+
+    private final PasswordEncoder passwordEncoder;
 
     @Transactional
     public SchoolYearAndSemesterDTO updateSchoolYearAndSemester(Integer schoolYear, Semester semester) {
+
         if (schoolYear == null) {
-            throw new RuntimeException("School year is required.");
+
+            throw new BadRequestException("School year is required.");
         }
+
         if (semester == null) {
 
-            throw new RuntimeException("Semester is required.");
+            throw new BadRequestException("Semester is required.");
         }
-
 
         schoolYearAndSemesterRepository.findBySchoolYearAndSemesterAndStatus(schoolYear, semester, Status.ACTIVE).ifPresent(existing -> {
 
-            throw new RuntimeException("The selected school year and semester is already active.");
+            throw new BadRequestException("The selected school year and semester is already active.");
         });
-
 
         schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE).ifPresent(existing -> {
 
@@ -65,34 +73,18 @@ public class AdministratorService {
             schoolYearAndSemesterRepository.save(existing);
         });
 
-
         SchoolYearAndSemester newRecord = SchoolYearAndSemester.builder().schoolYear(schoolYear).semester(semester).status(Status.ACTIVE).build();
 
         SchoolYearAndSemester savedRecord = schoolYearAndSemesterRepository.save(newRecord);
 
-
         return SchoolYearAndSemesterDTO.builder().id(savedRecord.getId()).schoolYear(savedRecord.getSchoolYear()).semester(savedRecord.getSemester()).status(savedRecord.getStatus()).createdAt(savedRecord.getCreatedAt()).build();
     }
 
-    public SchoolYearAndSemesterDTO
-    fetchCurrentSchoolYearAndSemester() {
+    public SchoolYearAndSemesterDTO fetchCurrentSchoolYearAndSemester() {
 
-        SchoolYearAndSemester data =
-                schoolYearAndSemesterRepository
-                        .findByStatus(Status.ACTIVE)
-                        .orElseThrow(() ->
-                                new RuntimeException(
-                                        "No active semester found."
-                                )
-                        );
+        SchoolYearAndSemester data = schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE).orElseThrow(() -> new ResourceNotFoundException("No active semester found."));
 
-        return SchoolYearAndSemesterDTO.builder()
-                .id(data.getId())
-                .schoolYear(data.getSchoolYear())
-                .semester(data.getSemester())
-                .status(data.getStatus())
-                .createdAt(data.getCreatedAt())
-                .build();
+        return SchoolYearAndSemesterDTO.builder().id(data.getId()).schoolYear(data.getSchoolYear()).semester(data.getSemester()).status(data.getStatus()).createdAt(data.getCreatedAt()).build();
     }
 
     public PageResponse<FetchFacultyResponse> facultyList(int page, int size, String search) {
@@ -108,7 +100,6 @@ public class AdministratorService {
         } else {
 
             facultyPage = primaryFacultyRepository.findAll(pageable);
-
         }
 
         List<FetchFacultyResponse> responseList = facultyPage.getContent().stream().map(faculty -> FetchFacultyResponse.builder().facultyId(faculty.getFacultyId()).firstname(faculty.getFirstname()).lastname(faculty.getLastname()).middlename(faculty.getMiddlename()).position(faculty.getPosition()).loadLimit(faculty.getLoadLimit() != null ? faculty.getLoadLimit().toString() : null).status(faculty.getStatus()).college(faculty.getCollege()).build()).toList();
@@ -120,7 +111,7 @@ public class AdministratorService {
 
         Page<UserAccounts> userAccountsPage = userAccountsRepository.findAll(PageRequest.of(page, size));
 
-        List<FetchUserAccountsResponse> responseList = userAccountsPage.getContent().stream().map(user -> FetchUserAccountsResponse.builder().userId(user.getUserId()).username(user.getUsername()).email(user.getEmail()).role(user.getRole()).status(user.getStatus()).build()).toList();
+        List<FetchUserAccountsResponse> responseList = userAccountsPage.getContent().stream().map(user -> FetchUserAccountsResponse.builder().userId(user.getUserId()).username(user.getUsername()).email(user.getEmail()).role(user.getRole()).status(user.getStatus()).college(user.getCollege()).programs(user.getPrograms()).majors(user.getMajors()).isEnabled(user.getIsEnabled()).isLocked(user.getIsLocked()).lastLoginAt(user.getLastLoginAt()).build()).toList();
 
         return PageResponse.<FetchUserAccountsResponse>builder().content(responseList).page(userAccountsPage.getNumber()).size(userAccountsPage.getSize()).totalElements(userAccountsPage.getTotalElements()).totalPages(userAccountsPage.getTotalPages()).build();
     }
@@ -130,6 +121,7 @@ public class AdministratorService {
         Page<FacultyEvaluationScore> scorePage = facultyEvaluationScoreRepository.findAllWithFaculty(PageRequest.of(page, size));
 
         List<FetchFacultyEvaluationScoreResponse> responseList = scorePage.getContent().stream().map(score -> {
+
             PrimaryFaculty faculty = score.getFaculty();
 
             return FetchFacultyEvaluationScoreResponse.builder().facultyEvaluationScoreId(score.getFacultyEvaluationScoreId()).facultyId(score.getFacultyId()).facultyName(faculty != null ? faculty.getFirstname() + " " + faculty.getLastname() : "N/A").position(score.getFaculty().getPosition()).evaluatorId(score.getEvaluatorId()).classCode(score.getClassCode()).semester(score.getSemester()).schoolYear(String.valueOf(score.getSchoolYear())).subjectCode(score.getSubjectCode()).yearLevel(score.getYearLevel()).commentsOrFeedbacks(score.getCommentsOrFeedbacks()).overallAverageScore(score.getOverallAverageScore()).overallInterpretation(score.getOverallInterpretation()).build();
@@ -140,47 +132,171 @@ public class AdministratorService {
 
     public String updateFaculty(String facultyId, String firstname, String middlename, String lastname, String position, Double loadLimit, College college, Status status) {
 
-        PrimaryFaculty faculty = primaryFacultyRepository.findByFacultyId(facultyId).orElseThrow(() -> new RuntimeException("Faculty not found"));
+        primaryFacultyRepository.findByFacultyId(facultyId).orElseThrow(() -> new ResourceNotFoundException("Faculty not found."));
 
         int updatedRows = primaryFacultyRepository.updateFaculty(facultyId, firstname, middlename, lastname, position, loadLimit, college, status);
 
         if (updatedRows > 0) {
+
             return "Faculty updated successfully.";
         }
 
-        return "Failed to update faculty.";
+        throw new BadRequestException("Failed to update faculty.");
     }
-    public Page<StudentFacultyEvaluationDTO> getStudentFacultyEvaluationDetails(
-            String search,
-            int page,
-            int size,
-            String sortBy,
-            String sortDirection
-    ) {
 
-        Sort sort = sortDirection.equalsIgnoreCase("asc")
-                ? Sort.by(sortBy).ascending()
-                : Sort.by(sortBy).descending();
+    public Page<StudentFacultyEvaluationDTO> getStudentFacultyEvaluationDetails(String search, int page, int size, String sortBy, String sortDirection) {
+
+        Sort sort = sortDirection.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
 
         Pageable pageable = PageRequest.of(page, size, sort);
 
-        Page<Object[]> rows =
-                facultyEvaluationScoreRepository
-                        .findStudentFacultyEvaluationDetails(search, pageable);
+        Page<Object[]> rows = facultyEvaluationScoreRepository.findStudentFacultyEvaluationDetails(search, pageable);
 
-        return rows.map(row -> new StudentFacultyEvaluationDTO(
-                row[0] != null ? row[0].toString() : null,
-                row[1] != null ? row[1].toString() : null,
-                row[2] != null ? row[2].toString() : null,
-                row[3] != null ? row[3].toString() : null,
-                row[4] != null ? row[4].toString() : null,
-                row[5] != null ? row[5].toString() : null,
-                row[6] != null ? row[6].toString() : null,
-                row[7] != null ? row[7].toString() : null,
-                row[8] != null ? row[8].toString() : null,
-                row[9] != null
-                        ? (LocalDateTime) row[9]
-                        : null
-        ));
+        return rows.map(row -> new StudentFacultyEvaluationDTO(row[0] != null ? row[0].toString() : null, row[1] != null ? row[1].toString() : null, row[2] != null ? row[2].toString() : null, row[3] != null ? row[3].toString() : null, row[4] != null ? row[4].toString() : null, row[5] != null ? row[5].toString() : null, row[6] != null ? row[6].toString() : null, row[7] != null ? row[7].toString() : null, row[8] != null ? row[8].toString() : null, row[9] != null ? (LocalDateTime) row[9] : null));
+    }
+
+    @Transactional
+    public String createUserAccount(CreateUserAccountDTO dto) {
+
+        validateCreateUser(dto);
+
+        if (userAccountsRepository.existsByUsername(dto.getUsername().trim())) {
+
+            throw new BadRequestException("Username already exists.");
+        }
+
+        if (userAccountsRepository.existsByEmail(dto.getEmail().trim())) {
+
+            throw new BadRequestException("Email already exists.");
+        }
+
+        UserAccounts user = UserAccounts.builder().username(dto.getUsername().trim()).email(dto.getEmail().trim().toLowerCase()).password(passwordEncoder.encode(dto.getPassword())).role(dto.getRole()).college(dto.getCollege()).programs(dto.getPrograms()).majors(dto.getMajors()).status(dto.getStatus()).isEnabled(true).isLocked(false).build();
+
+        userAccountsRepository.save(user);
+
+        return "User account created successfully.";
+    }
+
+    @Transactional
+    public String updateUserAccount(UpdateUserAccountDTO dto) {
+
+        validateUpdateUser(dto);
+
+        UserAccounts existingUser = userAccountsRepository.findById(dto.getUserId()).orElseThrow(() -> new ResourceNotFoundException("User not found."));
+
+        Optional<UserAccounts> usernameCheck = userAccountsRepository.findByUsername(dto.getUsername());
+
+        if (usernameCheck.isPresent() && !usernameCheck.get().getUserId().equals(dto.getUserId())) {
+
+            throw new BadRequestException("Username already exists.");
+        }
+
+        Optional<UserAccounts> emailCheck = userAccountsRepository.findByEmail(dto.getEmail());
+
+        if (emailCheck.isPresent() && !emailCheck.get().getUserId().equals(dto.getUserId())) {
+
+            throw new BadRequestException("Email already exists.");
+        }
+
+        existingUser.setUsername(dto.getUsername().trim());
+
+        existingUser.setEmail(dto.getEmail().trim().toLowerCase());
+
+        existingUser.setRole(dto.getRole());
+
+        existingUser.setCollege(dto.getCollege());
+
+        existingUser.setPrograms(dto.getPrograms());
+
+        existingUser.setMajors(dto.getMajors());
+
+        existingUser.setStatus(dto.getStatus());
+
+        existingUser.setIsEnabled(dto.getIsEnabled());
+
+        existingUser.setIsLocked(dto.getIsLocked());
+
+        userAccountsRepository.save(existingUser);
+
+        return "User account updated successfully.";
+    }
+
+    @Transactional
+    public String updateUserPassword(UpdateUserPasswordDTO dto) {
+
+        if (dto.getNewPassword() == null || dto.getNewPassword().trim().isEmpty()) {
+
+            throw new BadRequestException("Password is required.");
+        }
+
+        if (dto.getNewPassword().length() < 8) {
+
+            throw new BadRequestException("Password must be at least 8 characters.");
+        }
+
+        UserAccounts user = userAccountsRepository.findById(dto.getUserId()).orElseThrow(() -> new ResourceNotFoundException("User not found."));
+
+        user.setPassword(passwordEncoder.encode(dto.getNewPassword()));
+
+        userAccountsRepository.save(user);
+
+        return "Password updated successfully.";
+    }
+
+    private void validateCreateUser(CreateUserAccountDTO dto) {
+
+        if (dto.getUsername() == null || dto.getUsername().trim().isEmpty()) {
+
+            throw new BadRequestException("Username is required.");
+        }
+
+        if (dto.getUsername().trim().length() < 4) {
+
+            throw new BadRequestException("Username must be at least 4 characters.");
+        }
+
+        if (dto.getEmail() == null || dto.getEmail().trim().isEmpty()) {
+
+            throw new BadRequestException("Email is required.");
+        }
+
+        if (!dto.getEmail().matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$")) {
+
+            throw new BadRequestException("Invalid email address.");
+        }
+
+        if (dto.getPassword() == null || dto.getPassword().trim().isEmpty()) {
+
+            throw new BadRequestException("Password is required.");
+        }
+
+        if (dto.getPassword().length() < 8) {
+
+            throw new BadRequestException("Password must be at least 8 characters.");
+        }
+    }
+
+    private void validateUpdateUser(UpdateUserAccountDTO dto) {
+
+        if (dto.getUserId() == null) {
+
+            throw new BadRequestException("User ID is required.");
+        }
+
+        if (dto.getUsername() == null || dto.getUsername().trim().isEmpty()) {
+
+            throw new BadRequestException("Username is required.");
+        }
+
+        if (dto.getEmail() == null || dto.getEmail().trim().isEmpty()) {
+
+            throw new BadRequestException("Email is required.");
+        }
+
+        if (!dto.getEmail().matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$")) {
+
+            throw new BadRequestException("Invalid email address.");
+        }
     }
 }
+

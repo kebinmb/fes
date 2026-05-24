@@ -1,14 +1,10 @@
-package com.faculty_evaluation_backend.fes.dto.response;
+package com.faculty_evaluation_backend.fes.dto.user_accounts;
 
 import com.faculty_evaluation_backend.fes.entities.primary.enums.*;
-import lombok.Builder;
 import lombok.Data;
 
-import java.time.Instant;
-
 @Data
-@Builder
-public class FetchUserAccountsResponse {
+public class UpdateUserAccountDTO {
 
     private Long userId;
 
@@ -18,12 +14,6 @@ public class FetchUserAccountsResponse {
 
     private Role role;
 
-    private Boolean isEnabled;
-
-    private Boolean isLocked;
-
-    private Instant lastLoginAt;
-
     private College college;
 
     private Programs programs;
@@ -31,4 +21,8 @@ public class FetchUserAccountsResponse {
     private Majors majors;
 
     private Status status;
+
+    private Boolean isEnabled;
+
+    private Boolean isLocked;
 }
