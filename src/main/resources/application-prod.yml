@@ -198,8 +198,6 @@ server:
 
     max-keep-alive-requests: 100
 
-logging:
-
   logging:
     level:
       org.hibernate.SQL: DEBUG
