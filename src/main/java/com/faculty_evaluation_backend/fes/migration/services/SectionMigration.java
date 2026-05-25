@@ -43,6 +43,13 @@ public class SectionMigration extends BaseMigrationService {
 
                         List<PrimarySection> toSave = batch.stream()
                                 .filter(ls -> ls != null && ls.getId() != null)
+                                .filter(ls ->
+                                        !primarySectionRepository
+                                                .existsByLegacyDatabaseAndLegacyId(
+                                                        database.name(),
+                                                        String.valueOf(ls.getId().getSectionId())
+                                                )
+                                )
                                 .map(ls -> map(ls, database))
                                 .toList();
 

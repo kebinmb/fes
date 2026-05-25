@@ -21,4 +21,9 @@ public interface PrimaryProgramRepository extends JpaRepository<PrimaryProgram, 
             @Param("yearGranted") Integer yearGranted,
             @Param("collegeCode") String collegeCode
     );
+
+    boolean existsByLegacyDatabaseAndLegacyId(
+            String legacyDatabase,
+            String legacyId
+    );
 }

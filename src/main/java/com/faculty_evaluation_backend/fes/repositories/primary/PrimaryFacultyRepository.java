@@ -73,4 +73,9 @@ public interface PrimaryFacultyRepository extends JpaRepository<PrimaryFaculty, 
             String position,
             Pageable pageable
     );
+
+    boolean existsByLegacyDatabaseAndLegacyId(
+            String legacyDatabase,
+            String legacyId
+    );
 }

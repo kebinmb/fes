@@ -43,6 +43,13 @@ public class ProgramMigration extends BaseMigrationService {
 
                         List<PrimaryProgram> toSave = batch.stream()
                                 .filter(lp -> lp != null && lp.getId() != null)
+                                .filter(lp ->
+                                        !primaryProgramRepository
+                                                .existsByLegacyDatabaseAndLegacyId(
+                                                        database.name(),
+                                                        lp.getId().getProgramCode()
+                                                )
+                                )
                                 .map(lp -> map(lp, database))
                                 .toList();
 

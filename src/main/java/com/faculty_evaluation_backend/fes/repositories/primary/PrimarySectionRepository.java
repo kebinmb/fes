@@ -21,4 +21,9 @@ public interface PrimarySectionRepository extends JpaRepository<PrimarySection, 
             @Param("sectionCode") String sectionCode,
             @Param("yearLevel") String yearLevel
     );
+
+    boolean existsByLegacyDatabaseAndLegacyId(
+            String legacyDatabase,
+            String legacyId
+    );
 }

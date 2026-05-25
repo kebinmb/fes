@@ -45,6 +45,13 @@ public class FacultyMigration extends BaseMigrationService {
 
                         List<PrimaryFaculty> toSave = batch.stream()
                                 .filter(l -> l != null && l.getId() != null)
+                                .filter(l ->
+                                        !primaryFacultyRepository
+                                                .existsByLegacyDatabaseAndLegacyId(
+                                                        database.name(),
+                                                        l.getId().getFacultyId()
+                                                )
+                                )
                                 .map(l -> map(l, database))
                                 .toList();
 
