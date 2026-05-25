@@ -12,8 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -23,55 +21,10 @@ public class StudentService {
     private final SchoolYearAndSemesterRepository schoolYearAndSemesterRepository;
 
     public PageResponse<StudentClassLoadDTO> getStudentLoads(String studentId, Pageable pageable) {
-
-        SchoolYearAndSemester data =
-                schoolYearAndSemesterRepository
-                        .findByStatus(Status.ACTIVE)
-                        .orElseThrow(() ->
-                                new RuntimeException(
-                                        "No active school year and semester found."
-                                )
-                        );
-
-        log.info(
-                "Active School Year: {}, Semester: {}",
-                data.getSchoolYear(),
-                data.getSemester()
-        );
-
-        // =========================================
-        // DEBUG SECTION
-        // =========================================
-
-        List<StudentClassLoadDTO> debug =
-                primaryStudentLoadRepository.debugStudentLoadDTO(
-                        studentId,
-                        data.getSchoolYear(),
-                        data.getSemester().getValue()
-                );
-
-        log.info("DEBUG TOTAL SIZE: {}", debug.size());
-
-        debug.forEach(item ->
-                log.info(
-                        "DEBUG CLASS -> {} | {} | {}",
-                        item.getClassCode(),
-                        item.getSubjectCode(),
-                        item.getFacultyId()
-                )
-        );
-
-        // =========================================
-        // ORIGINAL LOGIC
-        // =========================================
-
+        SchoolYearAndSemester data = schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE).orElseThrow(() -> new RuntimeException("No active school year and semester found."));
+        log.info("Active School Year: {}, Semester: {}", data.getSchoolYear(), data.getSemester());
         return PageMapper.toPageResponse(
-                primaryStudentLoadRepository.findStudentLoadDTO(
-                        studentId,
-                        data.getSchoolYear(),
-                        data.getSemester().getValue(),
-                        pageable
-                )
-        );
+
+                primaryStudentLoadRepository.findStudentLoadDTO(studentId, data.getSchoolYear(), data.getSemester().getValue(), pageable));
     }
 }

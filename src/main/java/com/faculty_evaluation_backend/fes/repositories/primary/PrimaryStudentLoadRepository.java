@@ -30,29 +30,34 @@ public interface PrimaryStudentLoadRepository extends JpaRepository<PrimaryStude
     Integer countDistinctTotalPrimaryStudentLoadByStudentId(String studentId);
 
     @Query("""
-                SELECT new com.faculty_evaluation_backend.fes.dto.student.StudentClassLoadDTO(
-                    pc.classCode,
-                    pc.facultyId,
-                    pc.subjectCode,
-                    pc.sectionId,
-                    pc.semester,
-                    pc.schoolYear,
-                    psl.yearLevel,
-                    psl.studentId,
-                    CAST(f.college AS string),
-                    CONCAT(f.firstname, ' ', f.lastname),
-                    s.descriptiveTitle
-                )
-                FROM PrimaryStudentLoad psl
-                LEFT JOIN psl.primaryClass pc
-                LEFT JOIN pc.faculty f
-                LEFT JOIN pc.subject s
-                WHERE psl.studentId = :studentId
-                  AND (
-                        (pc.schoolYear = :schoolYear AND pc.semester = :semester)
-                        OR pc IS NULL
-                      )
-            """)
+    SELECT new com.faculty_evaluation_backend.fes.dto.student.StudentClassLoadDTO(
+        pc.classCode,
+        pc.facultyId,
+        pc.subjectCode,
+        pc.sectionId,
+        pc.semester,
+        pc.schoolYear,
+        psl.yearLevel,
+        psl.studentId,
+        CAST(f.college AS string),
+        CONCAT(f.firstname, ' ', f.lastname),
+        s.descriptiveTitle
+    )
+    FROM PrimaryStudentLoad psl
+
+    LEFT JOIN PrimaryClass pc
+        ON psl.classCode = pc.classCode
+
+    LEFT JOIN PrimaryFaculty f
+        ON pc.facultyId = f.facultyId
+
+    LEFT JOIN PrimarySubject s
+        ON pc.subjectCode = s.subjectCode
+
+    WHERE psl.studentId = :studentId
+      AND pc.schoolYear = :schoolYear
+      AND pc.semester = :semester
+""")
     Page<StudentClassLoadDTO> findStudentLoadDTO(
             @Param("studentId") String studentId,
             @Param("schoolYear") Integer schoolYear,
@@ -72,35 +77,5 @@ public interface PrimaryStudentLoadRepository extends JpaRepository<PrimaryStude
     boolean existsByLegacyDatabaseAndLegacyId(
             String legacyDatabase,
             String legacyId
-    );
-
-    @Query("""
-    SELECT new com.faculty_evaluation_backend.fes.dto.student.StudentClassLoadDTO(
-        pc.classCode,
-        pc.facultyId,
-        pc.subjectCode,
-        pc.sectionId,
-        pc.semester,
-        pc.schoolYear,
-        psl.yearLevel,
-        psl.studentId,
-        CAST(f.college AS string),
-        CONCAT(f.firstname, ' ', f.lastname),
-        s.descriptiveTitle
-    )
-    FROM PrimaryStudentLoad psl
-    LEFT JOIN psl.primaryClass pc
-    LEFT JOIN pc.faculty f
-    LEFT JOIN pc.subject s
-    WHERE psl.studentId = :studentId
-      AND (
-            (pc.schoolYear = :schoolYear AND pc.semester = :semester)
-            OR pc IS NULL
-          )
-""")
-    List<StudentClassLoadDTO> debugStudentLoadDTO(
-            @Param("studentId") String studentId,
-            @Param("schoolYear") Integer schoolYear,
-            @Param("semester") String semester
     );
 }
