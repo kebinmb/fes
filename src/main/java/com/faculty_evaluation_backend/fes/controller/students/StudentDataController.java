@@ -31,7 +31,7 @@ public class StudentDataController {
             @RequestParam @NotBlank String studentId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "primaryStudentLoadId,desc") String sort
+            @RequestParam(defaultValue = "classCode,desc") String sort
     ){
         System.out.println("Student ID:" + studentId);
         String sortField = "primaryStudentLoadId";
