@@ -3,11 +3,13 @@ package com.faculty_evaluation_backend.fes.migration.services;
 import com.faculty_evaluation_backend.fes.config.database.LegacyDatabase;
 import com.faculty_evaluation_backend.fes.entities.legacy.LegacyStudentLoad;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryClass;
+import com.faculty_evaluation_backend.fes.entities.primary.PrimaryStudent;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryStudentLoad;
 import com.faculty_evaluation_backend.fes.migration.engine.ParallelMigrationExecutor;
 import com.faculty_evaluation_backend.fes.repositories.legacy.LegacyStudentLoadRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryClassRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryStudentLoadRepository;
+import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryStudentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,7 +27,7 @@ public class StudentLoadMigration extends BaseMigrationService {
     private final PrimaryStudentLoadRepository primaryStudentLoadRepository;
     private final ParallelMigrationExecutor parallelMigrationExecutor;
     private final PrimaryClassRepository primaryClassRepository;
-
+    private final PrimaryStudentRepository primaryStudentRepository;
     private static final int BATCH_SIZE = 10;
 
     public void migrate() {
@@ -54,7 +56,16 @@ public class StudentLoadMigration extends BaseMigrationService {
                             )
                             .map(PrimaryClass::getLegacyId)
                             .collect(Collectors.toSet());
-
+            Set<String> validStudentIds =
+                    primaryStudentRepository.findAll()
+                            .stream()
+                            .filter(ps ->
+                                    database.name().equals(
+                                            ps.getLegacyDatabase()
+                                    )
+                            )
+                            .map(PrimaryStudent::getStudentId)
+                            .collect(Collectors.toSet());
             parallelMigrationExecutor.processInParallel(
                     data,
                     BATCH_SIZE,
@@ -77,6 +88,14 @@ public class StudentLoadMigration extends BaseMigrationService {
                                                                 .getLoadId()
                                                                 .toString()
                                                 )
+                                )
+                                .filter(ls ->
+                                        validStudentIds.contains(
+                                                MigrationIdGenerator.generateStringId(
+                                                        database,
+                                                        ls.getId().getStudentId()
+                                                )
+                                        )
                                 )
                                 .map(ls -> map(ls, database))
                                 .toList();
@@ -116,7 +135,10 @@ public class StudentLoadMigration extends BaseMigrationService {
         );
 
         primaryStudentLoad.setLoadId(
-                legacyStudentLoad.getId().getLoadId()
+                MigrationIdGenerator.generateNumericId(
+                        database,
+                        legacyStudentLoad.getId().getLoadId()
+                )
         );
 
         primaryStudentLoad.setYearLevel(
