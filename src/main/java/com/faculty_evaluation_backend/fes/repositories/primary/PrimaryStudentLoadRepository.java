@@ -29,60 +29,30 @@ public interface PrimaryStudentLoadRepository extends JpaRepository<PrimaryStude
 
     Integer countDistinctTotalPrimaryStudentLoadByStudentId(String studentId);
 
-    @Query(
-            value = """
-        SELECT DISTINCT new com.faculty_evaluation_backend.fes.dto.student.StudentClassLoadDTO(
-            pc.classCode,
-            pc.facultyId,
-            pc.subjectCode,
-            pc.sectionId,
-            pc.semester,
-            pc.schoolYear,
-            psl.yearLevel,
-            psl.studentId,
-            CAST(f.college AS string),
-            CONCAT(
-                COALESCE(f.firstname, ''),
-                CASE
-                    WHEN f.firstname IS NOT NULL
-                     AND f.lastname IS NOT NULL
-                    THEN ' '
-                    ELSE ''
-                END,
-                COALESCE(f.lastname, '')
-            ),
-            s.descriptiveTitle
-        )
-        FROM PrimaryStudentLoad psl
-
-        LEFT JOIN PrimaryClass pc
-            ON psl.classCode = pc.classCode
-           AND pc.schoolYear = :schoolYear
-           AND pc.semester = :semester
-
-        LEFT JOIN PrimaryFaculty f
-            ON pc.facultyId = f.facultyId
-
-        LEFT JOIN PrimarySubject s
-            ON pc.subjectCode = s.subjectCode
-
-        WHERE psl.studentId = :studentId
-
-        ORDER BY pc.classCode ASC
-    """,
-
-            countQuery = """
-        SELECT COUNT(DISTINCT psl.primaryStudentLoadId)
-        FROM PrimaryStudentLoad psl
-
-        LEFT JOIN PrimaryClass pc
-            ON psl.classCode = pc.classCode
-           AND pc.schoolYear = :schoolYear
-           AND pc.semester = :semester
-
-        WHERE psl.studentId = :studentId
-    """
-    )
+    @Query("""
+                SELECT new com.faculty_evaluation_backend.fes.dto.student.StudentClassLoadDTO(
+                    pc.classCode,
+                    pc.facultyId,
+                    pc.subjectCode,
+                    pc.sectionId,
+                    pc.semester,
+                    pc.schoolYear,
+                    psl.yearLevel,
+                    psl.studentId,
+                    CAST(f.college AS string),
+                    CONCAT(f.firstname, ' ', f.lastname),
+                    s.descriptiveTitle
+                )
+                FROM PrimaryStudentLoad psl
+                LEFT JOIN psl.primaryClass pc
+                LEFT JOIN pc.faculty f
+                LEFT JOIN pc.subject s
+                WHERE psl.studentId = :studentId
+                  AND (
+                        (pc.schoolYear = :schoolYear AND pc.semester = :semester)
+                        OR pc IS NULL
+                      )
+            """)
     Page<StudentClassLoadDTO> findStudentLoadDTO(
             @Param("studentId") String studentId,
             @Param("schoolYear") Integer schoolYear,
@@ -102,5 +72,35 @@ public interface PrimaryStudentLoadRepository extends JpaRepository<PrimaryStude
     boolean existsByLegacyDatabaseAndLegacyId(
             String legacyDatabase,
             String legacyId
+    );
+
+    @Query("""
+    SELECT new com.faculty_evaluation_backend.fes.dto.student.StudentClassLoadDTO(
+        pc.classCode,
+        pc.facultyId,
+        pc.subjectCode,
+        pc.sectionId,
+        pc.semester,
+        pc.schoolYear,
+        psl.yearLevel,
+        psl.studentId,
+        CAST(f.college AS string),
+        CONCAT(f.firstname, ' ', f.lastname),
+        s.descriptiveTitle
+    )
+    FROM PrimaryStudentLoad psl
+    LEFT JOIN psl.primaryClass pc
+    LEFT JOIN pc.faculty f
+    LEFT JOIN pc.subject s
+    WHERE psl.studentId = :studentId
+      AND (
+            (pc.schoolYear = :schoolYear AND pc.semester = :semester)
+            OR pc IS NULL
+          )
+""")
+    List<StudentClassLoadDTO> debugStudentLoadDTO(
+            @Param("studentId") String studentId,
+            @Param("schoolYear") Integer schoolYear,
+            @Param("semester") String semester
     );
 }
