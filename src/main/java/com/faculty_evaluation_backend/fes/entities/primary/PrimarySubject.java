@@ -20,7 +20,7 @@ public class PrimarySubject extends MigratableEntity {
     @Column(name = "primary_subject_id")
     private Long primarySubjectId;
 
-    @Column(name = "subject_code")
+    @Column(name = "subject_code", unique = true)
     private String subjectCode;
 
     @Column(name = "descriptive_title")

@@ -9,6 +9,7 @@ import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryStudentLoa
 import com.faculty_evaluation_backend.fes.utilities.mapper.PageMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
@@ -42,39 +43,29 @@ public class StudentService {
                 data.getSemester()
         );
 
-        // =========================================
-        // DEBUG LIST TEST
-        // =========================================
-
-        List<StudentClassLoadDTO> debugList =
-                primaryStudentLoadRepository.findStudentLoadDTOList(
-                        studentId,
-                        data.getSchoolYear(),
-                        data.getSemester().getValue()
-                );
-
-        log.info("DEBUG LIST SIZE: {}", debugList.size());
-
-        debugList.forEach(item ->
-                log.info(
-                        "DEBUG LIST CLASS -> {} | {} | {}",
-                        item.getClassCode(),
-                        item.getSubjectCode(),
-                        item.getFacultyId()
-                )
-        );
-
-        // =========================================
-        // ORIGINAL PAGED RESPONSE
-        // =========================================
-
-        return PageMapper.toPageResponse(
+        Page<Object[]> result =
                 primaryStudentLoadRepository.findStudentLoadDTO(
                         studentId,
                         data.getSchoolYear(),
                         data.getSemester().getValue(),
                         pageable
-                )
-        );
+                );
+
+        Page<StudentClassLoadDTO> mappedPage =
+                result.map(row -> new StudentClassLoadDTO(
+                        row[0] != null ? row[0].toString() : null,
+                        row[1] != null ? row[1].toString() : null,
+                        row[2] != null ? row[2].toString() : null,
+                        row[3] != null ? ((Number) row[3]).intValue() : null,
+                        row[4] != null ? row[4].toString() : null,
+                        row[5] != null ? ((Number) row[5]).intValue() : null,
+                        row[6] != null ? row[6].toString() : null,
+                        row[7] != null ? row[7].toString() : null,
+                        row[8] != null ? row[8].toString() : null,
+                        row[9] != null ? row[9].toString() : null,
+                        row[10] != null ? row[10].toString() : null
+                ));
+
+        return PageMapper.toPageResponse(mappedPage);
     }
 }

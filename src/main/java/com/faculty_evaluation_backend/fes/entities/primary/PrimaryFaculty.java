@@ -22,7 +22,7 @@ public class PrimaryFaculty extends MigratableEntity {
     @Column(name = "primary_faculty_id")
     private Long primaryFacultyId;
 
-    @Column(name = "faculty_id")
+    @Column(name = "faculty_id", unique = true)
     private String facultyId;
     @Column(name = "lastname")
     private String lastname;
