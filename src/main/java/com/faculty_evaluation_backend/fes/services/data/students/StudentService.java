@@ -12,6 +12,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -20,11 +22,59 @@ public class StudentService {
     private final PrimaryStudentLoadRepository primaryStudentLoadRepository;
     private final SchoolYearAndSemesterRepository schoolYearAndSemesterRepository;
 
-    public PageResponse<StudentClassLoadDTO> getStudentLoads(String studentId, Pageable pageable) {
-        SchoolYearAndSemester data = schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE).orElseThrow(() -> new RuntimeException("No active school year and semester found."));
-        log.info("Active School Year: {}, Semester: {}", data.getSchoolYear(), data.getSemester());
-        return PageMapper.toPageResponse(
+    public PageResponse<StudentClassLoadDTO> getStudentLoads(
+            String studentId,
+            Pageable pageable
+    ) {
 
-                primaryStudentLoadRepository.findStudentLoadDTO(studentId, data.getSchoolYear(), data.getSemester().getValue(), pageable));
+        SchoolYearAndSemester data =
+                schoolYearAndSemesterRepository
+                        .findByStatus(Status.ACTIVE)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "No active school year and semester found."
+                                )
+                        );
+
+        log.info(
+                "Active School Year: {}, Semester: {}",
+                data.getSchoolYear(),
+                data.getSemester()
+        );
+
+        // =========================================
+        // DEBUG LIST TEST
+        // =========================================
+
+        List<StudentClassLoadDTO> debugList =
+                primaryStudentLoadRepository.findStudentLoadDTOList(
+                        studentId,
+                        data.getSchoolYear(),
+                        data.getSemester().getValue()
+                );
+
+        log.info("DEBUG LIST SIZE: {}", debugList.size());
+
+        debugList.forEach(item ->
+                log.info(
+                        "DEBUG LIST CLASS -> {} | {} | {}",
+                        item.getClassCode(),
+                        item.getSubjectCode(),
+                        item.getFacultyId()
+                )
+        );
+
+        // =========================================
+        // ORIGINAL PAGED RESPONSE
+        // =========================================
+
+        return PageMapper.toPageResponse(
+                primaryStudentLoadRepository.findStudentLoadDTO(
+                        studentId,
+                        data.getSchoolYear(),
+                        data.getSemester().getValue(),
+                        pageable
+                )
+        );
     }
 }

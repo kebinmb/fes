@@ -64,7 +64,40 @@ public interface PrimaryStudentLoadRepository extends JpaRepository<PrimaryStude
             @Param("semester") String semester,
             Pageable pageable
     );
+    @Query("""
+    SELECT new com.faculty_evaluation_backend.fes.dto.student.StudentClassLoadDTO(
+        pc.classCode,
+        pc.facultyId,
+        pc.subjectCode,
+        pc.sectionId,
+        pc.semester,
+        pc.schoolYear,
+        psl.yearLevel,
+        psl.studentId,
+        CAST(f.college AS string),
+        CONCAT(f.firstname, ' ', f.lastname),
+        s.descriptiveTitle
+    )
+    FROM PrimaryStudentLoad psl
 
+    LEFT JOIN PrimaryClass pc
+        ON psl.classCode = pc.classCode
+
+    LEFT JOIN PrimaryFaculty f
+        ON pc.facultyId = f.facultyId
+
+    LEFT JOIN PrimarySubject s
+        ON pc.subjectCode = s.subjectCode
+
+    WHERE psl.studentId = :studentId
+      AND pc.schoolYear = :schoolYear
+      AND pc.semester = :semester
+""")
+    List<StudentClassLoadDTO> findStudentLoadDTOList(
+            @Param("studentId") String studentId,
+            @Param("schoolYear") Integer schoolYear,
+            @Param("semester") String semester
+    );
     @Query("""
                 SELECT COUNT(psl)
                 FROM PrimaryStudentLoad psl
