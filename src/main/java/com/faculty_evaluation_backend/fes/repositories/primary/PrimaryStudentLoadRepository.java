@@ -1,7 +1,6 @@
 package com.faculty_evaluation_backend.fes.repositories.primary;
 
 
-import com.faculty_evaluation_backend.fes.dto.projections.StudentClassLoadProjection;
 import com.faculty_evaluation_backend.fes.dto.student.StudentClassLoadDTO;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryStudentLoad;
 import org.springframework.data.domain.Page;
@@ -30,54 +29,31 @@ public interface PrimaryStudentLoadRepository extends JpaRepository<PrimaryStude
 
     Integer countDistinctTotalPrimaryStudentLoadByStudentId(String studentId);
 
-    @Query(value = """
-    SELECT
-        pc.class_code AS classCode,
-        pc.faculty_id AS facultyId,
-        pc.subject_code AS subjectCode,
-        pc.section_id AS sectionId,
-        pc.semester AS semester,
-        pc.school_year AS schoolYear,
-        psl.year_level AS yearLevel,
-        psl.student_id AS studentId,
-        f.college AS college,
-        TRIM(CONCAT(
-            COALESCE(f.firstname, ''),
-            ' ',
-            COALESCE(f.lastname, '')
-        )) AS facultyName,
-        s.descriptive_title AS subjectDescription
-
-    FROM primary_student_load psl
-
-    LEFT JOIN primary_class pc
-           ON psl.class_code = pc.class_code
-          AND pc.school_year = :schoolYear
-          AND pc.semester = :semester
-
-    LEFT JOIN primary_faculty f
-           ON pc.faculty_id = f.faculty_id
-
-    LEFT JOIN primary_subject s
-           ON pc.subject_code = s.subject_code
-
-    WHERE psl.student_id = :studentId
-
-    ORDER BY pc.class_code ASC
-    """,
-            countQuery = """
-    SELECT COUNT(*)
-    FROM primary_student_load psl
-
-    LEFT JOIN primary_class pc
-           ON psl.class_code = pc.class_code
-          AND pc.school_year = :schoolYear
-          AND pc.semester = :semester
-
-    WHERE psl.student_id = :studentId
-    """,
-            nativeQuery = true)
-    Page<StudentClassLoadProjection> findStudentLoadDTO(
+    @Query("""
+                SELECT new com.faculty_evaluation_backend.fes.dto.student.StudentClassLoadDTO(
+                    pc.classCode,
+                    pc.facultyId,
+                    pc.subjectCode,
+                    pc.sectionId,
+                    pc.semester,
+                    pc.schoolYear,
+                    psl.yearLevel,
+                    psl.studentId,
+                    CAST(f.college AS string),
+                    CONCAT(f.firstname, ' ', f.lastname),
+                    s.descriptiveTitle
+                )
+                FROM PrimaryStudentLoad psl
+                LEFT JOIN psl.primaryClass pc
+                LEFT JOIN pc.faculty f
+                LEFT JOIN pc.subject s
+                WHERE psl.studentId = :studentId
+                  AND (
+                        (pc.schoolYear = :schoolYear AND pc.semester = :semester)
+                        OR pc IS NULL
+                      )
+            """)
+    Page<StudentClassLoadDTO> findStudentLoadDTO(
             @Param("studentId") String studentId,
             @Param("schoolYear") Integer schoolYear,
             @Param("semester") String semester,

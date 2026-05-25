@@ -30,18 +30,26 @@ public class StudentDataController {
     public PageResponse<StudentClassLoadDTO> getStudentLoads(
             @RequestParam @NotBlank String studentId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size
-    ) {
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "primaryStudentLoadId,desc") String sort
+    ){
+        System.out.println("Student ID:" + studentId);
+        String sortField = "primaryStudentLoadId";
+        Sort.Direction direction = Sort.Direction.DESC;
+
+        if(sort.contains(",")){
+            String[] parts = sort.split(",");
+            sortField = parts[0];
+            direction = Sort.Direction.fromString(parts[1]);
+        }
 
         Pageable pageable = PageRequest.of(
                 page,
-                size
+                size,
+                Sort.by(direction, sortField)
         );
 
-        return studentService.getStudentLoads(
-                studentId,
-                pageable
-        );
+        return studentService.getStudentLoads(studentId, pageable);
     }
 
     @GetMapping("/check")

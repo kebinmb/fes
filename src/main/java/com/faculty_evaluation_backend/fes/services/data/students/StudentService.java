@@ -1,6 +1,5 @@
 package com.faculty_evaluation_backend.fes.services.data.students;
 
-import com.faculty_evaluation_backend.fes.dto.projections.StudentClassLoadProjection;
 import com.faculty_evaluation_backend.fes.dto.student.PageResponse;
 import com.faculty_evaluation_backend.fes.dto.student.StudentClassLoadDTO;
 import com.faculty_evaluation_backend.fes.entities.data.SchoolYearAndSemester;
@@ -10,7 +9,6 @@ import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryStudentLoa
 import com.faculty_evaluation_backend.fes.utilities.mapper.PageMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
@@ -22,49 +20,11 @@ public class StudentService {
     private final PrimaryStudentLoadRepository primaryStudentLoadRepository;
     private final SchoolYearAndSemesterRepository schoolYearAndSemesterRepository;
 
-    public PageResponse<StudentClassLoadDTO> getStudentLoads(
-            String studentId,
-            Pageable pageable
-    ) {
+    public PageResponse<StudentClassLoadDTO> getStudentLoads(String studentId, Pageable pageable) {
+        SchoolYearAndSemester data = schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE).orElseThrow(() -> new RuntimeException("No active school year and semester found."));
+        log.info("Active School Year: {}, Semester: {}", data.getSchoolYear(), data.getSemester());
+        return PageMapper.toPageResponse(
 
-        SchoolYearAndSemester data =
-                schoolYearAndSemesterRepository
-                        .findByStatus(Status.ACTIVE)
-                        .orElseThrow(() ->
-                                new RuntimeException(
-                                        "No active school year and semester found."
-                                )
-                        );
-
-        log.info(
-                "Active School Year: {}, Semester: {}",
-                data.getSchoolYear(),
-                data.getSemester()
-        );
-
-        Page<StudentClassLoadProjection> page =
-                primaryStudentLoadRepository.findStudentLoadDTO(
-                        studentId,
-                        data.getSchoolYear(),
-                        data.getSemester().getValue(),
-                        pageable
-                );
-
-        Page<StudentClassLoadDTO> dtoPage =
-                page.map(p -> new StudentClassLoadDTO(
-                        p.getClassCode(),
-                        p.getFacultyId(),
-                        p.getSubjectCode(),
-                        p.getSectionId(),
-                        p.getSemester(),
-                        p.getSchoolYear(),
-                        p.getYearLevel(),
-                        p.getStudentId(),
-                        p.getCollege(),
-                        p.getFacultyName(),
-                        p.getSubjectDescription()
-                ));
-
-        return PageMapper.toPageResponse(dtoPage);
+                primaryStudentLoadRepository.findStudentLoadDTO(studentId, data.getSchoolYear(), data.getSemester().getValue(), pageable));
     }
 }
