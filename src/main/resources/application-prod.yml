@@ -142,6 +142,12 @@ spring:
 
         format_sql: false
 
+        boot:
+          allow_jdbc_metadata_access: false
+
+        temp:
+          use_jdbc_metadata_defaults: false
+
         jdbc:
           batch_size: 25
           fetch_size: 25

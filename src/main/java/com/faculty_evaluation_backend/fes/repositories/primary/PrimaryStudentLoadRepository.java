@@ -30,29 +30,38 @@ public interface PrimaryStudentLoadRepository extends JpaRepository<PrimaryStude
     Integer countDistinctTotalPrimaryStudentLoadByStudentId(String studentId);
 
     @Query("""
-                SELECT new com.faculty_evaluation_backend.fes.dto.student.StudentClassLoadDTO(
-                    pc.classCode,
-                    pc.facultyId,
-                    pc.subjectCode,
-                    pc.sectionId,
-                    pc.semester,
-                    pc.schoolYear,
-                    psl.yearLevel,
-                    psl.studentId,
-                    CAST(f.college AS string),
-                    CONCAT(f.firstname, ' ', f.lastname),
-                    s.descriptiveTitle
+        SELECT DISTINCT new com.faculty_evaluation_backend.fes.dto.student.StudentClassLoadDTO(
+            pc.classCode,
+            pc.facultyId,
+            pc.subjectCode,
+            pc.sectionId,
+            pc.semester,
+            pc.schoolYear,
+            psl.yearLevel,
+            psl.studentId,
+            CAST(f.college AS string),
+            CONCAT(
+                COALESCE(f.firstname, ''),
+                ' ',
+                COALESCE(f.lastname, '')
+            ),
+            COALESCE(s.descriptiveTitle, '')
+        )
+        FROM PrimaryStudentLoad psl
+        LEFT JOIN psl.primaryClass pc
+        LEFT JOIN pc.faculty f
+        LEFT JOIN pc.subject s
+        WHERE psl.studentId = :studentId
+          AND (
+                (
+                    pc.schoolYear = :schoolYear
+                    AND LOWER(TRIM(pc.semester)) =
+                        LOWER(TRIM(:semester))
                 )
-                FROM PrimaryStudentLoad psl
-                LEFT JOIN psl.primaryClass pc
-                LEFT JOIN pc.faculty f
-                LEFT JOIN pc.subject s
-                WHERE psl.studentId = :studentId
-                  AND (
-                        (pc.schoolYear = :schoolYear AND pc.semester = :semester)
-                        OR pc IS NULL
-                      )
-            """)
+                OR pc IS NULL
+              )
+        ORDER BY pc.subjectCode ASC
+    """)
     Page<StudentClassLoadDTO> findStudentLoadDTO(
             @Param("studentId") String studentId,
             @Param("schoolYear") Integer schoolYear,
