@@ -2,6 +2,7 @@ package com.faculty_evaluation_backend.fes.services.data.evaluation;
 
 import com.faculty_evaluation_backend.fes.dto.evaluation.BaseEvaluationDTO;
 import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationPrintResponse;
+import com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassDetailsDTO;
 import com.faculty_evaluation_backend.fes.entities.data.SchoolYearAndSemester;
 import com.faculty_evaluation_backend.fes.entities.evaluation.CommitmentAndTransparency;
 import com.faculty_evaluation_backend.fes.entities.evaluation.ContentKnowledgePedagogyAndTechnology;
@@ -56,67 +57,40 @@ public class EvaluationDataService {
         return facultyEvaluationScoreRepository.save(evaluationScore);
     }
 
-    public List<FacultyEvaluationPrintResponse>
-    getSumOfAllFacultyEvaluationPerSubject(
-            String facultyId
-    ) {
+    public List<FacultyEvaluationPrintResponse> getSumOfAllFacultyEvaluationPerSubject(String facultyId) {
 
-        SchoolYearAndSemester schoolYearAndSemester =
-                schoolYearAndSemesterRepository
-                        .findByStatus(Status.ACTIVE)
-                        .orElseThrow(() ->
-                                new RuntimeException(
-                                        "No active school year and semester found."
-                                )
-                        );
+        SchoolYearAndSemester schoolYearAndSemester = schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE).orElseThrow(() -> new RuntimeException("No active school year and semester found."));
 
-        List<String> classCodes =
-                facultyEvaluationScoreRepository
-                        .findDistinctClassCodesByFacultyIdAndSchoolYearAndSemester(
-                                facultyId,
-                                schoolYearAndSemester.getSchoolYear(),
-                                schoolYearAndSemester.getSemester().getValue()
-                        );
+        List<FacultyClassDetailsDTO> facultyClassDetails = facultyEvaluationScoreRepository.findDistinctClassDetailsByFacultyIdAndSchoolYearAndSemester(facultyId, schoolYearAndSemester.getSchoolYear(), schoolYearAndSemester.getSemester().getValue());
 
-        if (classCodes.isEmpty()) {
+        if (facultyClassDetails.isEmpty()) {
             return List.of();
         }
 
-        List<FacultyEvaluationPrintResponse> responses =
-                new ArrayList<>();
+        List<FacultyEvaluationPrintResponse> responses = new ArrayList<>();
 
-        for (String classCode : classCodes) {
+        for (FacultyClassDetailsDTO facultyClassDetail : facultyClassDetails) {
 
-            List<FacultyEvaluationScore> evaluations =
-                    facultyEvaluationScoreRepository
-                            .findByFacultyIdAndClassCodeAndSchoolYearAndSemester(
-                                    facultyId,
-                                    classCode,
-                                    schoolYearAndSemester.getSchoolYear(),
-                                    schoolYearAndSemester.getSemester().getValue()
-                            );
+            List<FacultyEvaluationScore> evaluations = facultyEvaluationScoreRepository.findByFacultyIdAndClassCodeAndSchoolYearAndSemester(facultyId, facultyClassDetail.getClassCode(), schoolYearAndSemester.getSchoolYear(), schoolYearAndSemester.getSemester().getValue());
+            log.info("""
+                            Evaluations Found
+                            Faculty ID: {}
+                            Class Code: {}
+                            School Year: {}
+                            Semester: {}
+                            Total Evaluations: {}
+                            """, facultyId, facultyClassDetail.getClassCode(), schoolYearAndSemester.getSchoolYear(), schoolYearAndSemester.getSemester().getValue(),
 
+                    evaluations.size());
             if (evaluations.isEmpty()) {
                 continue;
             }
-
-        /* =====================================================
-           SEPARATE STUDENT / SUPERVISOR EVALUATIONS
-           ===================================================== */
-
-            List<FacultyEvaluationScore> studentEvaluations =
-                    new ArrayList<>();
-
-            List<FacultyEvaluationScore> supervisorEvaluations =
-                    new ArrayList<>();
+            List<FacultyEvaluationScore> studentEvaluations = new ArrayList<>();
+            List<FacultyEvaluationScore> supervisorEvaluations = new ArrayList<>();
 
             for (FacultyEvaluationScore evaluation : evaluations) {
 
-                boolean isStudent =
-                        primaryStudentRepository
-                                .existsByStudentId(
-                                        evaluation.getEvaluatorId()
-                                );
+                boolean isStudent = primaryStudentRepository.existsByStudentId(evaluation.getEvaluatorId());
 
                 if (isStudent) {
 
@@ -127,81 +101,35 @@ public class EvaluationDataService {
                     supervisorEvaluations.add(evaluation);
                 }
             }
+            double setRating = calculateAverage(studentEvaluations);
+            double sefRating = calculateAverage(supervisorEvaluations);
+            FacultyEvaluationScore first = evaluations.getFirst();
+            String studentComments = studentEvaluations.stream()
 
-        /* =====================================================
-           COMPUTE RATINGS
-           ===================================================== */
+                    .map(FacultyEvaluationScore::getCommentsOrFeedbacks)
 
-            double setRating =
-                    calculateAverage(studentEvaluations);
+                    .filter(comment -> comment != null && !comment.isBlank())
 
-            double sefRating =
-                    calculateAverage(supervisorEvaluations);
+                    .distinct()
 
-            FacultyEvaluationScore first =
-                    evaluations.getFirst();
+                    .reduce((a, b) -> a + "\n• " + b)
 
-        /* =====================================================
-           STUDENT COMMENTS
-           ===================================================== */
+                    .orElse("-");
+            String supervisorComments = supervisorEvaluations.stream()
 
-            String studentComments =
-                    studentEvaluations.stream()
+                    .map(FacultyEvaluationScore::getCommentsOrFeedbacks)
 
-                            .map(
-                                    FacultyEvaluationScore
-                                            ::getCommentsOrFeedbacks
-                            )
+                    .filter(comment -> comment != null && !comment.isBlank())
 
-                            .filter(comment ->
-                                    comment != null
-                                            && !comment.isBlank()
-                            )
+                    .distinct()
 
-                            .distinct()
+                    .reduce((a, b) -> a + "\n• " + b)
 
-                            .reduce((a, b) ->
-                                    a + "\n• " + b
-                            )
-
-                            .orElse("-");
-
-        /* =====================================================
-           SUPERVISOR COMMENTS
-           ===================================================== */
-
-            String supervisorComments =
-                    supervisorEvaluations.stream()
-
-                            .map(
-                                    FacultyEvaluationScore
-                                            ::getCommentsOrFeedbacks
-                            )
-
-                            .filter(comment ->
-                                    comment != null
-                                            && !comment.isBlank()
-                            )
-
-                            .distinct()
-
-                            .reduce((a, b) ->
-                                    a + "\n• " + b
-                            )
-
-                            .orElse("-");
-
-        /* =====================================================
-           DETERMINE EVALUATOR TYPE
-           ===================================================== */
+                    .orElse("-");
 
             String evaluatorType;
 
-            boolean isStudent =
-                    primaryStudentRepository
-                            .existsByLegacyId(
-                                    first.getEvaluatorId()
-                            );
+            boolean isStudent = primaryStudentRepository.existsByLegacyId(first.getEvaluatorId());
 
             if (isStudent) {
 
@@ -211,97 +139,45 @@ public class EvaluationDataService {
 
                 evaluatorType = "SEF";
             }
+            FacultyEvaluationPrintResponse response = FacultyEvaluationPrintResponse.builder()
 
-        /* =====================================================
-           BUILD RESPONSE
-           ===================================================== */
+                    .facultyEvaluationScoreId(first.getFacultyEvaluationScoreId())
 
-            FacultyEvaluationPrintResponse response =
-                    FacultyEvaluationPrintResponse.builder()
+                    .facultyId(first.getFacultyId())
 
-                            .facultyEvaluationScoreId(
-                                    first.getFacultyEvaluationScoreId()
-                            )
+                    .facultyName(first.getFaculty().getFirstname() + " " + first.getFaculty().getMiddlename() + " " + first.getFaculty().getLastname())
 
-                            .facultyId(
-                                    first.getFacultyId()
-                            )
+                    .evaluatorId(first.getEvaluatorId())
 
-                            .facultyName(
-                                    first.getFaculty().getFirstname()
-                                            + " "
-                                            + first.getFaculty().getMiddlename()
-                                            + " "
-                                            + first.getFaculty().getLastname()
-                            )
+                    .evaluatorType(evaluatorType)
 
-                            .evaluatorId(
-                                    first.getEvaluatorId()
-                            )
+                    .college(String.valueOf(first.getFaculty().getCollege()))
 
-                            .evaluatorType(
-                                    evaluatorType
-                            )
+                    .classCode(facultyClassDetail.getClassCode()).sectionCode(facultyClassDetail.getSectionCode()).programCode(facultyClassDetail.getProgramCode()).position(first.getFaculty().getPosition())
 
-                            .college(
-                                    String.valueOf(
-                                            first.getFaculty().getCollege()
-                                    )
-                            )
+                    .semester(first.getSemester())
 
-                            .classCode(
-                                    first.getClassCode()
-                            )
+                    .schoolYear(first.getSchoolYear())
 
-                            .position(
-                                    first.getFaculty().getPosition()
-                            )
+                    .subjectCode(first.getSubjectCode())
 
-                            .semester(
-                                    first.getSemester()
-                            )
+                    .yearLevel(facultyClassDetail.getYearLevel())
 
-                            .schoolYear(
-                                    first.getSchoolYear()
-                            )
+                    .studentComments(studentComments)
 
-                            .subjectCode(
-                                    first.getSubjectCode()
-                            )
+                    .supervisorComments(supervisorComments)
 
-                            .yearLevel(
-                                    first.getYearLevel()
-                            )
+                    .overallAverageScore(setRating)
 
-                            .studentComments(
-                                    studentComments
-                            )
+                    .overallInterpretation(determineInterpretation(setRating))
 
-                            .supervisorComments(
-                                    supervisorComments
-                            )
+                    .numberOfStudents(studentEvaluations.size())
 
-                            .overallAverageScore(
-                                    setRating
-                            )
+                    .setRating(setRating)
 
-                            .overallInterpretation(
-                                    determineInterpretation(setRating)
-                            )
+                    .sefRating(sefRating)
 
-                            .numberOfStudents(
-                                    studentEvaluations.size()
-                            )
-
-                            .setRating(
-                                    setRating
-                            )
-
-                            .sefRating(
-                                    sefRating
-                            )
-
-                            .build();
+                    .build();
 
             responses.add(response);
         }

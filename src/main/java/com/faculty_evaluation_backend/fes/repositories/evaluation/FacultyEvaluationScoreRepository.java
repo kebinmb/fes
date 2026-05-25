@@ -2,6 +2,7 @@ package com.faculty_evaluation_backend.fes.repositories.evaluation;
 
 
 import com.faculty_evaluation_backend.fes.dto.evaluation.StudentFacultyEvaluationDTO;
+import com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassDetailsDTO;
 import com.faculty_evaluation_backend.fes.entities.evaluation.FacultyEvaluationScore;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -38,13 +39,23 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
     List<FacultyEvaluationScore> findByFacultyIdAndClassCode(String facultyId, String classCode);
 
     @Query("""
-             SELECT DISTINCT f.classCode
-             FROM FacultyEvaluationScore f
-             WHERE f.facultyId = :facultyId
-             AND f.schoolYear = :schoolYear
-             AND f.semester = :semester
-            """)
-    List<String> findDistinctClassCodesByFacultyIdAndSchoolYearAndSemester(
+       SELECT DISTINCT new com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassDetailsDTO(
+           f.classCode,
+           ps.sectionCode,
+           ps.programCode,
+           ps.yearLevel
+       )
+       FROM FacultyEvaluationScore f
+       INNER JOIN PrimaryClass pc
+           ON f.classCode = pc.classCode
+       INNER JOIN PrimarySection ps
+           ON pc.sectionId = ps.sectionId
+       WHERE pc.facultyId = :facultyId
+       AND pc.schoolYear = :schoolYear
+       AND pc.semester = :semester
+       """)
+    List<FacultyClassDetailsDTO>
+    findDistinctClassDetailsByFacultyIdAndSchoolYearAndSemester(
             @Param("facultyId") String facultyId,
             @Param("schoolYear") Integer schoolYear,
             @Param("semester") String semester

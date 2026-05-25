@@ -13,6 +13,8 @@ public class FacultyEvaluationPrintResponse {
     private String classCode;
     private Integer numberOfStudents;
     private String college;
+    private String sectionCode;
+    private String programCode;
     private String position;
     private String semester;
     private Integer schoolYear;
