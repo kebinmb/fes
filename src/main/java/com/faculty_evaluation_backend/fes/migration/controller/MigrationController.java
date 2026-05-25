@@ -4,6 +4,7 @@ import com.faculty_evaluation_backend.fes.dto.migration.MigrationErrorResponse;
 import com.faculty_evaluation_backend.fes.dto.migration.MigrationResponse;
 import com.faculty_evaluation_backend.fes.dto.migration.MigrationStatistics;
 import com.faculty_evaluation_backend.fes.migration.orchestrator.MigrationOrchestrator;
+import com.faculty_evaluation_backend.fes.migration.services.MigrationAsyncService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -23,7 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class MigrationController {
 
     private final MigrationOrchestrator migrationOrchestrator;
-
+    private final MigrationAsyncService migrationAsyncService;
     private final AtomicBoolean running =
             new AtomicBoolean(false);
 
@@ -43,7 +44,7 @@ public class MigrationController {
             );
         }
 
-        startMigration();
+        migrationAsyncService.startMigration();
 
         return buildResponse(
                 "STARTED",
