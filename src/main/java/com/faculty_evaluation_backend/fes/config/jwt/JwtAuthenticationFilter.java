@@ -91,6 +91,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             log.error("JWT FILTER ERROR", e);
 
             SecurityContextHolder.clearContext();
+
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+
+            response.setContentType("application/json");
+
+            response.getWriter().write("""
+        {
+            "message": "Session expired"
+        }
+    """);
+
+            return;
         }
 
         filterChain.doFilter(request, response);

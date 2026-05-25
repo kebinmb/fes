@@ -5,6 +5,7 @@ import com.faculty_evaluation_backend.fes.config.jwt.JwtRefreshFilter;
 import com.faculty_evaluation_backend.fes.config.oauth2.OAuth2FailureHandler;
 import com.faculty_evaluation_backend.fes.config.oauth2.OAuth2SuccessHandler;
 import com.faculty_evaluation_backend.fes.services.authentication.CustomUserDetailsService;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -76,7 +77,40 @@ public class SecurityConfig {
                         .requestMatchers("/admin/**").hasRole("ADMIN")
 
                         .anyRequest().authenticated())
+                .exceptionHandling(exception ->
 
+                        exception
+
+                                .authenticationEntryPoint(
+                                        (request, response, authException) -> {
+
+                                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+
+                                            response.setContentType("application/json");
+
+                                            response.getWriter().write("""
+                    {
+                        "message": "Session expired"
+                    }
+                """);
+                                        }
+                                )
+
+                                .accessDeniedHandler(
+                                        (request, response, accessDeniedException) -> {
+
+                                            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+
+                                            response.setContentType("application/json");
+
+                                            response.getWriter().write("""
+                    {
+                        "message": "Access denied"
+                    }
+                """);
+                                        }
+                                )
+                )
                 .oauth2Login(oauth -> oauth.successHandler(oAuth2SuccessHandler).failureHandler(oAuth2FailureHandler))
 
                 .authenticationProvider(authenticationProvider())

@@ -286,7 +286,7 @@ public class JwtRefreshFilter extends OncePerRequestFilter {
                 log.info("Token rotated for {}", userId);
             }
 
-        } catch (Exception e) {
+        }  catch (Exception e) {
 
             log.warn("Refresh failed: {}", e.getMessage());
 
@@ -319,6 +319,18 @@ public class JwtRefreshFilter extends OncePerRequestFilter {
                     "Set-Cookie",
                     deleteCookie("administrator_refresh").toString()
             );
+
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+
+            response.setContentType("application/json");
+
+            response.getWriter().write("""
+            {
+                "message": "Session expired"
+            }
+        """);
+
+            return;
         }
 
         filterChain.doFilter(request, response);
