@@ -132,7 +132,7 @@ spring:
     hibernate:
       ddl-auto: none
 
-    show-sql: false
+    show-sql: true
     open-in-view: false
 
     properties:
@@ -140,7 +140,7 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MariaDBDialect
 
-        format_sql: false
+        format_sql: true
 
         boot:
           allow_jdbc_metadata_access: false
@@ -200,16 +200,12 @@ server:
 
 logging:
 
-  level:
-    root: INFO
-
-    org.hibernate.SQL: WARN
-    org.hibernate.orm.jdbc.bind: WARN
-    org.hibernate.orm.jdbc.error: DEBUG
-
-    org.springframework.security: WARN
-
-    com.zaxxer.hikari: INFO
+  logging:
+    level:
+      org.hibernate.SQL: DEBUG
+      org.hibernate.orm.jdbc.bind: TRACE
+      org.springframework.orm.jpa: DEBUG
+      org.springframework.transaction: DEBUG
 
 management:
 
