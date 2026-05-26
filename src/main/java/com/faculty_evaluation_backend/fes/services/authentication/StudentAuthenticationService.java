@@ -72,11 +72,17 @@ public class StudentAuthenticationService {
                   password,
                   student.getPassword()
               );
-
         if (!passwordMatched) {
 
             throw new UnauthorizedException(
                     "Invalid credentials"
+            );
+        }
+        if (student.getEmail() == null ||
+                student.getEmail().isBlank()) {
+
+            throw new BadRequestException(
+                    "Email doesn't exist in your SIS account"
             );
         }
         if (!studentCacheService.studentExists(studentId)) {
@@ -91,7 +97,6 @@ public class StudentAuthenticationService {
                     "You already finished evaluating."
             );
         }
-
         int totalLoad =
                 studentCacheService.getTotalLoad(studentId);
 
@@ -105,11 +110,6 @@ public class StudentAuthenticationService {
                     "You already finished evaluating all your subjects."
             );
         }
-
-        // =========================================================
-        // CHECK EXISTING VALID ACCESS CODE
-        // =========================================================
-
         Optional<StudentAccessCode> existingCode =
                 studentAccessCodeRepository
                         .findLatestValidAccessCodeForUpdate(

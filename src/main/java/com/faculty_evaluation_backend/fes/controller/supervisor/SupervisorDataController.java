@@ -3,6 +3,7 @@ package com.faculty_evaluation_backend.fes.controller.supervisor;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassDTO;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyDTO;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyLoadDTO;
+import com.faculty_evaluation_backend.fes.dto.faculty.FacultyProgramLoadsDTO;
 import com.faculty_evaluation_backend.fes.dto.response.EvaluationCheckResponse;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.College;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.Programs;
@@ -50,27 +51,13 @@ public class SupervisorDataController {
 
             @RequestParam(required = false, defaultValue = "") String search,
 
-            @PageableDefault(
-                    page = 0,
-                    size = 10,
-                    sort = "lastname"
-            ) Pageable pageable
-    ) {
+            @PageableDefault(page = 0, size = 10, sort = "lastname") Pageable pageable) {
 
         log.info("Search received: [{}]", search);
 
-        log.info(
-                "API Request → Faculty loads | userId={} | search={}",
-                userId,
-                search
-        );
+        log.info("API Request → Faculty loads | userId={} | search={}", userId, search);
 
-        Page<FacultyLoadDTO> response =
-                supervisorDataService.getFacultyLoadsByProgram(
-                        userId,
-                        search,
-                        pageable
-                );
+        Page<FacultyLoadDTO> response = supervisorDataService.getFacultyLoadsByProgram(userId, search, pageable);
 
         return ResponseEntity.ok(response);
     }
@@ -78,21 +65,27 @@ public class SupervisorDataController {
     @GetMapping("/faculty-classes")
     public ResponseEntity<List<FacultyClassDTO>> getFacultyClasses(
 
-            @RequestParam
-            @NotBlank
-            String facultyId
-    ) {
+            @RequestParam @NotBlank String facultyId) {
 
-        log.info(
-                "API Request → Fetch faculty classes | facultyId={}",
-                facultyId
-        );
+        log.info("API Request → Fetch faculty classes | facultyId={}", facultyId);
 
-        return ResponseEntity.ok(
-                supervisorDataService.findFacultyClasses(
-                        facultyId
-                )
-        );
+        return ResponseEntity.ok(supervisorDataService.findFacultyClasses(facultyId));
+    }
+
+    @GetMapping("/faculty-program-loads")
+    public ResponseEntity<Page<FacultyProgramLoadsDTO>> getFacultyProgramLoads(
+
+            @RequestParam @NotNull Long userId,
+
+            @RequestParam(required = false, defaultValue = "") String search,
+
+            @PageableDefault(page = 0, size = 10, sort = "lastname") Pageable pageable) {
+
+        log.info("API Request → Fetch faculty program loads | userId={} | search={}", userId, search);
+
+        Page<FacultyProgramLoadsDTO> response = supervisorDataService.getFacultyInPrograms(userId, search, pageable);
+
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/check")
