@@ -75,15 +75,44 @@ public class SupervisorDataController {
     @GetMapping("/faculty-program-loads")
     public ResponseEntity<Page<FacultyProgramLoadsDTO>> getFacultyProgramLoads(
 
-            @RequestParam @NotNull Long userId,
+            @RequestParam
+            @NotNull
+            Long userId,
 
-            @RequestParam(required = false, defaultValue = "") String search,
+            @RequestParam(
+                    required = false,
+                    defaultValue = ""
+            )
+            String search,
 
-            @PageableDefault(page = 0, size = 10, sort = "lastname") Pageable pageable) {
+            @RequestParam(
+                    required = false,
+                    defaultValue = ""
+            )
+            String campus,
 
-        log.info("API Request → Fetch faculty program loads | userId={} | search={}", userId, search);
+            @PageableDefault(
+                    page = 0,
+                    size = 10,
+                    sort = "lastname"
+            )
+            Pageable pageable
+    ) {
 
-        Page<FacultyProgramLoadsDTO> response = supervisorDataService.getFacultyInPrograms(userId, search, pageable);
+        log.info(
+                "API Request → Fetch faculty program loads | userId={} | search={} | campus={}",
+                userId,
+                search,
+                campus
+        );
+
+        Page<FacultyProgramLoadsDTO> response =
+                supervisorDataService.getFacultyInPrograms(
+                        userId,
+                        search,
+                        campus,
+                        pageable
+                );
 
         return ResponseEntity.ok(response);
     }

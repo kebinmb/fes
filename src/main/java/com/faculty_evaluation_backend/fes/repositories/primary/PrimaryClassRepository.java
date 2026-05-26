@@ -277,7 +277,7 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
             pf.status AS status,
             pf.position AS position,
             pf.college AS college,
-            pf.source_campus AS campus
+            pc.source_campus AS campus
 
         FROM primary_faculty pf
 
@@ -293,6 +293,7 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
                LIKE CONCAT('%', UPPER(TRIM(ua.program)), '%')
 
         WHERE (
+
                 :search IS NULL
                 OR :search = ''
                 OR LOWER(pf.firstname)
@@ -305,6 +306,16 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
                         pf.lastname
                 ))
                     LIKE LOWER(CONCAT('%', :search, '%'))
+
+        )
+
+        AND (
+
+                :campus IS NULL
+                OR :campus = ''
+                OR UPPER(pc.source_campus)
+                    = UPPER(TRIM(:campus))
+
         )
 
         AND UPPER(pf.status) = 'ACTIVE'
@@ -333,6 +344,7 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
                LIKE CONCAT('%', UPPER(TRIM(ua.program)), '%')
 
         WHERE (
+
                 :search IS NULL
                 OR :search = ''
                 OR LOWER(pf.firstname)
@@ -345,6 +357,16 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
                         pf.lastname
                 ))
                     LIKE LOWER(CONCAT('%', :search, '%'))
+
+        )
+
+        AND (
+
+                :campus IS NULL
+                OR :campus = ''
+                OR UPPER(pc.source_campus)
+                    = UPPER(TRIM(:campus))
+
         )
 
         AND UPPER(pf.status) = 'ACTIVE'
@@ -357,6 +379,8 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
             @Param("userId") Long userId,
 
             @Param("search") String search,
+
+            @Param("campus") String campus,
 
             Pageable pageable
     );

@@ -105,22 +105,49 @@ public class SupervisorDataService {
         return facultyEvaluationScoreRepository.existsByFacultyIdAndEvaluatorIdAndClassCodeAndSubjectCodeAndYearLevelAndSemesterAndSchoolYear(facultyId, evaluatorId, classCode, subjectCode, yearLevel, semester, schoolYear);
     }
 
-    @Transactional(transactionManager = "primaryTransactionManager", readOnly = true)
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
     public Page<FacultyProgramLoadsDTO> getFacultyInPrograms(
 
             Long userId,
 
             String search,
 
-            Pageable pageable) {
+            String campus,
 
-        log.info("Fetching faculty program loads | userId={} | search={} | page={} | size={}", userId, search, pageable.getPageNumber(), pageable.getPageSize());
+            Pageable pageable
+    ) {
 
-        userAccountsRepository.findById(userId).orElseThrow(() -> new EntityNotFoundException("User not found with id: " + userId));
+        log.info(
+                "Fetching faculty program loads | userId={} | search={} | campus={} | page={} | size={}",
+                userId,
+                search,
+                campus,
+                pageable.getPageNumber(),
+                pageable.getPageSize()
+        );
 
-        Page<FacultyProgramLoadsDTO> result = primaryClassRepository.findFacultyPerProgram(userId, search, pageable);
+        userAccountsRepository.findById(userId)
+                .orElseThrow(() ->
+                        new EntityNotFoundException(
+                                "User not found with id: " + userId
+                        )
+                );
 
-        log.info("Faculty program loads fetched successfully | totalElements={}", result.getTotalElements());
+        Page<FacultyProgramLoadsDTO> result =
+                primaryClassRepository.findFacultyPerProgram(
+                        userId,
+                        search,
+                        campus,
+                        pageable
+                );
+
+        log.info(
+                "Faculty program loads fetched successfully | totalElements={}",
+                result.getTotalElements()
+        );
 
         return result;
     }
