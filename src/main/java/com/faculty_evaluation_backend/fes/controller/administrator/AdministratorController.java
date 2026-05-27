@@ -8,6 +8,7 @@ import com.faculty_evaluation_backend.fes.dto.response.FetchFacultyEvaluationSco
 import com.faculty_evaluation_backend.fes.dto.response.FetchFacultyResponse;
 import com.faculty_evaluation_backend.fes.dto.response.FetchUserAccountsResponse;
 import com.faculty_evaluation_backend.fes.dto.student.PageResponse;
+import com.faculty_evaluation_backend.fes.dto.student.StudentSectionDTO;
 import com.faculty_evaluation_backend.fes.dto.user_accounts.CreateUserAccountDTO;
 import com.faculty_evaluation_backend.fes.dto.user_accounts.UpdateUserAccountDTO;
 import com.faculty_evaluation_backend.fes.dto.user_accounts.UpdateUserPasswordDTO;
@@ -279,5 +280,83 @@ public class AdministratorController {
         return ResponseEntity.ok(
                 administratorService.updateUserPassword(dto)
         );
+    }
+
+    @GetMapping("/student-sections")
+    public ResponseEntity<?> getStudentSections(
+
+            @RequestParam(required = false) String programCode,
+
+            @RequestParam(required = false) String yearLevel,
+
+            @RequestParam(required = false) String sectionCode,
+
+            @RequestParam(defaultValue = "0") int page,
+
+            @RequestParam(defaultValue = "10") int size
+    ) {
+
+        try {
+
+            log.info(
+                    """
+                    Fetching student section evaluations |
+                    programCode={} |
+                    yearLevel={} |
+                    sectionCode={} |
+                    page={} |
+                    size={}
+                    """,
+                    programCode,
+                    yearLevel,
+                    sectionCode,
+                    page,
+                    size
+            );
+
+            PageResponse<StudentSectionDTO> response =
+                    administratorService.getStudentSections(
+                            programCode,
+                            yearLevel,
+                            sectionCode,
+                            page,
+                            size
+                    );
+
+            return ResponseEntity.ok(response);
+
+        } catch (RuntimeException e) {
+
+            log.error(
+                    "Failed to fetch student section evaluations | error={}",
+                    e.getMessage(),
+                    e
+            );
+
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(
+                            new ErrorResponse(
+                                    "FAILED",
+                                    e.getMessage()
+                            )
+                    );
+
+        } catch (Exception e) {
+
+            log.error(
+                    "Unexpected error fetching student section evaluations",
+                    e
+            );
+
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(
+                            new ErrorResponse(
+                                    "FAILED",
+                                    "Failed to fetch student section evaluations."
+                            )
+                    );
+        }
     }
 }

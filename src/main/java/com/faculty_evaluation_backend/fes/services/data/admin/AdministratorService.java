@@ -6,6 +6,7 @@ import com.faculty_evaluation_backend.fes.dto.response.FetchFacultyEvaluationSco
 import com.faculty_evaluation_backend.fes.dto.response.FetchFacultyResponse;
 import com.faculty_evaluation_backend.fes.dto.response.FetchUserAccountsResponse;
 import com.faculty_evaluation_backend.fes.dto.student.PageResponse;
+import com.faculty_evaluation_backend.fes.dto.student.StudentSectionDTO;
 import com.faculty_evaluation_backend.fes.dto.user_accounts.CreateUserAccountDTO;
 import com.faculty_evaluation_backend.fes.dto.user_accounts.UpdateUserAccountDTO;
 import com.faculty_evaluation_backend.fes.dto.user_accounts.UpdateUserPasswordDTO;
@@ -22,6 +23,8 @@ import com.faculty_evaluation_backend.fes.repositories.authentication.UserAccoun
 import com.faculty_evaluation_backend.fes.repositories.data.SchoolYearAndSemesterRepository;
 import com.faculty_evaluation_backend.fes.repositories.evaluation.FacultyEvaluationScoreRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryFacultyRepository;
+import com.faculty_evaluation_backend.fes.repositories.primary.PrimarySectionRepository;
+import com.faculty_evaluation_backend.fes.utilities.mapper.PageMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.*;
@@ -47,7 +50,7 @@ public class AdministratorService {
     private final SchoolYearAndSemesterRepository schoolYearAndSemesterRepository;
 
     private final PasswordEncoder passwordEncoder;
-
+    private final PrimarySectionRepository primarySectionRepository;
     @Transactional
     public SchoolYearAndSemesterDTO updateSchoolYearAndSemester(Integer schoolYear, Semester semester) {
 
@@ -242,7 +245,33 @@ public class AdministratorService {
 
         return "Password updated successfully.";
     }
+    public PageResponse<StudentSectionDTO> getStudentSections(
 
+            String programCode,
+
+            String yearLevel,
+
+            String sectionCode,
+
+            int page,
+
+            int size
+    ) {
+
+        Pageable pageable = PageRequest.of(
+                page,
+                size
+        );
+
+        return PageMapper.toPageResponse(
+                primarySectionRepository.getStudentSectionEvaluationData(
+                        programCode,
+                        yearLevel,
+                        sectionCode,
+                        pageable
+                )
+        );
+    }
     private void validateCreateUser(CreateUserAccountDTO dto) {
 
         if (dto.getUsername() == null || dto.getUsername().trim().isEmpty()) {
