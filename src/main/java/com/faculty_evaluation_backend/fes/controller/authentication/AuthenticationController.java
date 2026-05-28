@@ -1,5 +1,6 @@
 package com.faculty_evaluation_backend.fes.controller.authentication;
 
+import com.faculty_evaluation_backend.fes.audit.AuditableAction;
 import com.faculty_evaluation_backend.fes.config.jwt.JwtConfig;
 import com.faculty_evaluation_backend.fes.dto.authentication.LoginRequest;
 import com.faculty_evaluation_backend.fes.entities.authentication.StudentAccessCode;
@@ -65,12 +66,14 @@ public class AuthenticationController {
     }
 
     @PostMapping("/access-code/generate")
+    @AuditableAction(action = "GENERATE_ACCESS_CODE", entity = "STUDENT_ACCESS_CODE")
     public ResponseEntity<?> generateAccessCode(@RequestParam String studentId, @RequestParam String password) {
         StudentAccessCode code = studentAuthenticationService.generateAccessCode(studentId, password);
         return ResponseEntity.ok(Map.of("studentId", studentId, "accessCode", code.getAccessCode(), "expiresAt", code.getExpiresAt()));
     }
 
     @PostMapping("/student/login")
+    @AuditableAction(action = "AUTHENTICATE_STUDENT", entity = "STUDENT_AUTHENTICATION")
     public ResponseEntity<?> studentLogin(@RequestParam String studentId, @RequestParam String accessCode, HttpServletRequest request) {
 
         var response = studentAuthenticationService.authenticateWithAccessCode(studentId, accessCode, request);
@@ -79,12 +82,14 @@ public class AuthenticationController {
     }
 
     @PostMapping("/supervisor/login")
+    @AuditableAction(action = "AUTHENTICATE_SUPERVISOR", entity = "SUPERVISOR_AUTHENTICATION")
     public ResponseEntity<?> supervisorLogin(@RequestBody LoginRequest loginRequest, HttpServletRequest request) {
         var response = supervisorAccountsAuthenticationService.login(loginRequest);
         return ResponseEntity.ok().header("Set-Cookie", buildSupervisorAccessTokenCookie(response.getAccessToken()).toString()).header("Set-Cookie", buildSupervisorRefreshTokenCookie(response.getRefreshToken()).toString()).body(Map.of("message", "Authentication successful", "evaluatorId", response.getEvaluatorId(), "college", response.getCollege(), "program", response.getPrograms()));
     }
 
     @PostMapping("/administrator/login")
+    @AuditableAction(action = "AUTHENTICATE_ADMINISTRATOR", entity = "ADMINISTRATOR_AUTHENTICATION")
     public ResponseEntity<?> administratorLogin(@RequestBody LoginRequest loginRequest, HttpServletRequest request) {
         var response = administratorAccountsAuthenticationService.login(loginRequest);
 
@@ -113,54 +118,38 @@ public class AuthenticationController {
     }
 
     @PostMapping("/logout")
+    @AuditableAction(action = "LOGOUT", entity = "USER_LOGOUT")
     public ResponseEntity<?> logout(HttpServletRequest request, HttpServletResponse response) {
-
         try {
-
             String refreshToken = extractCookie(request, "student_refresh");
-
             if (refreshToken == null) {
                 refreshToken = extractCookie(request, "supervisor_refresh");
             }
-
             if (refreshToken == null) {
                 refreshToken = extractCookie(request, "administrator_refresh");
             }
-
             if (refreshToken != null) {
-
                 String hash = TokenHashUtil.sha256(refreshToken);
-
                 refreshTokenRepository.findByTokenHashAndRevokedFalse(hash).ifPresent(token -> {
                     token.setRevoked(true);
                     refreshTokenRepository.save(token);
                 });
             }
-
         } catch (Exception e) {
 
             log.warn("Logout token revoke failed: {}", e.getMessage());
 
         }
-
-        /*
-         * CLEAR SPRING CACHE
-         */
-
         Cache cache = cacheManager.getCache("facultyClasses");
-
         if (cache != null) {
             cache.clear();
         }
-
         request.getSession().invalidate();
-
         return ResponseEntity.ok().header("Set-Cookie", deleteCookie("student_access").toString()).header("Set-Cookie", deleteCookie("student_refresh").toString()).header("Set-Cookie", deleteCookie("supervisor_access").toString()).header("Set-Cookie", deleteCookie("supervisor_refresh").toString()).header("Set-Cookie", deleteCookie("administrator_access").toString()).header("Set-Cookie", deleteCookie("administrator_refresh").toString()).body(Map.of("message", "Logged out"));
     }
 
     private String extractCookie(HttpServletRequest request, String name) {
         if (request.getCookies() == null) return null;
-
         for (Cookie c : request.getCookies()) {
             if (name.equals(c.getName())) {
                 return c.getValue();

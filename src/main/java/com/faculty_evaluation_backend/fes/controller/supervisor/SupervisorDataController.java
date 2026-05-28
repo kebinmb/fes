@@ -34,11 +34,7 @@ import java.util.Map;
 @Slf4j
 @RequiredArgsConstructor
 public class SupervisorDataController {
-
     private final SupervisorDataService supervisorDataService;
-
-
-    //TODO : Change this and use the Program instead of the College
     @GetMapping("/list")
     public ResponseEntity<List<FacultyDTO>> getFacultiesByCollegeAndStatus(@RequestParam College college, @RequestParam Status status) {
         return ResponseEntity.ok(supervisorDataService.getFacultiesByCollegeAndStatus(college.name(), status.name()));

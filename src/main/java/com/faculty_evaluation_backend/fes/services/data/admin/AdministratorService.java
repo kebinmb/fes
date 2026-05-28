@@ -1,6 +1,7 @@
 package com.faculty_evaluation_backend.fes.services.data.admin;
 
 import com.faculty_evaluation_backend.fes.dto.data.SchoolYearAndSemesterDTO;
+import com.faculty_evaluation_backend.fes.dto.evaluation.StudentEvaluationStatusResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.StudentFacultyEvaluationDTO;
 import com.faculty_evaluation_backend.fes.dto.response.FetchFacultyEvaluationScoreResponse;
 import com.faculty_evaluation_backend.fes.dto.response.FetchFacultyResponse;
@@ -24,6 +25,7 @@ import com.faculty_evaluation_backend.fes.repositories.data.SchoolYearAndSemeste
 import com.faculty_evaluation_backend.fes.repositories.evaluation.FacultyEvaluationScoreRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryFacultyRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimarySectionRepository;
+import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryStudentLoadRepository;
 import com.faculty_evaluation_backend.fes.utilities.mapper.PageMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -51,6 +53,8 @@ public class AdministratorService {
 
     private final PasswordEncoder passwordEncoder;
     private final PrimarySectionRepository primarySectionRepository;
+    private final PrimaryStudentLoadRepository primaryStudentLoadRepository;
+
     @Transactional
     public SchoolYearAndSemesterDTO updateSchoolYearAndSemester(Integer schoolYear, Semester semester) {
 
@@ -245,6 +249,7 @@ public class AdministratorService {
 
         return "Password updated successfully.";
     }
+
     public PageResponse<StudentSectionDTO> getStudentSections(
 
             String programCode,
@@ -255,23 +260,45 @@ public class AdministratorService {
 
             int page,
 
-            int size
-    ) {
+            int size) {
 
-        Pageable pageable = PageRequest.of(
-                page,
-                size
-        );
+        Pageable pageable = PageRequest.of(page, size);
 
-        return PageMapper.toPageResponse(
-                primarySectionRepository.getStudentSectionEvaluationData(
-                        programCode,
-                        yearLevel,
-                        sectionCode,
-                        pageable
-                )
-        );
+        return PageMapper.toPageResponse(primarySectionRepository.getStudentSectionEvaluationData(programCode, yearLevel, sectionCode, pageable));
     }
+
+    public List<StudentEvaluationStatusResponse> fetchStudentEvaluationStatus(
+
+            String programCode,
+
+            String yearLevel,
+
+            String sectionCode) {
+
+        if (programCode == null || programCode.trim().isEmpty()) {
+
+            throw new BadRequestException("Program code is required.");
+        }
+
+        if (yearLevel == null || yearLevel.trim().isEmpty()) {
+
+            throw new BadRequestException("Year level is required.");
+        }
+
+        if (sectionCode == null || sectionCode.trim().isEmpty()) {
+
+            throw new BadRequestException("Section code is required.");
+        }
+
+        return primaryStudentLoadRepository.fetchStudentEvaluationStatus(
+
+                programCode,
+
+                yearLevel,
+
+                sectionCode);
+    }
+
     private void validateCreateUser(CreateUserAccountDTO dto) {
 
         if (dto.getUsername() == null || dto.getUsername().trim().isEmpty()) {

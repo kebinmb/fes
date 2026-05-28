@@ -4,6 +4,7 @@ import com.faculty_evaluation_backend.fes.audit.AuditableAction;
 import com.faculty_evaluation_backend.fes.controller.evaluation.EvaluationController;
 import com.faculty_evaluation_backend.fes.dto.data.SchoolYearAndSemesterDTO;
 import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationPrintResponse;
+import com.faculty_evaluation_backend.fes.dto.evaluation.StudentEvaluationStatusResponse;
 import com.faculty_evaluation_backend.fes.dto.response.FetchFacultyEvaluationScoreResponse;
 import com.faculty_evaluation_backend.fes.dto.response.FetchFacultyResponse;
 import com.faculty_evaluation_backend.fes.dto.response.FetchUserAccountsResponse;
@@ -253,6 +254,7 @@ public class AdministratorController {
         }
     }
     @PostMapping("/create-user")
+    @AuditableAction(action = "CREATE", entity = "USER_ACCOUNTS")
     public ResponseEntity<String> createUser(
             @RequestBody CreateUserAccountDTO dto
     ) {
@@ -263,6 +265,7 @@ public class AdministratorController {
     }
 
     @PutMapping("/update-user")
+    @AuditableAction(action = "UPDATE", entity = "USER_ACCOUNTS")
     public ResponseEntity<String> updateUser(
             @RequestBody UpdateUserAccountDTO dto
     ) {
@@ -273,6 +276,7 @@ public class AdministratorController {
     }
 
     @PutMapping("/update-password")
+    @AuditableAction(action = "UPDATE_PASSWORD", entity = "USER_ACCOUNTS")
     public ResponseEntity<String> updatePassword(
             @RequestBody UpdateUserPasswordDTO dto
     ) {
@@ -358,5 +362,30 @@ public class AdministratorController {
                             )
                     );
         }
+    }
+
+    @GetMapping("/student-evaluation-status")
+    public ResponseEntity<List<StudentEvaluationStatusResponse>>
+    fetchStudentEvaluationStatus(
+
+            @RequestParam String programCode,
+
+            @RequestParam String yearLevel,
+
+            @RequestParam String sectionCode
+    ) {
+
+        return ResponseEntity.ok(
+
+                administratorService
+                        .fetchStudentEvaluationStatus(
+
+                                programCode,
+
+                                yearLevel,
+
+                                sectionCode
+                        )
+        );
     }
 }

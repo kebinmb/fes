@@ -47,10 +47,6 @@ public class StudentAuthenticationService {
     private final StudentAuthenticationLookUpService studentAuthenticationLookupService;
     private final PasswordEncoder passwordEncoder;
     @Transactional(transactionManager = "primaryTransactionManager")
-    @AuditableAction(
-            action = "GENERATE_ACCESS_CODE",
-            entity = "STUDENT_ACCESS_CODE"
-    )
     public StudentAccessCode generateAccessCode(
             String studentId,
             String password
@@ -185,7 +181,7 @@ public class StudentAuthenticationService {
         return newAccessCode;
     }
 
-    @AuditableAction(action = "AUTHENTICATE_STUDENT", entity = "STUDENT_AUTHENTICATION")
+
     @Transactional(transactionManager = "primaryTransactionManager")
     public AuthenticationResponse authenticateWithAccessCode(String studentId, String accessCode, HttpServletRequest request) {
         rateLimitingService.consumeStudentRequest(studentId, "AUTHENTICATE_STUDENT");
