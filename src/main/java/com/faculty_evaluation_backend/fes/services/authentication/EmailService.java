@@ -1,11 +1,15 @@
 package com.faculty_evaluation_backend.fes.services.authentication;
 
+import com.faculty_evaluation_backend.fes.config.email.EmailAccount;
+import com.faculty_evaluation_backend.fes.config.email.EmailAccountPool;
+import com.faculty_evaluation_backend.fes.config.email.EmailProperties;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.mail.javamail.MimeMessageHelper;
 
 import org.springframework.stereotype.Service;
@@ -15,38 +19,173 @@ import java.io.UnsupportedEncodingException;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Properties;
 
 @Service
 @RequiredArgsConstructor
 public class EmailService {
 
-    private final JavaMailSender javaMailSender;
-
+    private final EmailAccountPool emailAccountPool;
+    private final EmailProperties emailProperties;
     public void sendAccessCodeEmail(
             String to,
             String accessCode,
             Instant expiresAt
     ) {
 
-        try {
+        String formattedExpiry =
+                DateTimeFormatter
+                        .ofPattern(
+                                "MMMM dd, yyyy hh:mm a"
+                        )
+                        .withZone(
+                                ZoneId.systemDefault()
+                        )
+                        .format(expiresAt);
 
-            MimeMessage message =
-                    javaMailSender.createMimeMessage();
+        String htmlContent =
+                buildAccessCodeHtml(
+                        accessCode,
+                        formattedExpiry
+                );
 
-            MimeMessageHelper helper =
-                    new MimeMessageHelper(
-                            message,
-                            true,
-                            "UTF-8"
-                    );
+        Exception lastException = null;
 
-            String formattedExpiry =
-                    DateTimeFormatter
-                            .ofPattern("MMMM dd, yyyy hh:mm a")
-                            .withZone(ZoneId.systemDefault())
-                            .format(expiresAt);
+        for (EmailAccount account :
+                emailAccountPool.getAll()) {
 
-            String htmlContent = """
+            try {
+
+                JavaMailSender sender =
+                        createSender(account);
+
+                MimeMessage message =
+                        sender.createMimeMessage();
+
+                MimeMessageHelper helper =
+                        new MimeMessageHelper(
+                                message,
+                                true,
+                                "UTF-8"
+                        );
+
+                helper.setFrom(
+                        account.username(),
+                        "Carlos Hilado Memorial State University - Faculty Evaluation System"
+                );
+
+                helper.setTo(to);
+
+                helper.setSubject(
+                        "Faculty Evaluation Access Code"
+                );
+
+                helper.setText(
+                        htmlContent,
+                        true
+                );
+
+                sender.send(message);
+
+                return;
+
+            } catch (
+                    MessagingException |
+                    UnsupportedEncodingException e
+            ) {
+
+                lastException = e;
+
+                System.err.println(
+                        "Email sender failed: "
+                                + account.username()
+                );
+            } catch (Exception e) {
+
+                lastException = e;
+
+                System.err.println(
+                        "SMTP failed: "
+                                + account.username()
+                                + " -> "
+                                + e.getMessage()
+                );
+            }
+        }
+
+        throw new RuntimeException(
+                "All configured email accounts failed.",
+                lastException
+        );
+    }
+    private JavaMailSender createSender(
+            EmailAccount account
+    ) {
+
+        JavaMailSenderImpl sender =
+                new JavaMailSenderImpl();
+
+        sender.setHost(
+                emailProperties
+                        .getSmtp()
+                        .getHost()
+        );
+
+        sender.setPort(
+                emailProperties
+                        .getSmtp()
+                        .getPort()
+        );
+
+        sender.setUsername(
+                account.username()
+        );
+
+        sender.setPassword(
+                account.password()
+        );
+
+        Properties props =
+                sender.getJavaMailProperties();
+
+        props.put(
+                "mail.smtp.auth",
+                String.valueOf(
+                        emailProperties
+                                .getSmtp()
+                                .isAuth()
+                )
+        );
+
+        props.put(
+                "mail.smtp.starttls.enable",
+                String.valueOf(
+                        emailProperties
+                                .getSmtp()
+                                .isStarttls()
+                )
+        );
+
+        props.put(
+                "mail.smtp.connectiontimeout",
+                "10000"
+        );
+
+        props.put(
+                "mail.smtp.timeout",
+                "10000"
+        );
+
+        props.put(
+                "mail.smtp.writetimeout",
+                "10000"
+        );
+
+        return sender;
+    }
+
+    private String buildAccessCodeHtml(String accessCode, String formattedExpiry){
+        return """
                     <!DOCTYPE html>
                     <html lang="en">
                     <head>
@@ -369,38 +508,5 @@ public class EmailService {
                     </body>
                     </html>
                     """.formatted(accessCode, formattedExpiry);
-
-            /* =========================================
-               CUSTOM SENDER NAME
-            ========================================= */
-
-            helper.setFrom(
-                    "your-email@gmail.com",
-                    "Carlos Hilado Memorial State University - Faculty Evaluation System"
-            );
-
-            helper.setTo(to);
-
-            helper.setSubject(
-                    "Faculty Evaluation Access Code"
-            );
-
-            helper.setText(
-                    htmlContent,
-                    true
-            );
-
-            javaMailSender.send(message);
-
-        } catch (
-                MessagingException |
-                UnsupportedEncodingException e
-        ) {
-
-            throw new RuntimeException(
-                    "Failed to send email",
-                    e
-            );
-        }
     }
 }

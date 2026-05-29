@@ -101,23 +101,19 @@ spring:
         queue-capacity: 25
         keep-alive: 60s
 
-  mail:
+email:
+  accounts:
+    - username: fes-noreply@chmsu.edu.ph
+      password: ${MAIL_PASSWORD}
+
+    - username: fes1-noreply@chmsu.edu.ph
+      password: ${MAIL_PASSWORD_2}
+
+  smtp:
     host: smtp.gmail.com
     port: 587
-    username: fes-noreply@chmsu.edu.ph
-    password: ${MAIL_PASSWORD}
-
-    properties:
-      mail:
-        smtp:
-          auth: true
-
-          starttls:
-            enable: true
-
-          connectiontimeout: 10000
-          timeout: 10000
-          writetimeout: 10000
+    auth: true
+    starttls: true
 
   cache:
     type: caffeine

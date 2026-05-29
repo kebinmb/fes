@@ -42,19 +42,6 @@ spring:
       idle-timeout: 30000
       connection-timeout: 20000
 
-  mail:
-    host: smtp.gmail.com
-    port: 587
-    username: johnkevin.moraca@chmsu.edu.ph
-    password: okae yukh olpg nbyr
-
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
-
   jpa:
     hibernate:
       jdbc:
@@ -78,10 +65,26 @@ spring:
             scope:
               - email
               - profile
+
+email:
+  accounts:
+    - username: fes-noreply@chmsu.edu.ph
+      password: lidx mrcq kcvw sapq
+
+    - username: fes1-noreply@chmsu.edu.ph
+      password: urcc iyvo chzp vxxf
+
+  smtp:
+    host: smtp.gmail.com
+    port: 587
+    auth: true
+    starttls: true
+
 app:
-   oauth2:
-     redirect-url-success: "http://localhost:4200/oauth-success"
-     redirect-url-failure: "http://localhost:4200/oauth-failure"
+  oauth2:
+    redirect-url-success: "http://localhost:4200/oauth-success"
+    redirect-url-failure: "http://localhost:4200/oauth-failure"
+
 logging:
   level:
     root: DEBUG
