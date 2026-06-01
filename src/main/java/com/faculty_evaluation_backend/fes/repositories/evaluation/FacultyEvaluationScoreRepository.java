@@ -119,23 +119,31 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
     Page<Object[]> findStudentFacultyEvaluationDetails(@Param("search") String search, Pageable pageable);
 
     @Query("""
-                SELECT new com.faculty_evaluation_backend.fes.dto.evaluation.EvaluatedStudentsDTO(
-                    CAST(fes.createdAt AS string),
-                    fes.evaluatorId,
-                    fes.subjectCode,
-                    fes.facultyId,
-                    pf.firstname,
-                    pf.lastname
-                )
-                FROM FacultyEvaluationScore fes
-                JOIN PrimaryFaculty pf ON fes.facultyId = pf.facultyId
-                WHERE (
-                    :evaluatorId IS NULL
-                    OR :evaluatorId = ''
-                    OR LOWER(fes.evaluatorId) LIKE LOWER(CONCAT('%', :evaluatorId, '%'))
-                )
-            """)
+    SELECT new com.faculty_evaluation_backend.fes.dto.evaluation.EvaluatedStudentsDTO(
+        CAST(fes.createdAt AS string),
+        fes.evaluatorId,
+        fes.subjectCode,
+        fes.facultyId,
+        pf.firstname,
+        pf.lastname
+    )
+    FROM FacultyEvaluationScore fes
+    JOIN PrimaryFaculty pf
+        ON fes.facultyId = pf.facultyId
+    JOIN PrimaryStudent ps
+        ON fes.evaluatorId = ps.studentId
+    JOIN UserAccounts ua
+        ON ua.dataSource = ps.legacyDatabase
+    WHERE ua.userId = :userId
+    AND (
+        :evaluatorId IS NULL
+        OR :evaluatorId = ''
+        OR LOWER(fes.evaluatorId)
+            LIKE LOWER(CONCAT('%', :evaluatorId, '%'))
+    )
+""")
     Page<EvaluatedStudentsDTO> findEvaluatedStudents(
+            @Param("userId") Long userId,
             @Param("evaluatorId") String evaluatorId,
             Pageable pageable
     );

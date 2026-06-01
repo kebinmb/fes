@@ -132,6 +132,9 @@ public class SupervisorDataController {
     @GetMapping("/evaluated-students")
     public ResponseEntity<Page<EvaluatedStudentsDTO>> getEvaluatedStudents(
 
+            @RequestParam
+            Long userId,
+
             @RequestParam(
                     required = false,
                     defaultValue = ""
@@ -147,7 +150,8 @@ public class SupervisorDataController {
     ) {
 
         return ResponseEntity.ok(
-                supervisorDataService.findEvaluatedStudentsByEvaluatorId(
+                supervisorDataService.findEvaluatedStudents(
+                        userId,
                         evaluatorId,
                         pageable
                 )

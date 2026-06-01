@@ -157,13 +157,15 @@ public class SupervisorDataService {
             transactionManager = "primaryTransactionManager",
             readOnly = true
     )
-    public Page<EvaluatedStudentsDTO> findEvaluatedStudentsByEvaluatorId(
+    public Page<EvaluatedStudentsDTO> findEvaluatedStudents(
+            Long userId,
             String evaluatorId,
             Pageable pageable
     ) {
 
         log.info(
-                "Fetching evaluated students | evaluatorId={} | page={} | size={}",
+                "Fetching evaluated students | userId={} | evaluatorId={} | page={} | size={}",
+                userId,
                 evaluatorId,
                 pageable.getPageNumber(),
                 pageable.getPageSize()
@@ -171,12 +173,14 @@ public class SupervisorDataService {
 
         Page<EvaluatedStudentsDTO> result =
                 facultyEvaluationScoreRepository.findEvaluatedStudents(
+                        userId,
                         evaluatorId,
                         pageable
                 );
 
         log.info(
-                "Evaluated students fetched successfully | totalElements={}",
+                "Evaluated students fetched successfully | userId={} | totalElements={}",
+                userId,
                 result.getTotalElements()
         );
 
