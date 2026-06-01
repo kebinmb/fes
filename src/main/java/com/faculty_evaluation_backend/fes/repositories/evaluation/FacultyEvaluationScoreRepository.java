@@ -1,6 +1,7 @@
 package com.faculty_evaluation_backend.fes.repositories.evaluation;
 
 
+import com.faculty_evaluation_backend.fes.dto.evaluation.EvaluatedStudentsDTO;
 import com.faculty_evaluation_backend.fes.dto.evaluation.StudentFacultyEvaluationDTO;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassDetailsDTO;
 import com.faculty_evaluation_backend.fes.entities.evaluation.FacultyEvaluationScore;
@@ -22,15 +23,7 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
             """)
     Page<FacultyEvaluationScore> findAllWithFaculty(Pageable pageable);
 
-    boolean existsByFacultyIdAndEvaluatorIdAndClassCodeAndSubjectCodeAndYearLevelAndSemesterAndSchoolYear(
-            String facultyId,
-            String evaluatorId,
-            String classCode,
-            String subjectCode,
-            String yearLevel,
-            String semester,
-            Integer schoolYear
-    );
+    boolean existsByFacultyIdAndEvaluatorIdAndClassCodeAndSubjectCodeAndYearLevelAndSemesterAndSchoolYear(String facultyId, String evaluatorId, String classCode, String subjectCode, String yearLevel, String semester, Integer schoolYear);
 
     Integer countDistinctEvaluatedSubjectsByEvaluatorId(String evaluatorId);
 
@@ -39,35 +32,24 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
     List<FacultyEvaluationScore> findByFacultyIdAndClassCode(String facultyId, String classCode);
 
     @Query("""
-       SELECT DISTINCT new com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassDetailsDTO(
-           f.classCode,
-           ps.sectionCode,
-           ps.programCode,
-           ps.yearLevel
-       )
-       FROM FacultyEvaluationScore f
-       INNER JOIN PrimaryClass pc
-           ON f.classCode = pc.classCode
-       INNER JOIN PrimarySection ps
-           ON pc.sectionId = ps.sectionId
-       WHERE pc.facultyId = :facultyId
-       AND pc.schoolYear = :schoolYear
-       AND pc.semester = :semester
-       """)
-    List<FacultyClassDetailsDTO>
-    findDistinctClassDetailsByFacultyIdAndSchoolYearAndSemester(
-            @Param("facultyId") String facultyId,
-            @Param("schoolYear") Integer schoolYear,
-            @Param("semester") String semester
-    );
+            SELECT DISTINCT new com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassDetailsDTO(
+                f.classCode,
+                ps.sectionCode,
+                ps.programCode,
+                ps.yearLevel
+            )
+            FROM FacultyEvaluationScore f
+            INNER JOIN PrimaryClass pc
+                ON f.classCode = pc.classCode
+            INNER JOIN PrimarySection ps
+                ON pc.sectionId = ps.sectionId
+            WHERE pc.facultyId = :facultyId
+            AND pc.schoolYear = :schoolYear
+            AND pc.semester = :semester
+            """)
+    List<FacultyClassDetailsDTO> findDistinctClassDetailsByFacultyIdAndSchoolYearAndSemester(@Param("facultyId") String facultyId, @Param("schoolYear") Integer schoolYear, @Param("semester") String semester);
 
-    List<FacultyEvaluationScore>
-    findByFacultyIdAndClassCodeAndSchoolYearAndSemester(
-            String facultyId,
-            String classCode,
-            Integer schoolYear,
-            String semester
-    );
+    List<FacultyEvaluationScore> findByFacultyIdAndClassCodeAndSchoolYearAndSemester(String facultyId, String classCode, Integer schoolYear, String semester);
 
     @Query(value = """
             SELECT
@@ -106,8 +88,7 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
                     OR LOWER(pf.firstname) LIKE LOWER(CONCAT('%', :search, '%'))
                     OR LOWER(pf.lastname) LIKE LOWER(CONCAT('%', :search, '%'))
                 )
-            """,
-            countQuery = """
+            """, countQuery = """
             SELECT COUNT(*)
             FROM faculty_evaluation_score fes
             INNER JOIN primary_student ps
@@ -134,11 +115,32 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
                     OR LOWER(pf.firstname) LIKE LOWER(CONCAT('%', :search, '%'))
                     OR LOWER(pf.lastname) LIKE LOWER(CONCAT('%', :search, '%'))
                 )
-            """,
-            nativeQuery = true)
-    Page<Object[]> findStudentFacultyEvaluationDetails(
-            @Param("search") String search,
+            """, nativeQuery = true)
+    Page<Object[]> findStudentFacultyEvaluationDetails(@Param("search") String search, Pageable pageable);
+
+    @Query("""
+                SELECT new com.faculty_evaluation_backend.fes.dto.evaluation.EvaluatedStudentsDTO(
+                    CAST(fes.createdAt AS string),
+                    fes.evaluatorId,
+                    fes.subjectCode,
+                    fes.facultyId,
+                    pf.firstname,
+                    pf.lastname
+                )
+                FROM FacultyEvaluationScore fes
+                JOIN PrimaryFaculty pf ON fes.facultyId = pf.facultyId
+                WHERE (
+                    :evaluatorId IS NULL
+                    OR :evaluatorId = ''
+                    OR LOWER(fes.evaluatorId) LIKE LOWER(CONCAT('%', :evaluatorId, '%'))
+                )
+            """)
+    Page<EvaluatedStudentsDTO> findEvaluatedStudents(
+            @Param("evaluatorId") String evaluatorId,
             Pageable pageable
     );
+
 }
+
+
 

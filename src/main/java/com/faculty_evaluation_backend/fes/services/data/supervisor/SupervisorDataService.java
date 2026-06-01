@@ -1,6 +1,7 @@
 package com.faculty_evaluation_backend.fes.services.data.supervisor;
 
 import com.faculty_evaluation_backend.fes.dto.data.SchoolYearAndSemesterDTO;
+import com.faculty_evaluation_backend.fes.dto.evaluation.EvaluatedStudentsDTO;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassDTO;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyDTO;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyLoadDTO;
@@ -152,6 +153,36 @@ public class SupervisorDataService {
         return result;
     }
 
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
+    public Page<EvaluatedStudentsDTO> findEvaluatedStudentsByEvaluatorId(
+            String evaluatorId,
+            Pageable pageable
+    ) {
+
+        log.info(
+                "Fetching evaluated students | evaluatorId={} | page={} | size={}",
+                evaluatorId,
+                pageable.getPageNumber(),
+                pageable.getPageSize()
+        );
+
+        Page<EvaluatedStudentsDTO> result =
+                facultyEvaluationScoreRepository.findEvaluatedStudents(
+                        evaluatorId,
+                        pageable
+                );
+
+        log.info(
+                "Evaluated students fetched successfully | totalElements={}",
+                result.getTotalElements()
+        );
+
+        return result;
+    }
+
     private College parseCollege(String college) {
         try {
             return College.valueOf(college.toUpperCase());
@@ -171,4 +202,6 @@ public class SupervisorDataService {
     private FacultyDTO mapToDTO(PrimaryFaculty f) {
         return new FacultyDTO(f.getFacultyId(), f.getLastname(), f.getFirstname(), f.getPosition(), f.getLoadLimit(), f.getMiddlename(), f.getCollege().name(), f.getStatus().name());
     }
+
+
 }

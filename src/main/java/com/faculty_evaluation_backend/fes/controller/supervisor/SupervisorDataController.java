@@ -1,5 +1,6 @@
 package com.faculty_evaluation_backend.fes.controller.supervisor;
 
+import com.faculty_evaluation_backend.fes.dto.evaluation.EvaluatedStudentsDTO;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassDTO;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyDTO;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyLoadDTO;
@@ -128,5 +129,29 @@ public class SupervisorDataController {
         }
     }
 
+    @GetMapping("/evaluated-students")
+    public ResponseEntity<Page<EvaluatedStudentsDTO>> getEvaluatedStudents(
+
+            @RequestParam(
+                    required = false,
+                    defaultValue = ""
+            )
+            String evaluatorId,
+
+            @PageableDefault(
+                    page = 0,
+                    size = 10,
+                    sort = "createdAt"
+            )
+            Pageable pageable
+    ) {
+
+        return ResponseEntity.ok(
+                supervisorDataService.findEvaluatedStudentsByEvaluatorId(
+                        evaluatorId,
+                        pageable
+                )
+        );
+    }
 
 }
