@@ -12,6 +12,8 @@ public class EvaluatedStudentsDTO {
     private String evaluatorId;
     private String subjectCode;
     private String facultyId;
+    private String studentLastname;
+    private String studentFirstname;
     private String firstname;
     private String lastname;
 

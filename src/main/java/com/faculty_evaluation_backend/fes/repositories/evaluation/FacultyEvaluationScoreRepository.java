@@ -124,6 +124,8 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
         fes.evaluatorId,
         fes.subjectCode,
         fes.facultyId,
+        ps.studentLastname,
+        ps.studentFirstname,
         pf.firstname,
         pf.lastname
     )
