@@ -139,7 +139,7 @@ public class SupervisorDataController {
                     required = false,
                     defaultValue = ""
             )
-            String evaluatorId,
+            String searchTerm,
 
             @PageableDefault(
                     page = 0,
@@ -152,7 +152,7 @@ public class SupervisorDataController {
         return ResponseEntity.ok(
                 supervisorDataService.findEvaluatedStudents(
                         userId,
-                        evaluatorId,
+                        searchTerm,
                         pageable
                 )
         );

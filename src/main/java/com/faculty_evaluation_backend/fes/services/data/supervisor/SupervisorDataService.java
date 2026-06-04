@@ -159,14 +159,14 @@ public class SupervisorDataService {
     )
     public Page<EvaluatedStudentsDTO> findEvaluatedStudents(
             Long userId,
-            String evaluatorId,
+            String searchTerm,
             Pageable pageable
     ) {
 
         log.info(
-                "Fetching evaluated students | userId={} | evaluatorId={} | page={} | size={}",
+                "Fetching evaluated students | userId={} | searchTerm={} | page={} | size={}",
                 userId,
-                evaluatorId,
+                searchTerm,
                 pageable.getPageNumber(),
                 pageable.getPageSize()
         );
@@ -174,13 +174,14 @@ public class SupervisorDataService {
         Page<EvaluatedStudentsDTO> result =
                 facultyEvaluationScoreRepository.findEvaluatedStudents(
                         userId,
-                        evaluatorId,
+                        searchTerm,
                         pageable
                 );
 
         log.info(
-                "Evaluated students fetched successfully | userId={} | totalElements={}",
+                "Evaluated students fetched successfully | userId={} | searchTerm={} | totalElements={}",
                 userId,
+                searchTerm,
                 result.getTotalElements()
         );
 

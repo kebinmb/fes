@@ -138,15 +138,19 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
         ON ua.dataSource = ps.legacyDatabase
     WHERE ua.userId = :userId
     AND (
-        :evaluatorId IS NULL
-        OR :evaluatorId = ''
+        :searchTerm IS NULL
+        OR :searchTerm = ''
         OR LOWER(fes.evaluatorId)
-            LIKE LOWER(CONCAT('%', :evaluatorId, '%'))
+            LIKE LOWER(CONCAT('%', :searchTerm, '%'))
+        OR LOWER(ps.studentFirstname)
+            LIKE LOWER(CONCAT('%', :searchTerm, '%'))
+        OR LOWER(ps.studentLastname)
+            LIKE LOWER(CONCAT('%', :searchTerm, '%'))
     )
 """)
     Page<EvaluatedStudentsDTO> findEvaluatedStudents(
             @Param("userId") Long userId,
-            @Param("evaluatorId") String evaluatorId,
+            @Param("searchTerm") String searchTerm,
             Pageable pageable
     );
 
