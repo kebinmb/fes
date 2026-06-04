@@ -30,7 +30,7 @@ public class StudentDataController {
     public PageResponse<StudentClassLoadDTO> getStudentLoads(
             @RequestParam @NotBlank String studentId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "primaryStudentLoadId,desc") String sort
     ){
         System.out.println("Student ID:" + studentId);

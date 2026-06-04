@@ -289,8 +289,8 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
 
         INNER JOIN user_accounts ua
             ON ua.user_id = :userId
-           AND UPPER(ps.program_code)
-               LIKE CONCAT('%', UPPER(TRIM(ua.program)), '%')
+           AND UPPER(TRIM(ua.data_source))
+               = UPPER(TRIM(pf.legacy_database))
 
         WHERE (
 
@@ -340,8 +340,8 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
 
         INNER JOIN user_accounts ua
             ON ua.user_id = :userId
-           AND UPPER(ps.program_code)
-               LIKE CONCAT('%', UPPER(TRIM(ua.program)), '%')
+           AND UPPER(TRIM(ua.data_source))
+               = UPPER(TRIM(pf.legacy_database))
 
         WHERE (
 
