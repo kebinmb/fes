@@ -121,7 +121,7 @@ public enum Programs {
     AB_SOCSCI("AB-SOCSCI"),
 
     AB_ENG_L("AB-ENG L"),
-
+    NONE("NULL"),
     AB_ENG("AB-ENG");
 
     private final String value;
