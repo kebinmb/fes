@@ -17,4 +17,5 @@ public class UserAuthenticationResponse {
     private String evaluatorId;
     private College college;
     private Programs programs;
+    private Boolean requiresPasswordChange;
 }

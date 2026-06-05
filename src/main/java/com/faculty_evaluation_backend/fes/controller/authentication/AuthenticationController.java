@@ -2,7 +2,9 @@ package com.faculty_evaluation_backend.fes.controller.authentication;
 
 import com.faculty_evaluation_backend.fes.audit.AuditableAction;
 import com.faculty_evaluation_backend.fes.config.jwt.JwtConfig;
+import com.faculty_evaluation_backend.fes.dto.authentication.ChangePasswordRequest;
 import com.faculty_evaluation_backend.fes.dto.authentication.LoginRequest;
+import com.faculty_evaluation_backend.fes.entities.authentication.CustomUserDetails;
 import com.faculty_evaluation_backend.fes.entities.authentication.StudentAccessCode;
 import com.faculty_evaluation_backend.fes.entities.authentication.UserAccounts;
 import com.faculty_evaluation_backend.fes.repositories.tokens.RefreshTokenRepository;
@@ -10,6 +12,7 @@ import com.faculty_evaluation_backend.fes.services.authentication.AdministratorA
 import com.faculty_evaluation_backend.fes.services.authentication.StudentAuthenticationService;
 import com.faculty_evaluation_backend.fes.services.authentication.SupervisorAccountsAuthenticationService;
 import com.faculty_evaluation_backend.fes.utilities.token.TokenHashUtil;
+import jakarta.validation.Valid;
 import org.springframework.cache.Cache;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -85,7 +88,8 @@ public class AuthenticationController {
     @AuditableAction(action = "AUTHENTICATE_SUPERVISOR", entity = "SUPERVISOR_AUTHENTICATION")
     public ResponseEntity<?> supervisorLogin(@RequestBody LoginRequest loginRequest, HttpServletRequest request) {
         var response = supervisorAccountsAuthenticationService.login(loginRequest);
-        return ResponseEntity.ok().header("Set-Cookie", buildSupervisorAccessTokenCookie(response.getAccessToken()).toString()).header("Set-Cookie", buildSupervisorRefreshTokenCookie(response.getRefreshToken()).toString()).body(Map.of("message", "Authentication successful", "evaluatorId", response.getEvaluatorId(), "college", response.getCollege(), "program", response.getPrograms()));
+        return ResponseEntity.ok().header("Set-Cookie", buildSupervisorAccessTokenCookie(response.getAccessToken()).toString()).header("Set-Cookie", buildSupervisorRefreshTokenCookie(response.getRefreshToken()).toString()).body(Map.of("message", "Authentication successful", "evaluatorId", response.getEvaluatorId(), "college", response.getCollege(), "program", response.getPrograms(), "requiresPasswordChange",
+                response.getRequiresPasswordChange()));
     }
 
     @PostMapping("/administrator/login")
@@ -111,12 +115,24 @@ public class AuthenticationController {
 
             UserAccounts user = supervisorAccountsAuthenticationService.findByUserId(userId);
 
-            return ResponseEntity.ok(Map.of("authenticated", true, "userId", user.getUserId(), "role", role, "college", user.getCollege(), "program", user.getPrograms()));
+            return ResponseEntity.ok(Map.of("authenticated", true, "userId", user.getUserId(), "role", role, "college", user.getCollege(), "program", user.getPrograms(),"requiresPasswordChange",
+                    user.getPasswordChangedAt() == null));
         }
 
         return ResponseEntity.ok(Map.of("authenticated", true, "userId", userId, "role", role));
     }
-
+    @PutMapping("/change-password")
+    public ResponseEntity<String> changePassword(
+            @Valid @RequestBody ChangePasswordRequest request,
+            Authentication authentication) {
+        Long userId = Long.parseLong(
+                authentication.getPrincipal().toString()
+        );
+        supervisorAccountsAuthenticationService
+                .changePassword(userId, request);
+        return ResponseEntity.ok(
+                "Password changed successfully");
+    }
     @PostMapping("/logout")
     @AuditableAction(action = "LOGOUT", entity = "USER_LOGOUT")
     public ResponseEntity<?> logout(HttpServletRequest request, HttpServletResponse response) {

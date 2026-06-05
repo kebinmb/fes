@@ -1,15 +1,19 @@
 package com.faculty_evaluation_backend.fes.controller.supervisor;
 
+import com.faculty_evaluation_backend.fes.dto.authentication.ChangePasswordRequest;
 import com.faculty_evaluation_backend.fes.dto.evaluation.EvaluatedStudentsDTO;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassDTO;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyDTO;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyLoadDTO;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyProgramLoadsDTO;
 import com.faculty_evaluation_backend.fes.dto.response.EvaluationCheckResponse;
+import com.faculty_evaluation_backend.fes.entities.authentication.CustomUserDetails;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.College;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.Programs;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.Status;
+import com.faculty_evaluation_backend.fes.services.authentication.SupervisorAccountsAuthenticationService;
 import com.faculty_evaluation_backend.fes.services.data.supervisor.SupervisorDataService;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
@@ -21,10 +25,8 @@ import org.springframework.data.web.PageableDefault;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.List;
