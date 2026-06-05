@@ -54,7 +54,7 @@ public class UserAccounts {
     @Builder.Default
     private Boolean isLocked = false;
 
-    @Column(name = "password_changed")
+    @Column(name = "password_changed_at")
     private Instant passwordChangedAt;
 
     @Column(name = "last_login_at")
