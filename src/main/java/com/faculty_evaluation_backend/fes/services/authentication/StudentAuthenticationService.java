@@ -135,7 +135,7 @@ public class StudentAuthenticationService {
 
         String transformedStudentId =
                 primaryStudentRepository
-                        .findByLegacyStudentId(studentId)
+                        .findByLegacyStudentIdWithLoad(studentId)
                         .orElseThrow(() ->
                                 new ResourceNotFoundException(
                                         "Student ID not found: " + studentId
@@ -188,7 +188,7 @@ public class StudentAuthenticationService {
         String normalizedAccessCode = accessCode.trim().toUpperCase();
         String transformedStudentId =
                 primaryStudentRepository
-                        .findByLegacyStudentId(studentId)
+                        .findByLegacyStudentIdWithLoad(studentId)
                         .orElseThrow(() ->
                                 new ResourceNotFoundException(
                                         "Student ID not found: " + studentId

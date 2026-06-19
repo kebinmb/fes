@@ -14,10 +14,10 @@ import java.util.Set;
 public interface PrimaryStudentRepository extends JpaRepository<PrimaryStudent, Long> {
 
     @Query("SELECT CASE WHEN COUNT(s) > 0 THEN true ELSE false END FROM PrimaryStudent s " +
-           "WHERE s.studentId = :studentId " +
-           "AND s.studentLastname = :studentLastname " +
-           "AND s.studentFirstname = :studentFirstname " +
-           "AND (s.studentMiddlename = :studentMiddlename OR (s.studentMiddlename IS NULL AND :studentMiddlename IS NULL))")
+            "WHERE s.studentId = :studentId " +
+            "AND s.studentLastname = :studentLastname " +
+            "AND s.studentFirstname = :studentFirstname " +
+            "AND (s.studentMiddlename = :studentMiddlename OR (s.studentMiddlename IS NULL AND :studentMiddlename IS NULL))")
     boolean existsByStudentIdAndStudentLastnameAndStudentFirstnameAndStudentMiddlename(
             @Param("studentId") String studentId,
             @Param("studentLastname") String studentLastname,
@@ -26,9 +26,9 @@ public interface PrimaryStudentRepository extends JpaRepository<PrimaryStudent, 
     );
 
     @Query("SELECT CASE WHEN COUNT(s) > 0 THEN true ELSE false END FROM PrimaryStudent s " +
-           "WHERE (s.curriculumMajorId = :curriculumMajorId OR (s.curriculumMajorId IS NULL AND :curriculumMajorId IS NULL)) " +
-           "AND (s.studentMiddlename = :studentMiddlename OR (s.studentMiddlename IS NULL AND :studentMiddlename IS NULL)) " +
-           "AND (s.gender = :gender OR (s.gender IS NULL AND :gender IS NULL))")
+            "WHERE (s.curriculumMajorId = :curriculumMajorId OR (s.curriculumMajorId IS NULL AND :curriculumMajorId IS NULL)) " +
+            "AND (s.studentMiddlename = :studentMiddlename OR (s.studentMiddlename IS NULL AND :studentMiddlename IS NULL)) " +
+            "AND (s.gender = :gender OR (s.gender IS NULL AND :gender IS NULL))")
     boolean existsByCurriculumMajorIdAndStudentMiddlenameAndGender(
             @Param("curriculumMajorId") Integer curriculumMajorId,
             @Param("studentMiddlename") String studentMiddlename,
@@ -40,25 +40,28 @@ public interface PrimaryStudentRepository extends JpaRepository<PrimaryStudent, 
     boolean existsByLegacyId(String legacyId);
 
     boolean existsByStudentId(String studentId);
+
     boolean existsByLegacyDatabaseAndLegacyId(
             String legacyDatabase,
             String legacyId
     );
 
     @Query("""
-    SELECT ps.studentId
+    SELECT DISTINCT ps.studentId
     FROM PrimaryStudent ps
+    JOIN PrimaryStudentLoad psl
+        ON psl.studentId = ps.studentId
     WHERE ps.legacyId = :studentId
 """)
-    Optional<String> findByLegacyStudentId(
+    Optional<String> findByLegacyStudentIdWithLoad(
             @Param("studentId") String studentId
     );
 
     @Query("""
-        SELECT ps.legacyId
-        FROM PrimaryStudent ps
-        WHERE ps.legacyId IN :ids
-    """)
+                SELECT ps.legacyId
+                FROM PrimaryStudent ps
+                WHERE ps.legacyId IN :ids
+            """)
     Set<String> findExistingLegacyIds(
             @Param("ids") Set<String> ids
     );
