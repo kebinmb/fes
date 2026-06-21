@@ -1,39 +1,42 @@
 spring:
+  config:
+    import: optional:file:.env[.properties]
+
   datasource:
     primary:
       jdbc-url: jdbc:mysql://localhost:3306/syndicateadmin_faculty_evaluation_db_prod?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-      username: root
-      password: root
+      username: ${DEV_DB_USERNAME:root}
+      password: ${DEV_DB_PASSWORD:root}
       driver-class-name: com.mysql.cj.jdbc.Driver
 
     legacy-talisay:
       jdbc-url: jdbc:mysql://localhost:3306/sisdatabase?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-      username: root
-      password: root
+      username: ${DEV_LEGACY_DB_USERNAME:root}
+      password: ${DEV_LEGACY_DB_PASSWORD:root}
       driver-class-name: com.mysql.cj.jdbc.Driver
 
     legacy-alijis:
       jdbc-url: jdbc:mysql://localhost:3306/sisdatabase_alijis?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-      username: root
-      password: root
+      username: ${DEV_LEGACY_DB_USERNAME:root}
+      password: ${DEV_LEGACY_DB_PASSWORD:root}
       driver-class-name: com.mysql.cj.jdbc.Driver
 
     legacy-binalbagan:
       jdbc-url: jdbc:mysql://localhost:3306/sisdatabase_binalbagan?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-      username: root
-      password: root
+      username: ${DEV_LEGACY_DB_USERNAME:root}
+      password: ${DEV_LEGACY_DB_PASSWORD:root}
       driver-class-name: com.mysql.cj.jdbc.Driver
 
     legacy-ft:
       jdbc-url: jdbc:mysql://localhost:3306/sisdatabase_ft?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-      username: root
-      password: root
+      username: ${DEV_LEGACY_DB_USERNAME:root}
+      password: ${DEV_LEGACY_DB_PASSWORD:root}
       driver-class-name: com.mysql.cj.jdbc.Driver
 
     authentication:
       jdbc-url: jdbc:mysql://localhost:3306/syndicateadmin_sis?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-      username: root
-      password: root
+      username: ${DEV_AUTHENTICATION_DB_USERNAME:root}
+      password: ${DEV_AUTHENTICATION_DB_PASSWORD:root}
       driver-class-name: com.mysql.cj.jdbc.Driver
 
     hikari:
@@ -60,8 +63,8 @@ spring:
       client:
         registration:
           google:
-            client-id: 30269263780-8uafu6al7sqkhr6u4kk8a690lm04tu1h.apps.googleusercontent.com
-            client-secret: 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
+            client-id: ${GOOGLE_CLIENT_ID:dev-google-client-id}
+            client-secret: ${GOOGLE_CLIENT_SECRET:dev-google-client-secret}
             scope:
               - email
               - profile
@@ -69,10 +72,10 @@ spring:
 email:
   accounts:
     - username: fes-noreply@chmsu.edu.ph
-      password: lidx mrcq kcvw sapq
+      password: ${MAIL_PASSWORD:}
 
     - username: fes1-noreply@chmsu.edu.ph
-      password: urcc iyvo chzp vxxf
+      password: ${MAIL_PASSWORD_2:}
 
   smtp:
     host: smtp.gmail.com
@@ -84,6 +87,8 @@ app:
   oauth2:
     redirect-url-success: "http://localhost:4200/oauth-success"
     redirect-url-failure: "http://localhost:4200/oauth-failure"
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:4200}
 
 logging:
   level:
@@ -96,6 +101,11 @@ server:
   port: 8090
 
 jwt:
-  secret: this-is-a-dev-secret-key-change-me
+  secret: ${JWT_SECRET:dev-only-change-this-secret-before-sharing}
   expiration: 900000
   refresh-expiration: 604800000
+
+management:
+  endpoint:
+    health:
+      show-details: always

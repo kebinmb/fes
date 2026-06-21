@@ -39,6 +39,7 @@ public class SecurityConfig {
 
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
     private final OAuth2FailureHandler oAuth2FailureHandler;
+    private final CorsProperties corsProperties;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -127,7 +128,7 @@ public class SecurityConfig {
 
         CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedOrigins(List.of("http://localhost:4200", "https://dev-feva.chmsu.edu.ph","https://feva.chmsu.edu.ph"));
+        configuration.setAllowedOrigins(corsProperties.getAllowedOrigins());
 
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
 

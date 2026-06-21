@@ -1,6 +1,5 @@
 package com.faculty_evaluation_backend.fes.services.authentication;
 
-import com.faculty_evaluation_backend.fes.audit.AuditableAction;
 import com.faculty_evaluation_backend.fes.config.jwt.JwtConfig;
 import com.faculty_evaluation_backend.fes.dto.authentication.ChangePasswordRequest;
 import com.faculty_evaluation_backend.fes.dto.authentication.UserAuthenticationResponse;
@@ -33,7 +32,6 @@ public class SupervisorAccountsAuthenticationService {
     private final JwtService jwtService;
     private final JwtConfig jwtConfig;
 
-    @AuditableAction(action = "AUTHENTICATE_SUPERVISOR", entity = "SUPERVISOR_AUTHENTICATION")
     @Transactional(transactionManager = "primaryTransactionManager")
     public UserAuthenticationResponse login(LoginRequest loginRequest) {
 

@@ -5,17 +5,15 @@ import com.faculty_evaluation_backend.fes.config.email.EmailAccountPool;
 import com.faculty_evaluation_backend.fes.config.email.EmailProperties;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
-
 import lombok.RequiredArgsConstructor;
-
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.mail.javamail.MimeMessageHelper;
-
 import org.springframework.stereotype.Service;
+import org.springframework.web.util.HtmlUtils;
 
 import java.io.UnsupportedEncodingException;
-
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -23,490 +21,190 @@ import java.util.Properties;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class EmailService {
+
+    private static final String FROM_NAME = "CHMSU Faculty Evaluation System";
 
     private final EmailAccountPool emailAccountPool;
     private final EmailProperties emailProperties;
-    public void sendAccessCodeEmail(
-            String to,
-            String accessCode,
-            Instant expiresAt
-    ) {
 
-        String formattedExpiry =
-                DateTimeFormatter
-                        .ofPattern(
-                                "MMMM dd, yyyy hh:mm a"
-                        )
-                        .withZone(
-                                ZoneId.systemDefault()
-                        )
-                        .format(expiresAt);
+    public void sendAccessCodeEmail(String to, String accessCode, Instant expiresAt) {
+        String formattedExpiry = DateTimeFormatter
+                .ofPattern("MMMM dd, yyyy hh:mm a")
+                .withZone(ZoneId.systemDefault())
+                .format(expiresAt);
 
-        String htmlContent =
-                buildAccessCodeHtml(
-                        accessCode,
-                        formattedExpiry
-                );
+        String htmlContent = buildAccessCodeHtml(accessCode, formattedExpiry);
+        String textContent = buildAccessCodeText(accessCode, formattedExpiry);
 
         Exception lastException = null;
 
-        for (EmailAccount account :
-                emailAccountPool.getAll()) {
-
+        for (EmailAccount account : emailAccountPool.getAll()) {
             try {
+                JavaMailSender sender = createSender(account);
+                MimeMessage message = sender.createMimeMessage();
+                MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-                JavaMailSender sender =
-                        createSender(account);
-
-                MimeMessage message =
-                        sender.createMimeMessage();
-
-                MimeMessageHelper helper =
-                        new MimeMessageHelper(
-                                message,
-                                true,
-                                "UTF-8"
-                        );
-
-                helper.setFrom(
-                        account.username(),
-                        "Carlos Hilado Memorial State University - Faculty Evaluation System"
-                );
-
+                helper.setFrom(account.username(), FROM_NAME);
                 helper.setTo(to);
-
-                helper.setSubject(
-                        "Faculty Evaluation Access Code"
-                );
-
-                helper.setText(
-                        htmlContent,
-                        true
-                );
+                helper.setSubject("Faculty Evaluation Access Code");
+                helper.setText(textContent, htmlContent);
 
                 sender.send(message);
-
                 return;
-
-            } catch (
-                    MessagingException |
-                    UnsupportedEncodingException e
-            ) {
-
+            } catch (MessagingException | UnsupportedEncodingException e) {
                 lastException = e;
-
-                System.err.println(
-                        "Email sender failed: "
-                                + account.username()
-                );
+                log.warn("Email sender failed for account {}", account.username(), e);
             } catch (Exception e) {
-
                 lastException = e;
-
-                System.err.println(
-                        "SMTP failed: "
-                                + account.username()
-                                + " -> "
-                                + e.getMessage()
-                );
+                log.warn("SMTP failed for account {}: {}", account.username(), e.getMessage(), e);
             }
         }
 
-        throw new RuntimeException(
-                "All configured email accounts failed.",
-                lastException
-        );
+        throw new RuntimeException("All configured email accounts failed.", lastException);
     }
-    private JavaMailSender createSender(
-            EmailAccount account
-    ) {
 
-        JavaMailSenderImpl sender =
-                new JavaMailSenderImpl();
+    private JavaMailSender createSender(EmailAccount account) {
+        JavaMailSenderImpl sender = new JavaMailSenderImpl();
 
-        sender.setHost(
-                emailProperties
-                        .getSmtp()
-                        .getHost()
-        );
+        sender.setHost(emailProperties.getSmtp().getHost());
+        sender.setPort(emailProperties.getSmtp().getPort());
+        sender.setUsername(account.username());
+        sender.setPassword(account.password());
 
-        sender.setPort(
-                emailProperties
-                        .getSmtp()
-                        .getPort()
-        );
-
-        sender.setUsername(
-                account.username()
-        );
-
-        sender.setPassword(
-                account.password()
-        );
-
-        Properties props =
-                sender.getJavaMailProperties();
-
-        props.put(
-                "mail.smtp.auth",
-                String.valueOf(
-                        emailProperties
-                                .getSmtp()
-                                .isAuth()
-                )
-        );
-
-        props.put(
-                "mail.smtp.starttls.enable",
-                String.valueOf(
-                        emailProperties
-                                .getSmtp()
-                                .isStarttls()
-                )
-        );
-
-        props.put(
-                "mail.smtp.connectiontimeout",
-                "10000"
-        );
-
-        props.put(
-                "mail.smtp.timeout",
-                "10000"
-        );
-
-        props.put(
-                "mail.smtp.writetimeout",
-                "10000"
-        );
+        Properties props = sender.getJavaMailProperties();
+        props.put("mail.smtp.auth", String.valueOf(emailProperties.getSmtp().isAuth()));
+        props.put("mail.smtp.starttls.enable", String.valueOf(emailProperties.getSmtp().isStarttls()));
+        props.put("mail.smtp.connectiontimeout", "10000");
+        props.put("mail.smtp.timeout", "10000");
+        props.put("mail.smtp.writetimeout", "10000");
 
         return sender;
     }
 
-    private String buildAccessCodeHtml(String accessCode, String formattedExpiry){
+    private String buildAccessCodeText(String accessCode, String formattedExpiry) {
         return """
-                    <!DOCTYPE html>
-                    <html lang="en">
-                    <head>
-                        <meta charset="UTF-8">
-                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                        <title>Faculty Evaluation Access Code</title>
-                    </head>
-                    
-                    <body style="
-                        margin: 0;
-                        padding: 0;
-                        background-color: #f4f7fb;
-                        font-family: Arial, Helvetica, sans-serif;
-                        color: #1f2937;
-                    ">
-                    
-                    <table
-                        width="100%%"
-                        cellpadding="0"
-                        cellspacing="0"
-                        border="0"
-                        style="
-                            background: linear-gradient(
-                                135deg,
-                                #eef6f1 0%%,
-                                #f4f7fb 100%%
-                            );
-                            padding: 40px 20px;
-                        "
-                    >
-                    
+                CHMSU Faculty Evaluation System
+                
+                Your one-time access code is: %s
+                
+                This code expires on %s.
+                
+                Never share your access code. CHMSU staff will never ask for this code through email or chat.
+                
+                This is an automated message. Please do not reply.
+                """.formatted(accessCode, formattedExpiry);
+    }
+
+    private String buildAccessCodeHtml(String accessCode, String formattedExpiry) {
+        String safeAccessCode = HtmlUtils.htmlEscape(accessCode);
+        String safeFormattedExpiry = HtmlUtils.htmlEscape(formattedExpiry);
+
+        return """
+                <!doctype html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <meta name="color-scheme" content="light">
+                    <title>Faculty Evaluation Access Code</title>
+                </head>
+                <body style="margin:0; padding:0; background-color:#eef2f0; font-family:Arial, Helvetica, sans-serif; color:#17211d;">
+                <div style="display:none; max-height:0; overflow:hidden; opacity:0;">
+                    Your CHMSU Faculty Evaluation access code is %s.
+                </div>
+                <table role="presentation" width="100%%" cellspacing="0" cellpadding="0" border="0" style="background-color:#eef2f0;">
                     <tr>
-                    <td align="center">
-                    
-                    <!-- MAIN CONTAINER -->
-                    <table
-                        width="640"
-                        cellpadding="0"
-                        cellspacing="0"
-                        border="0"
-                        style="
-                            background-color: #ffffff;
-                            border-radius: 22px;
-                            overflow: hidden;
-                            box-shadow:
-                                0 10px 35px rgba(0,0,0,0.08);
-                        "
-                    >
-                    
-                    <!-- TOP ACCENT -->
-                    <tr>
-                    <td style="
-                        height: 8px;
-                        background: linear-gradient(
-                            90deg,
-                            #186443 0%%,
-                            #2c8f61 50%%,
-                            #e5d413 100%%
-                        );
-                    ">
-                    </td>
+                        <td align="center" style="padding:32px 16px;">
+                            <table role="presentation" width="100%%" cellspacing="0" cellpadding="0" border="0" style="max-width:640px; background-color:#ffffff; border:1px solid #dce5df; border-radius:8px; overflow:hidden;">
+                                <tr>
+                                    <td style="height:6px; background-color:#186443;"></td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:28px 32px 20px 32px;">
+                                        <table role="presentation" width="100%%" cellspacing="0" cellpadding="0" border="0">
+                                            <tr>
+                                                <td align="left" style="vertical-align:middle;">
+                                                    <div style="display:inline-block; padding:10px 12px; border:1px solid #c9ded2; border-radius:8px; color:#186443; font-size:13px; font-weight:700; letter-spacing:.08em;">
+                                                        CHMSU FES
+                                                    </div>
+                                                </td>
+                                                <td align="right" style="vertical-align:middle; color:#6b756f; font-size:12px; letter-spacing:.08em; text-transform:uppercase;">
+                                                    Secure access code
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:0 32px 24px 32px;">
+                                        <h1 style="margin:0 0 10px 0; font-size:26px; line-height:1.25; color:#17211d; font-weight:700;">
+                                            Faculty Evaluation System
+                                        </h1>
+                                        <p style="margin:0; font-size:15px; line-height:1.7; color:#4f5f56;">
+                                            Use this one-time code to continue signing in to the CHMSU Faculty Evaluation System.
+                                        </p>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:0 32px 28px 32px;">
+                                        <table role="presentation" width="100%%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f6faf7; border:1px solid #cfe2d7; border-radius:8px;">
+                                            <tr>
+                                                <td align="center" style="padding:28px 20px;">
+                                                    <div style="margin:0 0 12px 0; color:#607169; font-size:12px; font-weight:700; letter-spacing:.12em; text-transform:uppercase;">
+                                                        Your access code
+                                                    </div>
+                                                    <div style="font-family:'Courier New', Courier, monospace; color:#103e2b; font-size:34px; line-height:1.2; font-weight:700; letter-spacing:.12em;">
+                                                        %s
+                                                    </div>
+                                                    <div style="margin-top:12px; color:#6b756f; font-size:12px;">
+                                                        Enter exactly as shown.
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:0 32px 24px 32px;">
+                                        <table role="presentation" width="100%%" cellspacing="0" cellpadding="0" border="0" style="background-color:#fff9e8; border:1px solid #ead89a; border-radius:8px;">
+                                            <tr>
+                                                <td style="padding:16px 18px;">
+                                                    <p style="margin:0; color:#745300; font-size:14px; line-height:1.6;">
+                                                        <strong>Expires:</strong> %s
+                                                    </p>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:0 32px 32px 32px;">
+                                        <p style="margin:0 0 12px 0; color:#17211d; font-size:15px; font-weight:700;">
+                                            Security reminder
+                                        </p>
+                                        <p style="margin:0; color:#4f5f56; font-size:14px; line-height:1.7;">
+                                            Never share this code. CHMSU staff will never ask for your access code through email, chat, or phone.
+                                        </p>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:22px 32px; background-color:#f7f9f8; border-top:1px solid #e1e8e4;">
+                                        <p style="margin:0; color:#186443; font-size:14px; font-weight:700;">
+                                            Carlos Hilado Memorial State University
+                                        </p>
+                                        <p style="margin:6px 0 0 0; color:#7b8780; font-size:12px; line-height:1.6;">
+                                            Faculty Evaluation System. This is an automated message; please do not reply.
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
                     </tr>
-                    
-                    <!-- HEADER -->
-                    <tr>
-                    <td style="
-                        padding: 42px 50px 30px 50px;
-                        background-color: #ffffff;
-                    ">
-                    
-                    <table width="100%%" cellpadding="0" cellspacing="0">
-                    <tr>
-                    
-                    <td align="left">
-                    
-                    <div style="
-                        width: 64px;
-                        height: 64px;
-                        border-radius: 18px;
-                        background-color: #186443;
-                        text-align: center;
-                        line-height: 64px;
-                        font-size: 30px;
-                        color: white;
-                        font-weight: bold;
-                    ">
-                        FE
-                    </div>
-                    
-                    </td>
-                    
-                    <td align="right">
-                    
-                    <p style="
-                        margin: 0;
-                        font-size: 13px;
-                        color: #6b7280;
-                        letter-spacing: 1px;
-                    ">
-                        SECURE ACCESS PORTAL
-                    </p>
-                    
-                    </td>
-                    
-                    </tr>
-                    </table>
-                    
-                    <h1 style="
-                        margin-top: 30px;
-                        margin-bottom: 10px;
-                        font-size: 34px;
-                        color: #111827;
-                        line-height: 1.2;
-                    ">
-                        Faculty Evaluation System
-                    </h1>
-                    
-                    <p style="
-                        margin: 0;
-                        font-size: 16px;
-                        color: #6b7280;
-                        line-height: 1.7;
-                    ">
-                        Your secure one-time access code has been generated successfully.
-                    </p>
-                    
-                    </td>
-                    </tr>
-                    
-                    <!-- BODY -->
-                    <tr>
-                    <td style="padding: 0 50px 40px 50px;">
-                    
-                    <!-- GREETING -->
-                    <p style="
-                        margin-top: 0;
-                        margin-bottom: 18px;
-                        font-size: 16px;
-                        color: #374151;
-                        line-height: 1.8;
-                    ">
-                        Hello Student,
-                    </p>
-                    
-                    <p style="
-                        margin-top: 0;
-                        margin-bottom: 28px;
-                        font-size: 16px;
-                        color: #4b5563;
-                        line-height: 1.8;
-                    ">
-                        Please use the secure verification code below to continue accessing the
-                        Faculty Evaluation System platform.
-                    </p>
-                    
-                    <!-- ACCESS CODE CARD -->
-                    <div style="
-                        background:
-                            linear-gradient(
-                                135deg,
-                                #186443 0%%,
-                                #237552 100%%
-                            );
-                        border-radius: 20px;
-                        padding: 35px 30px;
-                        text-align: center;
-                        margin-bottom: 30px;
-                    ">
-                    
-                    <p style="
-                        margin: 0;
-                        color: rgba(255,255,255,0.75);
-                        font-size: 13px;
-                        letter-spacing: 2px;
-                    ">
-                        YOUR ACCESS CODE
-                    </p>
-                    
-                    <h2 style="
-                        margin-top: 18px;
-                        margin-bottom: 0;
-                        color: #ffffff;
-                        font-size: 42px;
-                        letter-spacing: 10px;
-                        font-weight: bold;
-                    ">
-                        %s
-                    </h2>
-                    
-                    </div>
-                    
-                    <!-- EXPIRATION CARD -->
-                    <table
-                        width="100%%"
-                        cellpadding="0"
-                        cellspacing="0"
-                        border="0"
-                        style="
-                            background-color: #fff8e8;
-                            border: 1px solid #f3d27a;
-                            border-radius: 14px;
-                            margin-bottom: 28px;
-                        "
-                    >
-                    
-                    <tr>
-                    <td style="padding: 18px 22px;">
-                    
-                    <p style="
-                        margin: 0;
-                        color: #92400e;
-                        font-size: 15px;
-                        line-height: 1.7;
-                    ">
-                        ⏳ This access code will expire on:
-                        <strong>%s</strong>
-                    </p>
-                    
-                    </td>
-                    </tr>
-                    
-                    </table>
-                    
-                    <!-- SECURITY NOTE -->
-                    <div style="
-                        background-color: #f9fafb;
-                        border-radius: 14px;
-                        padding: 22px;
-                        border: 1px solid #e5e7eb;
-                    ">
-                    
-                    <p style="
-                        margin-top: 0;
-                        margin-bottom: 12px;
-                        font-size: 15px;
-                        color: #111827;
-                        font-weight: bold;
-                    ">
-                        Security Reminder
-                    </p>
-                    
-                    <p style="
-                        margin: 0;
-                        font-size: 14px;
-                        color: #6b7280;
-                        line-height: 1.8;
-                    ">
-                        Never share your access code with anyone.
-                        University administrators will never ask for your code through email or chat.
-                    </p>
-                    
-                    </div>
-                    
-                    <!-- THANK YOU -->
-                    <p style="
-                        margin-top: 35px;
-                        margin-bottom: 0;
-                        font-size: 15px;
-                        color: #4b5563;
-                        line-height: 1.8;
-                    ">
-                        Thank you for using the
-                        <strong>CHMSU Faculty Evaluation System</strong>.
-                    </p>
-                    
-                    </td>
-                    </tr>
-                    
-                    <!-- FOOTER -->
-                    <tr>
-                    <td style="
-                        background-color: #f9fafb;
-                        padding: 30px;
-                        text-align: center;
-                        border-top: 1px solid #e5e7eb;
-                    ">
-                    
-                    <p style="
-                        margin: 0;
-                        font-size: 15px;
-                        font-weight: bold;
-                        color: #186443;
-                    ">
-                        Carlos Hilado Memorial State University
-                    </p>
-                    
-                    <p style="
-                        margin-top: 10px;
-                        margin-bottom: 0;
-                        font-size: 13px;
-                        color: #6b7280;
-                        line-height: 1.8;
-                    ">
-                        Faculty Evaluation System
-                    </p>
-                    
-                    <p style="
-                        margin-top: 10px;
-                        margin-bottom: 0;
-                        font-size: 12px;
-                        color: #9ca3af;
-                        line-height: 1.8;
-                    ">
-                        This is an automated message.
-                        Please do not reply to this email.
-                    </p>
-                    
-                    </td>
-                    </tr>
-                    
-                    </table>
-                    
-                    <!-- END MAIN CONTAINER -->
-                    
-                    </td>
-                    </tr>
-                    
-                    </table>
-                    
-                    </body>
-                    </html>
-                    """.formatted(accessCode, formattedExpiry);
+                </table>
+                </body>
+                </html>
+                """.formatted(safeAccessCode, safeAccessCode, safeFormattedExpiry);
     }
 }

@@ -3,6 +3,7 @@ package com.faculty_evaluation_backend.fes.audit;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
@@ -16,6 +17,7 @@ import java.util.Map;
 @Aspect
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class AuditAspect {
     private final AuditLogRepository auditLogRepository;
     private final HttpServletRequest request;
@@ -24,29 +26,38 @@ public class AuditAspect {
     @Around("@annotation(auditableAction)")
     public Object logAudit(ProceedingJoinPoint joinPoint,
                            AuditableAction auditableAction) throws Throwable{
-        AuditLog log = new AuditLog();
-        log.setAction(auditableAction.action());
-        log.setEntityType(auditableAction.entity());
-        log.setRequestPath(request.getRequestURI());
-        log.setRequestMethod(request.getMethod());
-        log.setIpAddress(request.getRemoteAddr());
-        log.setUserAgent(request.getHeader("User-Agent"));
-        log.setCreatedAt(Instant.now());
-        setUserInformation(log);
+        AuditLog auditLog = new AuditLog();
+        auditLog.setAction(auditableAction.action());
+        auditLog.setEntityType(auditableAction.entity());
+        auditLog.setRequestPath(request.getRequestURI());
+        auditLog.setRequestMethod(request.getMethod());
+        auditLog.setIpAddress(request.getRemoteAddr());
+        auditLog.setUserAgent(request.getHeader("User-Agent"));
+        auditLog.setCreatedAt(Instant.now());
+        setUserInformation(auditLog);
         long start = System.currentTimeMillis();
         try{
             Object result = joinPoint.proceed();
-            log.setAction(log.getAction() + "_SUCESS");
-            log.setNewValue(objectMapper.writeValueAsString(Map.of("status","success")));
+            auditLog.setAction(auditLog.getAction() + "_SUCCESS");
+            auditLog.setNewValue(objectMapper.writeValueAsString(Map.of("status","success")));
             return result;
         }catch (Exception ex){
-            log.setAction(log.getAction() + "_FAILED");
-            log.setNewValue(objectMapper.writeValueAsString(Map.of("error",ex.getMessage())));
+            auditLog.setAction(auditLog.getAction() + "_FAILED");
+            auditLog.setNewValue(objectMapper.writeValueAsString(Map.of(
+                    "error", ex.getClass().getSimpleName(),
+                    "message", safeMessage(ex)
+            )));
             throw ex;
         }finally {
             long duration = System.currentTimeMillis() - start;
-            log.setExecutionTimeMs(duration);
-            auditLogRepository.save(log);
+            auditLog.setExecutionTimeMs(duration);
+            try {
+                auditLogRepository.save(auditLog);
+            } catch (Exception auditException) {
+                log.warn("Failed to persist audit log for action {}: {}",
+                        auditableAction.action(),
+                        auditException.getMessage());
+            }
         }
     }
 
@@ -61,5 +72,13 @@ public class AuditAspect {
         log.setUsername(username);
         //Check student or faculty if it exists in the database
         //Logic is faculty or supervisor logs in using username and password. student logs in using access code
+    }
+
+    private String safeMessage(Exception ex) {
+        String message = ex.getMessage();
+        if (message == null || message.isBlank()) {
+            return "No error message provided";
+        }
+        return message.length() <= 500 ? message : message.substring(0, 500);
     }
 }

@@ -1,0 +1,68 @@
+spring:
+  datasource:
+    primary:
+      jdbc-url: jdbc:h2:mem:fes_primary;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
+      username: sa
+      password:
+      driver-class-name: org.h2.Driver
+
+    legacy-talisay:
+      jdbc-url: jdbc:h2:mem:fes_legacy_talisay;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
+      username: sa
+      password:
+      driver-class-name: org.h2.Driver
+
+    legacy-alijis:
+      jdbc-url: jdbc:h2:mem:fes_legacy_alijis;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
+      username: sa
+      password:
+      driver-class-name: org.h2.Driver
+
+    legacy-binalbagan:
+      jdbc-url: jdbc:h2:mem:fes_legacy_binalbagan;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
+      username: sa
+      password:
+      driver-class-name: org.h2.Driver
+
+    legacy-ft:
+      jdbc-url: jdbc:h2:mem:fes_legacy_ft;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
+      username: sa
+      password:
+      driver-class-name: org.h2.Driver
+
+    authentication:
+      jdbc-url: jdbc:h2:mem:fes_authentication;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
+      username: sa
+      password:
+      driver-class-name: org.h2.Driver
+
+  flyway:
+    enabled: false
+
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: false
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: test-google-client-id
+            client-secret: test-google-client-secret
+            scope:
+              - email
+              - profile
+
+jwt:
+  secret: test-only-secret-key-with-enough-length-for-hmac-signing
+
+app:
+  oauth2:
+    redirect-url-success: http://localhost:4200/oauth-success
+    redirect-url-failure: http://localhost:4200/oauth-failure
+  cors:
+    allowed-origins: http://localhost:4200

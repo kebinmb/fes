@@ -33,7 +33,7 @@ public class StudentDataController {
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "primaryStudentLoadId,desc") String sort
     ){
-        System.out.println("Student ID:" + studentId);
+        log.debug("Fetching student loads for studentId={}", studentId);
         String sortField = "primaryStudentLoadId";
         Sort.Direction direction = Sort.Direction.DESC;
 
