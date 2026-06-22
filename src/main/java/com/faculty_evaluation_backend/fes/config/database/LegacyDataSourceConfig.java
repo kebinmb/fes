@@ -7,6 +7,7 @@ import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.boot.jpa.EntityManagerFactoryBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
@@ -71,19 +72,35 @@ public class LegacyDataSourceConfig {
     }
 
     @Bean(name = "legacyEntityManagerFactory")
-    public LocalContainerEntityManagerFactoryBean legacyEntityManagerFactory(EntityManagerFactoryBuilder entityManagerFactoryBuilder, @Qualifier("legacyDataSource") DataSource dataSource) {
+    public LocalContainerEntityManagerFactoryBean legacyEntityManagerFactory(
+            EntityManagerFactoryBuilder entityManagerFactoryBuilder,
+            @Qualifier("legacyDataSource") DataSource dataSource,
+            Environment environment
+    ) {
 
         Map<String, Object> properties = new HashMap<>();
 
         properties.put("hibernate.hbm2ddl.auto", "none");
 
-        properties.put("hibernate.dialect", "org.hibernate.dialect.MySQLDialect");
+        properties.put(
+                "hibernate.dialect",
+                environment.getProperty(
+                        "spring.jpa.properties.hibernate.dialect",
+                        "org.hibernate.dialect.MySQLDialect"
+                )
+        );
 
         properties.put("hibernate.boot.allow_jdbc_metadata_access", false);
 
         properties.put("hibernate.temp.use_jdbc_metadata_defaults", false);
 
-        properties.put("hibernate.format_sql", true);
+        properties.put(
+                "hibernate.format_sql",
+                environment.getProperty(
+                        "spring.jpa.properties.hibernate.format_sql",
+                        "false"
+                )
+        );
         return entityManagerFactoryBuilder.dataSource(dataSource).packages("com.faculty_evaluation_backend.fes.entities.legacy").persistenceUnit("legacy").properties(properties).build();
     }
 

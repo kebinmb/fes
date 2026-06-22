@@ -2,8 +2,6 @@ package com.faculty_evaluation_backend.fes.migration.services;
 
 import com.faculty_evaluation_backend.fes.config.database.LegacyDatabase;
 import com.faculty_evaluation_backend.fes.entities.legacy.LegacyStudentLoad;
-import com.faculty_evaluation_backend.fes.entities.primary.PrimaryClass;
-import com.faculty_evaluation_backend.fes.entities.primary.PrimaryStudent;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryStudentLoad;
 import com.faculty_evaluation_backend.fes.migration.engine.ParallelMigrationExecutor;
 import com.faculty_evaluation_backend.fes.repositories.legacy.LegacyStudentLoadRepository;
@@ -16,7 +14,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -28,7 +25,7 @@ public class StudentLoadMigration extends BaseMigrationService {
     private final ParallelMigrationExecutor parallelMigrationExecutor;
     private final PrimaryClassRepository primaryClassRepository;
     private final PrimaryStudentRepository primaryStudentRepository;
-    private static final int BATCH_SIZE = 10;
+    private static final int BATCH_SIZE = 500;
 
     public void migrate() {
 
@@ -46,26 +43,19 @@ public class StudentLoadMigration extends BaseMigrationService {
                     data.size(),
                     database.name()
             );
+
             Set<String> validClassCodes =
-                    primaryClassRepository.findAll()
-                            .stream()
-                            .filter(pc ->
-                                    database.name().equals(
-                                            pc.getLegacyDatabase()
-                                    )
-                            )
-                            .map(PrimaryClass::getLegacyId)
-                            .collect(Collectors.toSet());
+                    primaryClassRepository
+                            .findLegacyIdsByDatabase(database.name());
+
             Set<String> validStudentIds =
-                    primaryStudentRepository.findAll()
-                            .stream()
-                            .filter(ps ->
-                                    database.name().equals(
-                                            ps.getLegacyDatabase()
-                                    )
-                            )
-                            .map(PrimaryStudent::getStudentId)
-                            .collect(Collectors.toSet());
+                    primaryStudentRepository
+                            .findStudentIdsByLegacyDatabase(database.name());
+
+            Set<String> existingLegacyIds =
+                    primaryStudentLoadRepository
+                            .findLegacyIdsByDatabase(database.name());
+
             parallelMigrationExecutor.processInParallel(
                     data,
                     BATCH_SIZE,
@@ -81,13 +71,11 @@ public class StudentLoadMigration extends BaseMigrationService {
                                         )
                                 )
                                 .filter(ls ->
-                                        !primaryStudentLoadRepository
-                                                .existsByLegacyDatabaseAndLegacyId(
-                                                        database.name(),
-                                                        ls.getId()
-                                                                .getLoadId()
-                                                                .toString()
-                                                )
+                                        !existingLegacyIds.contains(
+                                                ls.getId()
+                                                        .getLoadId()
+                                                        .toString()
+                                        )
                                 )
                                 .filter(ls ->
                                         validStudentIds.contains(

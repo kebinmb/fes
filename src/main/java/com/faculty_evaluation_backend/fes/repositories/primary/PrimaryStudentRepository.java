@@ -41,10 +41,31 @@ public interface PrimaryStudentRepository extends JpaRepository<PrimaryStudent, 
 
     boolean existsByStudentId(String studentId);
 
+    @Query("""
+                SELECT ps.studentId
+                FROM PrimaryStudent ps
+                WHERE ps.studentId IN :studentIds
+            """)
+    Set<String> findExistingStudentIds(@Param("studentIds") Set<String> studentIds);
+
     boolean existsByLegacyDatabaseAndLegacyId(
             String legacyDatabase,
             String legacyId
     );
+
+    @Query("""
+                SELECT ps.legacyId
+                FROM PrimaryStudent ps
+                WHERE ps.legacyDatabase = :database
+            """)
+    Set<String> findLegacyIdsByDatabase(@Param("database") String database);
+
+    @Query("""
+                SELECT ps.studentId
+                FROM PrimaryStudent ps
+                WHERE ps.legacyDatabase = :database
+            """)
+    Set<String> findStudentIdsByLegacyDatabase(@Param("database") String database);
 
     @Query("""
     SELECT DISTINCT ps.studentId

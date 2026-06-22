@@ -18,7 +18,7 @@ import lombok.*;
         uniqueConstraints = @UniqueConstraint(
                 columnNames = {
                         "faculty_id",
-                        "student_id",
+                        "evaluator_id",
                         "class_code",
                         "semester",
                         "school_year"
@@ -49,7 +49,7 @@ public class FacultyEvaluationScore extends Auditable {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(
-            name = "student_id",
+            name = "evaluator_id",
             referencedColumnName = "student_id",
             insertable = false,
             updatable = false

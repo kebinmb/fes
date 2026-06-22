@@ -10,6 +10,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 @Repository
 public interface PrimarySectionRepository extends JpaRepository<PrimarySection, Long> {
 
@@ -29,6 +31,13 @@ public interface PrimarySectionRepository extends JpaRepository<PrimarySection, 
             String legacyDatabase,
             String legacyId
     );
+
+    @Query("""
+                SELECT s.legacyId
+                FROM PrimarySection s
+                WHERE s.legacyDatabase = :database
+            """)
+    List<String> findLegacyIdsByDatabase(@Param("database") String database);
 
     @Query("""
     SELECT new com.faculty_evaluation_backend.fes.dto.student.StudentSectionDTO(

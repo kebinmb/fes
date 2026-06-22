@@ -5,8 +5,8 @@ local-data/
 hs_err_pid*.log
 replay_pid*.log
 .env
-.env.*
-!.env.example
+.env
+!.env
 !**/src/main/**/target/
 !**/src/test/**/target/
 

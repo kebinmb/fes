@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -21,7 +22,7 @@ public class StudentMigration extends BaseMigrationService {
     private final PrimaryStudentRepository primaryStudentRepository;
     private final ParallelMigrationExecutor parallelMigrationExecutor;
 
-    private static final int BATCH_SIZE = 10;
+    private static final int BATCH_SIZE = 500;
 
     public void migrate() {
 
@@ -39,6 +40,11 @@ public class StudentMigration extends BaseMigrationService {
                     data.size(),
                     database.name()
             );
+
+            Set<String> existingLegacyIds =
+                    primaryStudentRepository
+                            .findLegacyIdsByDatabase(database.name());
+
             parallelMigrationExecutor.processInParallel(
                     data,
                     BATCH_SIZE,
@@ -47,11 +53,9 @@ public class StudentMigration extends BaseMigrationService {
                         List<PrimaryStudent> toSave = batch.stream()
                                 .filter(ls -> ls != null && ls.getId() != null)
                                 .filter(ls ->
-                                        !primaryStudentRepository
-                                                .existsByLegacyDatabaseAndLegacyId(
-                                                        database.name(),
-                                                        ls.getId().getStudentId()
-                                                )
+                                        !existingLegacyIds.contains(
+                                                ls.getId().getStudentId()
+                                        )
                                 )
                                 .map(ls -> map(ls, database))
                                 .toList();

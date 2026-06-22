@@ -32,6 +32,20 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
     List<FacultyEvaluationScore> findByFacultyIdAndClassCode(String facultyId, String classCode);
 
     @Query("""
+                SELECT fes
+                FROM FacultyEvaluationScore fes
+                JOIN FETCH fes.faculty
+                WHERE fes.facultyId = :facultyId
+                  AND fes.schoolYear = :schoolYear
+                  AND fes.semester = :semester
+            """)
+    List<FacultyEvaluationScore> findByFacultyIdAndSchoolYearAndSemesterWithFaculty(
+            @Param("facultyId") String facultyId,
+            @Param("schoolYear") Integer schoolYear,
+            @Param("semester") String semester
+    );
+
+    @Query("""
             SELECT DISTINCT new com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassDetailsDTO(
                 f.classCode,
                 ps.sectionCode,

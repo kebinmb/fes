@@ -12,12 +12,13 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Set;
 
 @Repository
 public interface PrimaryStudentLoadRepository extends JpaRepository<PrimaryStudentLoad, Long> {
 
     @Query("SELECT CASE WHEN COUNT(sl) > 0 THEN true ELSE false END FROM PrimaryStudentLoad sl " + "WHERE sl.loadId = :loadId " + "AND sl.studentId = :studentId " + "AND (sl.yearLevel = :yearLevel OR (sl.yearLevel IS NULL AND :yearLevel IS NULL)) " + "AND sl.classCode = :classCode")
-    boolean existsByLoadIdAndStudentIdAndYearLevelAndClassCode(@Param("loadId") Integer loadId, @Param("studentId") String studentId, @Param("yearLevel") String yearLevel, @Param("classCode") Integer classCode);
+    boolean existsByLoadIdAndStudentIdAndYearLevelAndClassCode(@Param("loadId") Integer loadId, @Param("studentId") String studentId, @Param("yearLevel") String yearLevel, @Param("classCode") String classCode);
 
     Integer countDistinctTotalPrimaryStudentLoadByStudentId(String studentId);
 
@@ -55,6 +56,13 @@ public interface PrimaryStudentLoadRepository extends JpaRepository<PrimaryStude
     Integer findTotalStudentsInClass(@Param("classCode") String classCode);
 
     boolean existsByLegacyDatabaseAndLegacyId(String legacyDatabase, String legacyId);
+
+    @Query("""
+                SELECT psl.legacyId
+                FROM PrimaryStudentLoad psl
+                WHERE psl.legacyDatabase = :database
+            """)
+    Set<String> findLegacyIdsByDatabase(@Param("database") String database);
 
     @Query(value = """
     SELECT

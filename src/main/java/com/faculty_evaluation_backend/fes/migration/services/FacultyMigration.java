@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -23,7 +24,7 @@ public class FacultyMigration extends BaseMigrationService {
     private final PrimaryFacultyRepository primaryFacultyRepository;
     private final ParallelMigrationExecutor parallelMigrationExecutor;
 
-    private static final int BATCH_SIZE = 10;
+    private static final int BATCH_SIZE = 500;
 
     public void migrate() {
 
@@ -38,6 +39,11 @@ public class FacultyMigration extends BaseMigrationService {
                     legacyList.size(),
                     database.name()
             );
+
+            Set<String> existingLegacyIds =
+                    primaryFacultyRepository
+                            .findLegacyIdsByDatabase(database.name());
+
             parallelMigrationExecutor.processInParallel(
                     legacyList,
                     BATCH_SIZE,
@@ -46,11 +52,9 @@ public class FacultyMigration extends BaseMigrationService {
                         List<PrimaryFaculty> toSave = batch.stream()
                                 .filter(l -> l != null && l.getId() != null)
                                 .filter(l ->
-                                        !primaryFacultyRepository
-                                                .existsByLegacyDatabaseAndLegacyId(
-                                                        database.name(),
-                                                        l.getId().getFacultyId()
-                                                )
+                                        !existingLegacyIds.contains(
+                                                l.getId().getFacultyId()
+                                        )
                                 )
                                 .map(l -> map(l, database))
                                 .toList();

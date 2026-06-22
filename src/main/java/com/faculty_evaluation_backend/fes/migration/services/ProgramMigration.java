@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -21,7 +22,7 @@ public class ProgramMigration extends BaseMigrationService {
     private final PrimaryProgramRepository primaryProgramRepository;
     private final ParallelMigrationExecutor parallelMigrationExecutor;
 
-    private static final int BATCH_SIZE = 10;
+    private static final int BATCH_SIZE = 500;
 
     public void migrate() {
 
@@ -36,6 +37,13 @@ public class ProgramMigration extends BaseMigrationService {
                     data.size(),
                     database.name()
             );
+
+            Set<String> existingLegacyIds =
+                    Set.copyOf(
+                            primaryProgramRepository
+                                    .findLegacyIdsByDatabase(database.name())
+                    );
+
             parallelMigrationExecutor.processInParallel(
                     data,
                     BATCH_SIZE,
@@ -44,16 +52,16 @@ public class ProgramMigration extends BaseMigrationService {
                         List<PrimaryProgram> toSave = batch.stream()
                                 .filter(lp -> lp != null && lp.getId() != null)
                                 .filter(lp ->
-                                        !primaryProgramRepository
-                                                .existsByLegacyDatabaseAndLegacyId(
-                                                        database.name(),
-                                                        lp.getId().getProgramCode()
-                                                )
+                                        !existingLegacyIds.contains(
+                                                lp.getId().getProgramCode()
+                                        )
                                 )
                                 .map(lp -> map(lp, database))
                                 .toList();
 
-                        primaryProgramRepository.saveAll(toSave);
+                        if (!toSave.isEmpty()) {
+                            primaryProgramRepository.saveAll(toSave);
+                        }
                     });
 
             log.info("Program migration completed : {}", database.name());

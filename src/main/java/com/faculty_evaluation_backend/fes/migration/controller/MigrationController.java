@@ -3,11 +3,9 @@ package com.faculty_evaluation_backend.fes.migration.controller;
 import com.faculty_evaluation_backend.fes.dto.migration.MigrationErrorResponse;
 import com.faculty_evaluation_backend.fes.dto.migration.MigrationResponse;
 import com.faculty_evaluation_backend.fes.dto.migration.MigrationStatistics;
-import com.faculty_evaluation_backend.fes.migration.orchestrator.MigrationOrchestrator;
 import com.faculty_evaluation_backend.fes.migration.services.MigrationAsyncService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -23,7 +21,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Slf4j
 public class MigrationController {
 
-    private final MigrationOrchestrator migrationOrchestrator;
     private final MigrationAsyncService migrationAsyncService;
     private final AtomicBoolean running =
             new AtomicBoolean(false);
@@ -44,7 +41,7 @@ public class MigrationController {
             );
         }
 
-        migrationAsyncService.startMigration();
+        migrationAsyncService.startMigration(() -> running.set(false));
 
         return buildResponse(
                 "STARTED",
@@ -53,31 +50,6 @@ public class MigrationController {
                 null,
                 Collections.emptyList()
         );
-    }
-
-    @Async
-    public void startMigration() {
-
-        try {
-
-            log.info("=== MIGRATION STARTED ===");
-
-            migrationOrchestrator.migrateAll();
-
-            log.info("=== MIGRATION FINISHED ===");
-
-        } catch (Exception e) {
-
-            log.error(
-                    "Migration failed : {}",
-                    e.getMessage(),
-                    e
-            );
-
-        } finally {
-
-            running.set(false);
-        }
     }
 
     private MigrationResponse<Void> buildResponse(

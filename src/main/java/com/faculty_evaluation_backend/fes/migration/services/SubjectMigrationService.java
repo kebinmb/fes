@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -21,7 +22,7 @@ public class SubjectMigrationService extends BaseMigrationService {
     private final PrimarySubjectRepository primarySubjectRepository;
     private final ParallelMigrationExecutor parallelMigrationExecutor;
 
-    private static final int BATCH_SIZE = 10;
+    private static final int BATCH_SIZE = 500;
 
     public void migrate() {
 
@@ -41,6 +42,12 @@ public class SubjectMigrationService extends BaseMigrationService {
                     database.name()
             );
 
+            Set<String> existingLegacyIds =
+                    Set.copyOf(
+                            primarySubjectRepository
+                                    .findLegacyIdsByDatabase(database.name())
+                    );
+
             parallelMigrationExecutor.processInParallel(
                     data,
                     BATCH_SIZE,
@@ -49,12 +56,9 @@ public class SubjectMigrationService extends BaseMigrationService {
                         List<PrimarySubject> toSave = batch.stream()
                                 .filter(ls -> ls != null && ls.getId() != null)
                                 .filter(ls ->
-                                        !primarySubjectRepository
-                                                .existsByLegacyDatabaseAndLegacyId(
-                                                        database.name(),
-                                                        ls.getId()
-                                                                .getSubjectCode()
-                                                )
+                                        !existingLegacyIds.contains(
+                                                ls.getId().getSubjectCode()
+                                        )
                                 )
                                 .map(ls -> map(ls, database))
                                 .toList();

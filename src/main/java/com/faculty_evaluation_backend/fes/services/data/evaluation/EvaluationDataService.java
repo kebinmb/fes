@@ -26,6 +26,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -66,12 +68,47 @@ public class EvaluationDataService {
             return List.of();
         }
 
+        List<FacultyEvaluationScore> allEvaluations =
+                facultyEvaluationScoreRepository
+                        .findByFacultyIdAndSchoolYearAndSemesterWithFaculty(
+                                facultyId,
+                                schoolYearAndSemester.getSchoolYear(),
+                                schoolYearAndSemester.getSemester().getValue()
+                        );
+
+        if (allEvaluations.isEmpty()) {
+            return List.of();
+        }
+
+        Map<String, List<FacultyEvaluationScore>> evaluationsByClass =
+                allEvaluations.stream()
+                        .collect(
+                                Collectors.groupingBy(
+                                        FacultyEvaluationScore::getClassCode
+                                )
+                        );
+
+        Set<String> evaluatorIds =
+                allEvaluations.stream()
+                        .map(FacultyEvaluationScore::getEvaluatorId)
+                        .collect(Collectors.toSet());
+
+        Set<String> studentEvaluatorIds =
+                evaluatorIds.isEmpty()
+                        ? Set.of()
+                        : primaryStudentRepository
+                                .findExistingStudentIds(evaluatorIds);
+
         List<FacultyEvaluationPrintResponse> responses = new ArrayList<>();
 
         for (FacultyClassDetailsDTO facultyClassDetail : facultyClassDetails) {
 
-            List<FacultyEvaluationScore> evaluations = facultyEvaluationScoreRepository.findByFacultyIdAndClassCodeAndSchoolYearAndSemester(facultyId, facultyClassDetail.getClassCode(), schoolYearAndSemester.getSchoolYear(), schoolYearAndSemester.getSemester().getValue());
-            log.info("""
+            List<FacultyEvaluationScore> evaluations =
+                    evaluationsByClass.getOrDefault(
+                            facultyClassDetail.getClassCode(),
+                            List.of()
+                    );
+            log.debug("""
                             Evaluations Found
                             Faculty ID: {}
                             Class Code: {}
@@ -89,7 +126,10 @@ public class EvaluationDataService {
 
             for (FacultyEvaluationScore evaluation : evaluations) {
 
-                boolean isStudent = primaryStudentRepository.existsByStudentId(evaluation.getEvaluatorId());
+                boolean isStudent =
+                        studentEvaluatorIds.contains(
+                                evaluation.getEvaluatorId()
+                        );
 
                 if (isStudent) {
 
@@ -128,7 +168,8 @@ public class EvaluationDataService {
 
             String evaluatorType;
 
-            boolean isStudent = primaryStudentRepository.existsByLegacyId(first.getEvaluatorId());
+            boolean isStudent =
+                    studentEvaluatorIds.contains(first.getEvaluatorId());
 
             if (isStudent) {
 

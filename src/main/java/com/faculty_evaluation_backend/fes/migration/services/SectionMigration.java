@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -21,7 +22,7 @@ public class SectionMigration extends BaseMigrationService {
     private final PrimarySectionRepository primarySectionRepository;
     private final ParallelMigrationExecutor parallelMigrationExecutor;
 
-    private static final int BATCH_SIZE = 10;
+    private static final int BATCH_SIZE = 500;
 
     public void migrate() {
 
@@ -36,6 +37,13 @@ public class SectionMigration extends BaseMigrationService {
                     data.size(),
                     database.name()
             );
+
+            Set<String> existingLegacyIds =
+                    Set.copyOf(
+                            primarySectionRepository
+                                    .findLegacyIdsByDatabase(database.name())
+                    );
+
             parallelMigrationExecutor.processInParallel(
                     data,
                     BATCH_SIZE,
@@ -44,16 +52,18 @@ public class SectionMigration extends BaseMigrationService {
                         List<PrimarySection> toSave = batch.stream()
                                 .filter(ls -> ls != null && ls.getId() != null)
                                 .filter(ls ->
-                                        !primarySectionRepository
-                                                .existsByLegacyDatabaseAndLegacyId(
-                                                        database.name(),
-                                                        String.valueOf(ls.getId().getSectionId())
+                                        !existingLegacyIds.contains(
+                                                String.valueOf(
+                                                        ls.getId().getSectionId()
                                                 )
+                                        )
                                 )
                                 .map(ls -> map(ls, database))
                                 .toList();
 
-                        primarySectionRepository.saveAll(toSave);
+                        if (!toSave.isEmpty()) {
+                            primarySectionRepository.saveAll(toSave);
+                        }
                     });
 
             log.info("Section migration completed : {}", database.name());

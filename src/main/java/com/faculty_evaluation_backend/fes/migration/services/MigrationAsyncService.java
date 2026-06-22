@@ -14,7 +14,7 @@ public class MigrationAsyncService {
     private final MigrationOrchestrator migrationOrchestrator;
 
     @Async
-    public void startMigration() {
+    public void startMigration(Runnable onComplete) {
 
         try {
 
@@ -31,6 +31,9 @@ public class MigrationAsyncService {
                     e.getMessage(),
                     e
             );
+        } finally {
+
+            onComplete.run();
         }
     }
 }

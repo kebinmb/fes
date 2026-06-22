@@ -1,7 +1,5 @@
 package com.faculty_evaluation_backend.fes.config.jwt;
 
-import com.faculty_evaluation_backend.fes.exceptions.UnauthorizedException;
-import com.faculty_evaluation_backend.fes.services.authentication.StudentAuthenticationService;
 import com.faculty_evaluation_backend.fes.services.jwt.JwtService;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
@@ -32,17 +30,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
-        log.info("JWT FILTER -> {}", request.getServletPath());
+        log.debug("JWT filter processing {}", request.getServletPath());
 
         try {
 
             String token = extractAccessToken(request);
 
-            log.info("TOKEN EXISTS: {}", token != null);
+            log.debug("Access token present: {}", token != null);
 
             if (token != null) {
-
-                log.info("TOKEN VALUE: {}", token);
 
                 boolean valid =
                         jwtService.isAccessTokenValid(token);
@@ -50,9 +46,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 boolean expired =
                         jwtService.isTokenExpired(token);
 
-                log.info("TOKEN VALID: {}", valid);
-
-                log.info("TOKEN EXPIRED: {}", expired);
+                log.debug("Access token valid: {}, expired: {}", valid, expired);
 
                 if (valid && !expired) {
 
@@ -65,9 +59,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     String role =
                             claims.get("role", String.class);
 
-                    log.info("USER ID: {}", userId);
-
-                    log.info("ROLE: {}", role);
+                    log.debug("JWT authenticated subject {} with role {}", userId, role);
 
                     UsernamePasswordAuthenticationToken authenticationToken =
                             new UsernamePasswordAuthenticationToken(
@@ -82,13 +74,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             .getContext()
                             .setAuthentication(authenticationToken);
 
-                    log.info("AUTHENTICATION SET");
+                    log.debug("Security context authentication set");
                 }
             }
 
         } catch (Exception e) {
 
-            log.error("JWT FILTER ERROR", e);
+            log.debug("JWT authentication failed: {}", e.getMessage());
 
             SecurityContextHolder.clearContext();
 

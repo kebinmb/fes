@@ -14,6 +14,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Repository
 public interface PrimaryFacultyRepository extends JpaRepository<PrimaryFaculty, Long> {
@@ -78,4 +79,11 @@ public interface PrimaryFacultyRepository extends JpaRepository<PrimaryFaculty, 
             String legacyDatabase,
             String legacyId
     );
+
+    @Query("""
+                SELECT f.legacyId
+                FROM PrimaryFaculty f
+                WHERE f.legacyDatabase = :database
+            """)
+    Set<String> findLegacyIdsByDatabase(@Param("database") String database);
 }

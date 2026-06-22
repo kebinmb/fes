@@ -7,6 +7,7 @@ import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.boot.jpa.EntityManagerFactoryBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
@@ -33,11 +34,18 @@ public class AuthenticationDataSourceConfig {
     @Bean(name = "authenticationEntityManagerFactory")
     public LocalContainerEntityManagerFactoryBean authenticationManagerFactory(
             EntityManagerFactoryBuilder entityManagerFactoryBuilder,
-            @Qualifier("authenticationDataSource") DataSource dataSource
+            @Qualifier("authenticationDataSource") DataSource dataSource,
+            Environment environment
     ){
         Map<String, Object> properties = new HashMap<>();
         properties.put("hibernate.hbm2ddl.auto", "none");
-        properties.put("hibernate.dialect", "org.hibernate.dialect.MySQLDialect");
+        properties.put(
+                "hibernate.dialect",
+                environment.getProperty(
+                        "spring.jpa.properties.hibernate.dialect",
+                        "org.hibernate.dialect.MySQLDialect"
+                )
+        );
         return entityManagerFactoryBuilder
                 .dataSource(dataSource)
                 .packages("com.faculty_evaluation_backend.fes.entities.sis_authentication")

@@ -14,13 +14,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class ClassMigration extends BaseMigrationService {
 
-    private static final int BATCH_SIZE = 10;
+    private static final int BATCH_SIZE = 500;
     private final LegacyClassRepository legacyClassRepository;
     private final PrimaryClassRepository primaryClassRepository;
     private final ParallelMigrationExecutor parallelMigrationExecutor;
@@ -53,6 +54,10 @@ public class ClassMigration extends BaseMigrationService {
                     database.name()
             );
 
+            Set<String> existingLegacyIds =
+                    primaryClassRepository
+                            .findLegacyIdsByDatabase(database.name());
+
             parallelMigrationExecutor.processInParallel(
                     data,
                     BATCH_SIZE,
@@ -61,13 +66,11 @@ public class ClassMigration extends BaseMigrationService {
                         List<PrimaryClass> toSave = batch.stream()
                                 .filter(lc -> lc != null && lc.getId() != null)
                                 .filter(lc ->
-                                        !primaryClassRepository
-                                                .existsByLegacyDatabaseAndLegacyId(
-                                                        database.name(),
-                                                        lc.getId()
-                                                                .getClassCode()
-                                                                .toString()
-                                                )
+                                        !existingLegacyIds.contains(
+                                                lc.getId()
+                                                        .getClassCode()
+                                                        .toString()
+                                        )
                                 )
                                 .map(lc -> map(lc, database))
                                 .toList();
