@@ -20,6 +20,22 @@ import lombok.*;
                         columnList = "faculty_id, school_year, semester"
                 ),
                 @Index(
+                        name = "idx_evidence_faculty_created_at",
+                        columnList = "faculty_id, created_at"
+                ),
+                @Index(
+                        name = "idx_evidence_faculty_context_created",
+                        columnList = "faculty_id, school_year, semester, created_at"
+                ),
+                @Index(
+                        name = "idx_evidence_faculty_criterion_created",
+                        columnList = "faculty_id, criterion, created_at"
+                ),
+                @Index(
+                        name = "idx_evidence_faculty_subject_created",
+                        columnList = "faculty_id, class_code, subject_code, created_at"
+                ),
+                @Index(
                         name = "idx_evidence_criterion",
                         columnList = "criterion"
                 ),

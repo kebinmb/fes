@@ -2,6 +2,7 @@ package com.faculty_evaluation_backend.fes.controller.supervisor;
 
 import com.faculty_evaluation_backend.fes.dto.evidence.EvaluationEvidenceCriterionResponse;
 import com.faculty_evaluation_backend.fes.dto.evidence.FacultyEvaluationEvidenceResponse;
+import com.faculty_evaluation_backend.fes.dto.evidence.FacultyEvaluationEvidenceSliceResponse;
 import com.faculty_evaluation_backend.fes.services.data.evidence.FacultyEvaluationEvidenceService;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -9,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -70,11 +72,45 @@ public class FacultyEvaluationEvidenceController {
             @RequestParam(required = false) String semester,
             @RequestParam(required = false) Integer schoolYear,
             @RequestParam(required = false) String criterion,
-            @PageableDefault(page = 0, size = 10, sort = "createdAt")
+            @PageableDefault(
+                    page = 0,
+                    size = 10,
+                    sort = "createdAt",
+                    direction = Sort.Direction.DESC
+            )
             Pageable pageable
     ) {
         return ResponseEntity.ok(
                 evidenceService.list(
+                        facultyId,
+                        classCode,
+                        subjectCode,
+                        semester,
+                        schoolYear,
+                        criterion,
+                        pageable
+                )
+        );
+    }
+
+    @GetMapping("/slice")
+    public ResponseEntity<FacultyEvaluationEvidenceSliceResponse> listSlice(
+            @RequestParam @NotBlank String facultyId,
+            @RequestParam(required = false) String classCode,
+            @RequestParam(required = false) String subjectCode,
+            @RequestParam(required = false) String semester,
+            @RequestParam(required = false) Integer schoolYear,
+            @RequestParam(required = false) String criterion,
+            @PageableDefault(
+                    page = 0,
+                    size = 12,
+                    sort = "createdAt",
+                    direction = Sort.Direction.DESC
+            )
+            Pageable pageable
+    ) {
+        return ResponseEntity.ok(
+                evidenceService.listSlice(
                         facultyId,
                         classCode,
                         subjectCode,

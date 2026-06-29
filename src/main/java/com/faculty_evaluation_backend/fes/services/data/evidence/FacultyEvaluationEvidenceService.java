@@ -2,6 +2,7 @@ package com.faculty_evaluation_backend.fes.services.data.evidence;
 
 import com.faculty_evaluation_backend.fes.dto.evidence.EvaluationEvidenceCriterionResponse;
 import com.faculty_evaluation_backend.fes.dto.evidence.FacultyEvaluationEvidenceResponse;
+import com.faculty_evaluation_backend.fes.dto.evidence.FacultyEvaluationEvidenceSliceResponse;
 import com.faculty_evaluation_backend.fes.entities.evaluation.FacultyEvaluationEvidence;
 import com.faculty_evaluation_backend.fes.entities.evaluation.enums.EvaluationEvidenceCriterion;
 import com.faculty_evaluation_backend.fes.exceptions.BadRequestException;
@@ -12,7 +13,10 @@ import com.faculty_evaluation_backend.fes.services.data.evidence.storage.Evidenc
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -20,12 +24,27 @@ import org.springframework.util.unit.DataSize;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
 public class FacultyEvaluationEvidenceService {
 
     private static final long BYTES_PER_MEGABYTE = 1024L * 1024L;
+    private static final int MAX_PAGE_SIZE = 50;
+    private static final Sort DEFAULT_SORT =
+            Sort.by(Sort.Direction.DESC, "createdAt");
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
+            "createdAt",
+            "originalFilename",
+            "criterion",
+            "schoolYear",
+            "semester",
+            "classCode",
+            "subjectCode",
+            "uploadedBy",
+            "fileSize"
+    );
 
     private final FacultyEvaluationEvidenceRepository evidenceRepository;
     private final PrimaryFacultyRepository primaryFacultyRepository;
@@ -133,6 +152,8 @@ public class FacultyEvaluationEvidenceService {
                         ? null
                         : parseCriterion(criterionValue);
 
+        Pageable optimizedPageable = optimizedPageable(pageable);
+
         return evidenceRepository.findByFilters(
                         facultyId.trim(),
                         blankToNull(classCode),
@@ -140,9 +161,46 @@ public class FacultyEvaluationEvidenceService {
                         blankToNull(semester),
                         schoolYear,
                         criterion,
-                        pageable
+                        optimizedPageable
                 )
                 .map(FacultyEvaluationEvidenceResponse::from);
+    }
+
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
+    public FacultyEvaluationEvidenceSliceResponse listSlice(
+            String facultyId,
+            String classCode,
+            String subjectCode,
+            String semester,
+            Integer schoolYear,
+            String criterionValue,
+            Pageable pageable
+    ) {
+        if (facultyId == null || facultyId.isBlank()) {
+            throw new BadRequestException("Faculty ID is required.");
+        }
+
+        EvaluationEvidenceCriterion criterion =
+                criterionValue == null || criterionValue.isBlank()
+                        ? null
+                        : parseCriterion(criterionValue);
+
+        Slice<FacultyEvaluationEvidenceResponse> slice =
+                evidenceRepository.findSliceByFilters(
+                                facultyId.trim(),
+                                blankToNull(classCode),
+                                blankToNull(subjectCode),
+                                blankToNull(semester),
+                                schoolYear,
+                                criterion,
+                                optimizedPageable(pageable)
+                        )
+                        .map(FacultyEvaluationEvidenceResponse::from);
+
+        return FacultyEvaluationEvidenceSliceResponse.from(slice);
     }
 
     @Transactional(
@@ -246,6 +304,36 @@ public class FacultyEvaluationEvidenceService {
         return value == null || value.isBlank()
                 ? null
                 : value.trim();
+    }
+
+    private Pageable optimizedPageable(Pageable pageable) {
+        int page = Math.max(pageable.getPageNumber(), 0);
+        int size = Math.min(Math.max(pageable.getPageSize(), 1), MAX_PAGE_SIZE);
+        Sort sort = safeSort(pageable.getSort());
+
+        return PageRequest.of(page, size, sort);
+    }
+
+    private Sort safeSort(Sort requestedSort) {
+        if (requestedSort == null || requestedSort.isUnsorted()) {
+            return DEFAULT_SORT;
+        }
+
+        List<Sort.Order> orders = requestedSort.stream()
+                .filter(order -> ALLOWED_SORT_FIELDS.contains(
+                        order.getProperty()
+                ))
+                .map(order -> new Sort.Order(
+                        order.getDirection(),
+                        order.getProperty()
+                ))
+                .toList();
+
+        if (orders.isEmpty()) {
+            return DEFAULT_SORT;
+        }
+
+        return Sort.by(orders);
     }
 
     private String readableFileSize(long bytes) {

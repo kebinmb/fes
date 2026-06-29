@@ -56,6 +56,7 @@ Evidence endpoints:
 GET    /api/faculty/evidences/criteria
 POST   /api/faculty/evidences
 GET    /api/faculty/evidences?facultyId={facultyId}
+GET    /api/faculty/evidences/slice?facultyId={facultyId}
 GET    /api/faculty/evidences/{evidenceId}/download
 DELETE /api/faculty/evidences/{evidenceId}
 ```
@@ -157,6 +158,31 @@ Response is a Spring pageable response:
 }
 ```
 
+Use this endpoint when the UI needs total pages and total record count.
+
+### Fast List Faculty Evidence
+
+Use this endpoint for the normal evidence table or "Load more" UI. It skips the expensive total-count query.
+
+```http
+GET /api/faculty/evidences/slice?facultyId=FAC-0001&page=0&size=12&sort=createdAt,desc
+```
+
+Response:
+
+```json
+{
+  "content": [],
+  "page": 0,
+  "size": 12,
+  "numberOfElements": 0,
+  "first": true,
+  "last": true,
+  "hasNext": false,
+  "hasPrevious": false
+}
+```
+
 ### Download Evidence
 
 ```http
@@ -219,6 +245,17 @@ export interface PageResponse<T> {
   number: number;
   size: number;
 }
+
+export interface SliceResponse<T> {
+  content: T[];
+  page: number;
+  size: number;
+  numberOfElements: number;
+  first: boolean;
+  last: boolean;
+  hasNext: boolean;
+  hasPrevious: boolean;
+}
 ```
 
 ## Angular Service
@@ -236,6 +273,7 @@ import {
   EvidenceCriterion,
   FacultyEvidence,
   PageResponse,
+  SliceResponse,
 } from '../models/faculty-evidence.model';
 
 @Injectable({ providedIn: 'root' })
@@ -300,6 +338,33 @@ export class FacultyEvidenceService {
     return this.http.get<PageResponse<FacultyEvidence>>(this.baseUrl, { params });
   }
 
+  getEvidenceSlice(filters: {
+    facultyId: string;
+    classCode?: string;
+    subjectCode?: string;
+    semester?: string;
+    schoolYear?: number;
+    criterion?: string;
+    page?: number;
+    size?: number;
+  }) {
+    let params = new HttpParams()
+      .set('facultyId', filters.facultyId)
+      .set('page', String(filters.page ?? 0))
+      .set('size', String(filters.size ?? 12))
+      .set('sort', 'createdAt,desc');
+
+    if (filters.classCode) params = params.set('classCode', filters.classCode);
+    if (filters.subjectCode) params = params.set('subjectCode', filters.subjectCode);
+    if (filters.semester) params = params.set('semester', filters.semester);
+    if (filters.schoolYear) params = params.set('schoolYear', String(filters.schoolYear));
+    if (filters.criterion) params = params.set('criterion', filters.criterion);
+
+    return this.http.get<SliceResponse<FacultyEvidence>>(`${this.baseUrl}/slice`, {
+      params,
+    });
+  }
+
   downloadEvidence(evidenceId: number) {
     return this.http.get(`${this.baseUrl}/${evidenceId}/download`, {
       responseType: 'blob',
@@ -339,6 +404,9 @@ export class FacultyEvidenceUploadComponent implements OnInit {
   evidences: FacultyEvidence[] = [];
   selectedFile?: File;
   isUploading = false;
+  isLoadingEvidences = false;
+  hasNextEvidencePage = false;
+  evidencePage = 0;
   errorMessage = '';
 
   form = this.fb.group({
@@ -373,16 +441,49 @@ export class FacultyEvidenceUploadComponent implements OnInit {
   }
 
   loadEvidences() {
+    this.isLoadingEvidences = true;
+
     this.evidenceService
-      .getEvidenceList({
+      .getEvidenceSlice({
         facultyId: this.facultyId,
+        page: 0,
+        size: 12,
       })
       .subscribe({
-        next: page => {
-          this.evidences = page.content;
+        next: slice => {
+          this.evidences = slice.content;
+          this.evidencePage = slice.page;
+          this.hasNextEvidencePage = slice.hasNext;
+          this.isLoadingEvidences = false;
         },
         error: () => {
+          this.isLoadingEvidences = false;
           this.errorMessage = 'Unable to load evidence records.';
+        },
+      });
+  }
+
+  loadMoreEvidences() {
+    if (!this.hasNextEvidencePage || this.isLoadingEvidences) return;
+
+    this.isLoadingEvidences = true;
+
+    this.evidenceService
+      .getEvidenceSlice({
+        facultyId: this.facultyId,
+        page: this.evidencePage + 1,
+        size: 12,
+      })
+      .subscribe({
+        next: slice => {
+          this.evidences = [...this.evidences, ...slice.content];
+          this.evidencePage = slice.page;
+          this.hasNextEvidencePage = slice.hasNext;
+          this.isLoadingEvidences = false;
+        },
+        error: () => {
+          this.isLoadingEvidences = false;
+          this.errorMessage = 'Unable to load more evidence records.';
         },
       });
   }
@@ -590,6 +691,14 @@ export class FacultyEvidenceUploadComponent implements OnInit {
       </tr>
     </thead>
     <tbody>
+      <tr *ngIf="isLoadingEvidences && evidences.length === 0">
+        <td colspan="5">Loading evidence records...</td>
+      </tr>
+
+      <tr *ngIf="!isLoadingEvidences && evidences.length === 0">
+        <td colspan="5">No evidence uploaded yet.</td>
+      </tr>
+
       <tr *ngFor="let evidence of evidences">
         <td>
           <strong>{{ evidence.criterionLabel }}</strong>
@@ -607,8 +716,30 @@ export class FacultyEvidenceUploadComponent implements OnInit {
       </tr>
     </tbody>
   </table>
+
+  <button
+    type="button"
+    *ngIf="hasNextEvidencePage"
+    [disabled]="isLoadingEvidences"
+    (click)="loadMoreEvidences()"
+  >
+    {{ isLoadingEvidences ? 'Loading...' : 'Load more' }}
+  </button>
 </section>
 ```
+
+## Performance and UX Recommendations
+
+Use these defaults for the evidence list UI:
+
+1. Use `GET /api/faculty/evidences/slice` instead of the paged endpoint for the normal table.
+2. Start with `size=12` or `size=15`; avoid loading every evidence record at once.
+3. Use a "Load more" button or infinite scroll instead of full pagination with total counts.
+4. Show a skeleton row or "Loading evidence records..." while the first request is pending.
+5. After upload succeeds, either prepend the returned evidence record or reload the first slice only.
+6. Do not download file blobs during list rendering; download only when the user clicks Download.
+7. Cache `/criteria` in the frontend because the list rarely changes.
+8. Debounce filter changes by 300ms before calling the evidence API.
 
 ## Suggested UI Placement
 
