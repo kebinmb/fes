@@ -2,6 +2,8 @@ HELP.md
 target/
 .mvn/wrapper/maven-wrapper.jar
 local-data/
+src/main/resources/evidence-storage-account.json
+src/main/resources/*service-account*.json
 hs_err_pid*.log
 replay_pid*.log
 .env
