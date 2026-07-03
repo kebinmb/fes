@@ -1,6 +1,12 @@
 package com.faculty_evaluation_backend.fes.services.data.admin;
 
 import com.faculty_evaluation_backend.fes.dto.data.SchoolYearAndSemesterDTO;
+import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardFacultyLoadProjection;
+import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardFacultyLoadResponse;
+import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardProgramBreakdownProjection;
+import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardProgramBreakdownResponse;
+import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardResponse;
+import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardSummaryResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.StudentEvaluationStatusResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.StudentFacultyEvaluationDTO;
 import com.faculty_evaluation_backend.fes.dto.response.FetchFacultyEvaluationScoreResponse;
@@ -23,12 +29,15 @@ import com.faculty_evaluation_backend.fes.exceptions.ResourceNotFoundException;
 import com.faculty_evaluation_backend.fes.repositories.authentication.UserAccountsRepository;
 import com.faculty_evaluation_backend.fes.repositories.data.SchoolYearAndSemesterRepository;
 import com.faculty_evaluation_backend.fes.repositories.evaluation.FacultyEvaluationScoreRepository;
+import com.faculty_evaluation_backend.fes.repositories.primary.AdminDashboardRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryFacultyRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimarySectionRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryStudentLoadRepository;
 import com.faculty_evaluation_backend.fes.utilities.mapper.PageMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -54,8 +63,30 @@ public class AdministratorService {
     private final PasswordEncoder passwordEncoder;
     private final PrimarySectionRepository primarySectionRepository;
     private final PrimaryStudentLoadRepository primaryStudentLoadRepository;
+    private final AdminDashboardRepository adminDashboardRepository;
 
     @Transactional
+    @CacheEvict(
+            value = {
+                    "currentSchoolYearSemester",
+                    "adminDashboard",
+                    "adminDashboardSummary",
+                    "adminDashboardPrograms",
+                    "adminDashboardFacultyLoads",
+                    "facultyClasses",
+                    "facultyEvaluationReports",
+                    "studentSections",
+                    "studentEvaluationStatus",
+                    "studentFacultyEvaluations",
+                    "facultyEvaluationScores",
+                    "studentLoads",
+                    "studentFacultyClassEvaluationChecks",
+                    "supervisorFacultyLoads",
+                    "supervisorFacultyProgramLoads",
+                    "supervisorEvaluatedStudents"
+            },
+            allEntries = true
+    )
     public SchoolYearAndSemesterDTO updateSchoolYearAndSemester(Integer schoolYear, Semester semester) {
 
         if (schoolYear == null) {
@@ -87,11 +118,145 @@ public class AdministratorService {
         return SchoolYearAndSemesterDTO.builder().id(savedRecord.getId()).schoolYear(savedRecord.getSchoolYear()).semester(savedRecord.getSemester()).status(savedRecord.getStatus()).createdAt(savedRecord.getCreatedAt()).build();
     }
 
+    @Cacheable(value = "currentSchoolYearSemester", key = "'active'")
     public SchoolYearAndSemesterDTO fetchCurrentSchoolYearAndSemester() {
 
         SchoolYearAndSemester data = schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE).orElseThrow(() -> new ResourceNotFoundException("No active semester found."));
 
         return SchoolYearAndSemesterDTO.builder().id(data.getId()).schoolYear(data.getSchoolYear()).semester(data.getSemester()).status(data.getStatus()).createdAt(data.getCreatedAt()).build();
+    }
+
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
+    @Cacheable(value = "adminDashboard", key = "'active'")
+    public AdminDashboardResponse getDashboard() {
+        return AdminDashboardResponse.builder()
+                .summary(getDashboardSummary())
+                .programs(getDashboardProgramBreakdown())
+                .facultyLoads(getDashboardFacultyLoads(10))
+                .build();
+    }
+
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
+    @Cacheable(value = "adminDashboardSummary", key = "'active'")
+    public AdminDashboardSummaryResponse getDashboardSummary() {
+        DashboardTerm term = resolveDashboardTerm();
+
+        Long totalStudents =
+                safeLong(adminDashboardRepository.countDistinctStudentsByTerm(
+                        term.schoolYear(),
+                        term.semester()
+                ));
+        Long expectedEvaluations =
+                safeLong(adminDashboardRepository.countExpectedEvaluationsByTerm(
+                        term.schoolYear(),
+                        term.semester()
+                ));
+        Long completedEvaluations =
+                safeLong(adminDashboardRepository.countCompletedEvaluationsByTerm(
+                        term.schoolYear(),
+                        term.semester()
+                ));
+
+        return AdminDashboardSummaryResponse.builder()
+                .schoolYear(term.schoolYear())
+                .semester(term.semester())
+                .totalStudents(totalStudents)
+                .totalFaculty(safeLong(
+                        adminDashboardRepository.countFacultyByTerm(
+                                term.schoolYear(),
+                                term.semester()
+                        )
+                ))
+                .totalClasses(safeLong(
+                        adminDashboardRepository.countClassesByTerm(
+                                term.schoolYear(),
+                                term.semester()
+                        )
+                ))
+                .totalSubjects(safeLong(
+                        adminDashboardRepository.countSubjectsByTerm(
+                                term.schoolYear(),
+                                term.semester()
+                        )
+                ))
+                .totalPrograms(safeLong(
+                        adminDashboardRepository.countProgramsByTerm(
+                                term.schoolYear(),
+                                term.semester()
+                        )
+                ))
+                .totalSections(safeLong(
+                        adminDashboardRepository.countSectionsByTerm(
+                                term.schoolYear(),
+                                term.semester()
+                        )
+                ))
+                .expectedEvaluations(expectedEvaluations)
+                .completedEvaluations(completedEvaluations)
+                .evaluatedStudents(safeLong(
+                        adminDashboardRepository.countEvaluatedStudentsByTerm(
+                                term.schoolYear(),
+                                term.semester()
+                        )
+                ))
+                .pendingEvaluations(Math.max(
+                        expectedEvaluations - completedEvaluations,
+                        0
+                ))
+                .evaluationCompletionRate(
+                        percentage(completedEvaluations, expectedEvaluations)
+                )
+                .averageOverallScore(safeDouble(
+                        adminDashboardRepository.averageOverallScoreByTerm(
+                                term.schoolYear(),
+                                term.semester()
+                        )
+                ))
+                .build();
+    }
+
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
+    @Cacheable(value = "adminDashboardPrograms", key = "'active'")
+    public List<AdminDashboardProgramBreakdownResponse>
+    getDashboardProgramBreakdown() {
+        DashboardTerm term = resolveDashboardTerm();
+
+        return adminDashboardRepository
+                .findProgramBreakdown(term.schoolYear(), term.semester())
+                .stream()
+                .map(this::toProgramBreakdownResponse)
+                .toList();
+    }
+
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
+    @Cacheable(value = "adminDashboardFacultyLoads", key = "#limit")
+    public List<AdminDashboardFacultyLoadResponse> getDashboardFacultyLoads(
+            int limit
+    ) {
+        DashboardTerm term = resolveDashboardTerm();
+        int safeLimit = Math.min(Math.max(limit, 1), 50);
+
+        return adminDashboardRepository
+                .findTopFacultyLoads(
+                        term.schoolYear(),
+                        term.semester(),
+                        safeLimit
+                )
+                .stream()
+                .map(this::toFacultyLoadResponse)
+                .toList();
     }
 
     public PageResponse<FetchFacultyResponse> facultyList(int page, int size, String search) {
@@ -123,6 +288,7 @@ public class AdministratorService {
         return PageResponse.<FetchUserAccountsResponse>builder().content(responseList).page(userAccountsPage.getNumber()).size(userAccountsPage.getSize()).totalElements(userAccountsPage.getTotalElements()).totalPages(userAccountsPage.getTotalPages()).build();
     }
 
+    @Cacheable(value = "facultyEvaluationScores", key = "#page + ':' + #size")
     public PageResponse<FetchFacultyEvaluationScoreResponse> facultyEvaluationScore(int page, int size) {
 
         Page<FacultyEvaluationScore> scorePage = facultyEvaluationScoreRepository.findAllWithFaculty(PageRequest.of(page, size));
@@ -137,6 +303,21 @@ public class AdministratorService {
         return PageResponse.<FetchFacultyEvaluationScoreResponse>builder().content(responseList).page(scorePage.getNumber()).size(scorePage.getSize()).totalElements(scorePage.getTotalElements()).totalPages(scorePage.getTotalPages()).build();
     }
 
+    @CacheEvict(
+            value = {
+                    "faculties",
+                    "facultyClasses",
+                    "facultyEvaluationReports",
+                    "adminDashboard",
+                    "adminDashboardSummary",
+                    "adminDashboardPrograms",
+                    "adminDashboardFacultyLoads",
+                    "studentLoads",
+                    "supervisorFacultyLoads",
+                    "supervisorFacultyProgramLoads"
+            },
+            allEntries = true
+    )
     public String updateFaculty(String facultyId, String firstname, String middlename, String lastname, String position, Double loadLimit, College college, Status status) {
 
         primaryFacultyRepository.findByFacultyId(facultyId).orElseThrow(() -> new ResourceNotFoundException("Faculty not found."));
@@ -151,6 +332,10 @@ public class AdministratorService {
         throw new BadRequestException("Failed to update faculty.");
     }
 
+    @Cacheable(
+            value = "studentFacultyEvaluations",
+            key = "(#search == null ? '' : #search.trim().toLowerCase()) + ':' + #page + ':' + #size + ':' + #sortBy + ':' + #sortDirection"
+    )
     public Page<StudentFacultyEvaluationDTO> getStudentFacultyEvaluationDetails(String search, int page, int size, String sortBy, String sortDirection) {
 
         Sort sort = sortDirection.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
@@ -250,6 +435,10 @@ public class AdministratorService {
         return "Password updated successfully.";
     }
 
+    @Cacheable(
+            value = "studentSections",
+            key = "(#programCode == null ? '' : #programCode.trim().toLowerCase()) + ':' + (#yearLevel == null ? '' : #yearLevel.trim().toLowerCase()) + ':' + (#sectionCode == null ? '' : #sectionCode.trim().toLowerCase()) + ':' + #page + ':' + #size"
+    )
     public PageResponse<StudentSectionDTO> getStudentSections(
 
             String programCode,
@@ -267,6 +456,10 @@ public class AdministratorService {
         return PageMapper.toPageResponse(primarySectionRepository.getStudentSectionEvaluationData(programCode, yearLevel, sectionCode, pageable));
     }
 
+    @Cacheable(
+            value = "studentEvaluationStatus",
+            key = "(#programCode == null ? '' : #programCode.trim().toLowerCase()) + ':' + (#yearLevel == null ? '' : #yearLevel.trim().toLowerCase()) + ':' + (#sectionCode == null ? '' : #sectionCode.trim().toLowerCase())"
+    )
     public List<StudentEvaluationStatusResponse> fetchStudentEvaluationStatus(
 
             String programCode,
@@ -353,6 +546,79 @@ public class AdministratorService {
 
             throw new BadRequestException("Invalid email address.");
         }
+    }
+
+    private DashboardTerm resolveDashboardTerm() {
+        SchoolYearAndSemester activeTerm =
+                schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "No active semester found."
+                                )
+                        );
+
+        return new DashboardTerm(
+                activeTerm.getSchoolYear(),
+                activeTerm.getSemester().getValue()
+        );
+    }
+
+    private AdminDashboardProgramBreakdownResponse
+    toProgramBreakdownResponse(
+            AdminDashboardProgramBreakdownProjection projection
+    ) {
+        Long expected = safeLong(projection.getExpectedEvaluations());
+        Long completed = safeLong(projection.getCompletedEvaluations());
+
+        return AdminDashboardProgramBreakdownResponse.builder()
+                .programCode(projection.getProgramCode())
+                .totalStudents(safeLong(projection.getTotalStudents()))
+                .totalClasses(safeLong(projection.getTotalClasses()))
+                .totalSections(safeLong(projection.getTotalSections()))
+                .expectedEvaluations(expected)
+                .completedEvaluations(completed)
+                .completionRate(percentage(completed, expected))
+                .averageOverallScore(safeDouble(
+                        projection.getAverageOverallScore()
+                ))
+                .build();
+    }
+
+    private AdminDashboardFacultyLoadResponse toFacultyLoadResponse(
+            AdminDashboardFacultyLoadProjection projection
+    ) {
+        return AdminDashboardFacultyLoadResponse.builder()
+                .facultyId(projection.getFacultyId())
+                .facultyName(projection.getFacultyName())
+                .totalClasses(safeLong(projection.getTotalClasses()))
+                .totalSubjects(safeLong(projection.getTotalSubjects()))
+                .totalStudents(safeLong(projection.getTotalStudents()))
+                .completedEvaluations(safeLong(
+                        projection.getCompletedEvaluations()
+                ))
+                .averageOverallScore(safeDouble(
+                        projection.getAverageOverallScore()
+                ))
+                .build();
+    }
+
+    private Long safeLong(Long value) {
+        return value == null ? 0L : value;
+    }
+
+    private Double safeDouble(Double value) {
+        return value == null ? 0.0 : value;
+    }
+
+    private Double percentage(Long numerator, Long denominator) {
+        if (denominator == null || denominator == 0L) {
+            return 0.0;
+        }
+
+        return Math.round((numerator * 10000.0) / denominator) / 100.0;
+    }
+
+    private record DashboardTerm(Integer schoolYear, String semester) {
     }
 }
 

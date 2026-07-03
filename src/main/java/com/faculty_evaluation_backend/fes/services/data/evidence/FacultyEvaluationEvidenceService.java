@@ -11,6 +11,7 @@ import com.faculty_evaluation_backend.fes.repositories.evaluation.FacultyEvaluat
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryFacultyRepository;
 import com.faculty_evaluation_backend.fes.services.data.evidence.storage.EvidenceStorageService;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -63,6 +64,7 @@ public class FacultyEvaluationEvidenceService {
         this.maxFileSizeBytes = maxFileSize.toBytes();
     }
 
+    @Cacheable(value = "evidenceCriteria", key = "'all'")
     public List<EvaluationEvidenceCriterionResponse> listCriteria() {
         return EvaluationEvidenceCriterion.list()
                 .stream()

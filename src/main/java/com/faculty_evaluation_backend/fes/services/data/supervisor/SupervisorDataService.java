@@ -41,6 +41,10 @@ public class SupervisorDataService {
     private final UserAccountsRepository userAccountsRepository;
 
     @Transactional(transactionManager = "primaryTransactionManager", readOnly = true)
+    @Cacheable(
+            value = "faculties",
+            key = "(#college == null ? '' : #college.trim().toUpperCase()) + ':' + (#status == null ? '' : #status.trim().toUpperCase())"
+    )
     public List<FacultyDTO> getFacultiesByCollegeAndStatus(String college, String status) {
 
         College collegeEnum = College.valueOf(college.toUpperCase());
@@ -52,6 +56,10 @@ public class SupervisorDataService {
     }
 
     @Transactional(transactionManager = "primaryTransactionManager", readOnly = true)
+    @Cacheable(
+            value = "supervisorFacultyLoads",
+            key = "#userId + ':' + (#search == null ? '' : #search.trim().toLowerCase()) + ':' + #pageable.pageNumber + ':' + #pageable.pageSize + ':' + #pageable.sort.toString()"
+    )
     public Page<FacultyLoadDTO> getFacultyLoadsByProgram(
 
             Long userId,
@@ -110,6 +118,10 @@ public class SupervisorDataService {
             transactionManager = "primaryTransactionManager",
             readOnly = true
     )
+    @Cacheable(
+            value = "supervisorFacultyProgramLoads",
+            key = "#userId + ':' + (#search == null ? '' : #search.trim().toLowerCase()) + ':' + (#campus == null ? '' : #campus.trim().toLowerCase()) + ':' + #pageable.pageNumber + ':' + #pageable.pageSize + ':' + #pageable.sort.toString()"
+    )
     public Page<FacultyProgramLoadsDTO> getFacultyInPrograms(
 
             Long userId,
@@ -156,6 +168,10 @@ public class SupervisorDataService {
     @Transactional(
             transactionManager = "primaryTransactionManager",
             readOnly = true
+    )
+    @Cacheable(
+            value = "supervisorEvaluatedStudents",
+            key = "#userId + ':' + (#searchTerm == null ? '' : #searchTerm.trim().toLowerCase()) + ':' + #pageable.pageNumber + ':' + #pageable.pageSize + ':' + #pageable.sort.toString()"
     )
     public Page<EvaluatedStudentsDTO> findEvaluatedStudents(
             Long userId,

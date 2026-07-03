@@ -3,6 +3,10 @@ package com.faculty_evaluation_backend.fes.controller.administrator;
 import com.faculty_evaluation_backend.fes.audit.AuditableAction;
 import com.faculty_evaluation_backend.fes.controller.evaluation.EvaluationController;
 import com.faculty_evaluation_backend.fes.dto.data.SchoolYearAndSemesterDTO;
+import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardFacultyLoadResponse;
+import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardProgramBreakdownResponse;
+import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardResponse;
+import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardSummaryResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationPrintResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.StudentEvaluationStatusResponse;
 import com.faculty_evaluation_backend.fes.dto.response.FetchFacultyEvaluationScoreResponse;
@@ -34,6 +38,40 @@ import java.util.List;
 public class AdministratorController {
     private final AdministratorService administratorService;
     private final EvaluationDataService evaluationDataService;
+
+    @GetMapping("/dashboard")
+    public ResponseEntity<AdminDashboardResponse> getDashboard() {
+        return ResponseEntity.ok(
+                administratorService.getDashboard()
+        );
+    }
+
+    @GetMapping("/dashboard/summary")
+    public ResponseEntity<AdminDashboardSummaryResponse> getDashboardSummary() {
+        return ResponseEntity.ok(
+                administratorService.getDashboardSummary()
+        );
+    }
+
+    @GetMapping("/dashboard/programs")
+    public ResponseEntity<List<AdminDashboardProgramBreakdownResponse>>
+    getDashboardProgramBreakdown() {
+        return ResponseEntity.ok(
+                administratorService.getDashboardProgramBreakdown()
+        );
+    }
+
+    @GetMapping("/dashboard/faculty-loads")
+    public ResponseEntity<List<AdminDashboardFacultyLoadResponse>>
+    getDashboardFacultyLoads(
+            @RequestParam(defaultValue = "10") int limit
+    ) {
+        return ResponseEntity.ok(
+                administratorService.getDashboardFacultyLoads(
+                        limit
+                )
+        );
+    }
 
     @GetMapping("/faculties")
     public PageResponse<FetchFacultyResponse> getFacultyList(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size, @RequestParam(required = false) String search) {

@@ -20,6 +20,9 @@ import com.faculty_evaluation_backend.fes.services.data.evaluation.strategies.Ev
 import com.faculty_evaluation_backend.fes.services.data.evaluation.strategies.EvaluationStrategyFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,6 +45,21 @@ public class EvaluationDataService {
     private final SchoolYearAndSemesterRepository schoolYearAndSemesterRepository;
 
     @Transactional(transactionManager = "primaryTransactionManager")
+    @Caching(evict = {
+            @CacheEvict(value = "evaluatedCount", key = "#baseEvaluationDTO.evaluatorId"),
+            @CacheEvict(value = "activeAccessCode", key = "#baseEvaluationDTO.evaluatorId"),
+            @CacheEvict(value = "adminDashboard", allEntries = true),
+            @CacheEvict(value = "adminDashboardSummary", allEntries = true),
+            @CacheEvict(value = "adminDashboardPrograms", allEntries = true),
+            @CacheEvict(value = "adminDashboardFacultyLoads", allEntries = true),
+            @CacheEvict(value = "facultyEvaluationReports", allEntries = true),
+            @CacheEvict(value = "studentSections", allEntries = true),
+            @CacheEvict(value = "studentEvaluationStatus", allEntries = true),
+            @CacheEvict(value = "studentFacultyEvaluations", allEntries = true),
+            @CacheEvict(value = "facultyEvaluationScores", allEntries = true),
+            @CacheEvict(value = "studentFacultyClassEvaluationChecks", allEntries = true),
+            @CacheEvict(value = "supervisorEvaluatedStudents", allEntries = true)
+    })
     public FacultyEvaluationScore submit(BaseEvaluationDTO baseEvaluationDTO) {
         log.info("Submitting {} evaluation", baseEvaluationDTO.getEvaluationType());
         primaryFacultyRepository.findByFacultyId(baseEvaluationDTO.getFacultyId()).orElseThrow(() -> new RuntimeException("Faculty not found"));
@@ -58,6 +76,7 @@ public class EvaluationDataService {
         return facultyEvaluationScoreRepository.save(evaluationScore);
     }
 
+    @Cacheable(value = "facultyEvaluationReports", key = "#facultyId")
     public List<FacultyEvaluationPrintResponse> getSumOfAllFacultyEvaluationPerSubject(String facultyId) {
 
         SchoolYearAndSemester schoolYearAndSemester = schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE).orElseThrow(() -> new RuntimeException("No active school year and semester found."));
@@ -225,6 +244,7 @@ public class EvaluationDataService {
         return responses;
     }
 
+    @Cacheable(value = "classStudentCounts", key = "#classCode")
     public Integer numberOfStudents(String classCode) {
         return primaryStudentLoadRepository.findTotalStudentsInClass(classCode);
     }

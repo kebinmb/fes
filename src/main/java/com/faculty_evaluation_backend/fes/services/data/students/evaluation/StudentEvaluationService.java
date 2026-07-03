@@ -3,6 +3,7 @@ package com.faculty_evaluation_backend.fes.services.data.students.evaluation;
 import com.faculty_evaluation_backend.fes.exceptions.BadRequestException;
 import com.faculty_evaluation_backend.fes.repositories.evaluation.FacultyEvaluationScoreRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -12,6 +13,10 @@ public class StudentEvaluationService {
     private final FacultyEvaluationScoreRepository facultyEvaluationScoreRepository;
 
     @Transactional(transactionManager = "primaryTransactionManager", readOnly = true)
+    @Cacheable(
+            value = "studentFacultyClassEvaluationChecks",
+            key = "(#facultyId == null ? '' : #facultyId.trim()) + ':' + (#evaluatorId == null ? '' : #evaluatorId.trim()) + ':' + (#classCode == null ? '' : #classCode.trim()) + ':' + (#subjectCode == null ? '' : #subjectCode.trim()) + ':' + (#yearLevel == null ? '' : #yearLevel.trim()) + ':' + (#semester == null ? '' : #semester.trim()) + ':' + #schoolYear"
+    )
     public boolean hasEvaluatedFacultyForClass(
             String facultyId,
             String evaluatorId,

@@ -20,7 +20,24 @@ public class CacheConfig {
                 "studentExists",
                 "studentLoadCount",
                 "evaluatedCount",
-                "activeAccessCode"
+                "activeAccessCode",
+                "currentSchoolYearSemester",
+                "adminDashboard",
+                "adminDashboardSummary",
+                "adminDashboardPrograms",
+                "adminDashboardFacultyLoads",
+                "facultyEvaluationReports",
+                "evidenceCriteria",
+                "studentSections",
+                "studentEvaluationStatus",
+                "studentFacultyEvaluations",
+                "facultyEvaluationScores",
+                "studentLoads",
+                "studentFacultyClassEvaluationChecks",
+                "classStudentCounts",
+                "supervisorFacultyLoads",
+                "supervisorFacultyProgramLoads",
+                "supervisorEvaluatedStudents"
 
         );
 
