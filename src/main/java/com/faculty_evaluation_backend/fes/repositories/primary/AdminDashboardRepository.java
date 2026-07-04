@@ -2,6 +2,7 @@ package com.faculty_evaluation_backend.fes.repositories.primary;
 
 import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardFacultyLoadProjection;
 import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardProgramBreakdownProjection;
+import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardSummaryProjection;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryClass;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
@@ -12,6 +13,95 @@ import java.util.List;
 @org.springframework.stereotype.Repository
 public interface AdminDashboardRepository
         extends Repository<PrimaryClass, Long> {
+
+    @Query(value = """
+            SELECT
+                (
+                    SELECT COUNT(DISTINCT ps.student_id)
+                    FROM primary_student ps
+                    INNER JOIN primary_student_load psl
+                        ON ps.student_id = psl.student_id
+                    INNER JOIN primary_class pc
+                        ON psl.class_code = pc.class_code
+                    WHERE pc.school_year = :schoolYear
+                      AND pc.semester = :semester
+                ) AS totalStudents,
+                (
+                    SELECT COUNT(DISTINCT pc.faculty_id)
+                    FROM primary_class pc
+                    WHERE pc.school_year = :schoolYear
+                      AND pc.semester = :semester
+                      AND pc.faculty_id IS NOT NULL
+                ) AS totalFaculty,
+                (
+                    SELECT COUNT(DISTINCT pc.class_code)
+                    FROM primary_class pc
+                    WHERE pc.school_year = :schoolYear
+                      AND pc.semester = :semester
+                ) AS totalClasses,
+                (
+                    SELECT COUNT(DISTINCT pc.subject_code)
+                    FROM primary_class pc
+                    WHERE pc.school_year = :schoolYear
+                      AND pc.semester = :semester
+                      AND pc.subject_code IS NOT NULL
+                ) AS totalSubjects,
+                (
+                    SELECT COUNT(DISTINCT ps.program_code)
+                    FROM primary_class pc
+                    INNER JOIN primary_section ps
+                        ON pc.section_id = ps.section_id
+                    WHERE pc.school_year = :schoolYear
+                      AND pc.semester = :semester
+                      AND ps.program_code IS NOT NULL
+                ) AS totalPrograms,
+                (
+                    SELECT COUNT(DISTINCT pc.section_id)
+                    FROM primary_class pc
+                    WHERE pc.school_year = :schoolYear
+                      AND pc.semester = :semester
+                      AND pc.section_id IS NOT NULL
+                ) AS totalSections,
+                (
+                    SELECT COUNT(DISTINCT psl.primary_student_load_id)
+                    FROM primary_student ps
+                    INNER JOIN primary_student_load psl
+                        ON ps.student_id = psl.student_id
+                    INNER JOIN primary_class pc
+                        ON psl.class_code = pc.class_code
+                    WHERE pc.school_year = :schoolYear
+                      AND pc.semester = :semester
+                ) AS expectedEvaluations,
+                (
+                    SELECT COUNT(DISTINCT fes.faculty_evaluation_score_id)
+                    FROM faculty_evaluation_score fes
+                    INNER JOIN primary_student ps
+                        ON fes.evaluator_id = ps.student_id
+                    WHERE fes.school_year = :schoolYear
+                      AND fes.semester = :semester
+                ) AS completedEvaluations,
+                (
+                    SELECT COUNT(DISTINCT fes.evaluator_id)
+                    FROM faculty_evaluation_score fes
+                    INNER JOIN primary_student ps
+                        ON fes.evaluator_id = ps.student_id
+                    WHERE fes.school_year = :schoolYear
+                      AND fes.semester = :semester
+                ) AS evaluatedStudents,
+                (
+                    SELECT COALESCE(ROUND(AVG(fes.overall_average_score), 2), 0)
+                    FROM faculty_evaluation_score fes
+                    INNER JOIN primary_student ps
+                        ON fes.evaluator_id = ps.student_id
+                    WHERE fes.school_year = :schoolYear
+                      AND fes.semester = :semester
+                      AND fes.overall_average_score IS NOT NULL
+                ) AS averageOverallScore
+            """, nativeQuery = true)
+    AdminDashboardSummaryProjection findSummary(
+            @Param("schoolYear") Integer schoolYear,
+            @Param("semester") String semester
+    );
 
     @Query(value = """
             SELECT COUNT(DISTINCT ps.student_id)

@@ -9,6 +9,8 @@ import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardResponse;
 import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardSummaryResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationPrintResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.StudentEvaluationStatusResponse;
+import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadRequest;
+import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadResponse;
 import com.faculty_evaluation_backend.fes.dto.response.FetchFacultyEvaluationScoreResponse;
 import com.faculty_evaluation_backend.fes.dto.response.FetchFacultyResponse;
 import com.faculty_evaluation_backend.fes.dto.response.FetchUserAccountsResponse;
@@ -25,6 +27,7 @@ import com.faculty_evaluation_backend.fes.services.data.admin.AdministratorServi
 import com.faculty_evaluation_backend.fes.services.data.evaluation.EvaluationDataService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -113,6 +116,67 @@ public class AdministratorController {
         String response = administratorService.updateFaculty(facultyId, firstname, middlename, lastname, position, loadLimit, college, status);
 
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/faculty-workloads")
+    public PageResponse<FacultyWorkloadResponse> getFacultyWorkloads(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Integer schoolYear,
+            @RequestParam(required = false) String semester
+    ) {
+        return administratorService.getFacultyWorkloads(
+                page,
+                size,
+                search,
+                schoolYear,
+                semester
+        );
+    }
+
+    @PutMapping("/faculty-workloads")
+    @AuditableAction(action = "UPSERT", entity = "FACULTY_WORKLOAD")
+    public ResponseEntity<FacultyWorkloadResponse> upsertFacultyWorkload(
+            @Valid @RequestBody FacultyWorkloadRequest request
+    ) {
+        return ResponseEntity.ok(
+                administratorService.upsertFacultyWorkload(request)
+        );
+    }
+
+    @GetMapping("/faculty-workloads/record")
+    public ResponseEntity<FacultyWorkloadResponse> getFacultyWorkload(
+            @RequestParam String facultyId,
+            @RequestParam Integer schoolYear,
+            @RequestParam String semester,
+            @RequestParam String courseCode,
+            @RequestParam String programCode,
+            @RequestParam String yearLevel,
+            @RequestParam String sectionCode
+    ) {
+        return ResponseEntity.ok(
+                administratorService.getFacultyWorkload(
+                        facultyId,
+                        schoolYear,
+                        semester,
+                        courseCode,
+                        programCode,
+                        yearLevel,
+                        sectionCode
+                )
+        );
+    }
+
+    @GetMapping("/faculty-workloads/{facultyWorkloadId}")
+    public ResponseEntity<FacultyWorkloadResponse> getFacultyWorkloadById(
+            @PathVariable Long facultyWorkloadId
+    ) {
+        return ResponseEntity.ok(
+                administratorService.getFacultyWorkloadById(
+                        facultyWorkloadId
+                )
+        );
     }
 
     @GetMapping("/faculty-evaluation-score/{facultyId}")

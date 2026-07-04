@@ -7,8 +7,11 @@ import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardProgramBre
 import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardProgramBreakdownResponse;
 import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardResponse;
 import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardSummaryResponse;
+import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardSummaryProjection;
 import com.faculty_evaluation_backend.fes.dto.evaluation.StudentEvaluationStatusResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.StudentFacultyEvaluationDTO;
+import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadRequest;
+import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadResponse;
 import com.faculty_evaluation_backend.fes.dto.response.FetchFacultyEvaluationScoreResponse;
 import com.faculty_evaluation_backend.fes.dto.response.FetchFacultyResponse;
 import com.faculty_evaluation_backend.fes.dto.response.FetchUserAccountsResponse;
@@ -21,8 +24,10 @@ import com.faculty_evaluation_backend.fes.entities.authentication.UserAccounts;
 import com.faculty_evaluation_backend.fes.entities.data.SchoolYearAndSemester;
 import com.faculty_evaluation_backend.fes.entities.data.enums.Semester;
 import com.faculty_evaluation_backend.fes.entities.evaluation.FacultyEvaluationScore;
+import com.faculty_evaluation_backend.fes.entities.primary.FacultyWorkload;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryFaculty;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.College;
+import com.faculty_evaluation_backend.fes.entities.primary.enums.FacultyWorkloadSource;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.Status;
 import com.faculty_evaluation_backend.fes.exceptions.BadRequestException;
 import com.faculty_evaluation_backend.fes.exceptions.ResourceNotFoundException;
@@ -30,6 +35,7 @@ import com.faculty_evaluation_backend.fes.repositories.authentication.UserAccoun
 import com.faculty_evaluation_backend.fes.repositories.data.SchoolYearAndSemesterRepository;
 import com.faculty_evaluation_backend.fes.repositories.evaluation.FacultyEvaluationScoreRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.AdminDashboardRepository;
+import com.faculty_evaluation_backend.fes.repositories.primary.FacultyWorkloadRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryFacultyRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimarySectionRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryStudentLoadRepository;
@@ -43,6 +49,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -72,6 +79,7 @@ public class AdministratorService {
     private final PrimarySectionRepository primarySectionRepository;
     private final PrimaryStudentLoadRepository primaryStudentLoadRepository;
     private final AdminDashboardRepository adminDashboardRepository;
+    private final FacultyWorkloadRepository facultyWorkloadRepository;
 
     @Transactional
     @CacheEvict(
@@ -140,10 +148,12 @@ public class AdministratorService {
     )
     @Cacheable(value = "adminDashboard", key = "'active'")
     public AdminDashboardResponse getDashboard() {
+        DashboardTerm term = resolveDashboardTerm();
+
         return AdminDashboardResponse.builder()
-                .summary(getDashboardSummary())
-                .programs(getDashboardProgramBreakdown())
-                .facultyLoads(getDashboardFacultyLoads(10))
+                .summary(buildDashboardSummary(term))
+                .programs(findDashboardProgramBreakdown(term))
+                .facultyLoads(findDashboardFacultyLoads(term, 10))
                 .build();
     }
 
@@ -153,66 +163,33 @@ public class AdministratorService {
     )
     @Cacheable(value = "adminDashboardSummary", key = "'active'")
     public AdminDashboardSummaryResponse getDashboardSummary() {
-        DashboardTerm term = resolveDashboardTerm();
+        return buildDashboardSummary(resolveDashboardTerm());
+    }
 
-        Long totalStudents =
-                safeLong(adminDashboardRepository.countDistinctStudentsByTerm(
+    private AdminDashboardSummaryResponse buildDashboardSummary(
+            DashboardTerm term
+    ) {
+        AdminDashboardSummaryProjection summary =
+                adminDashboardRepository.findSummary(
                         term.schoolYear(),
                         term.semester()
-                ));
-        Long expectedEvaluations =
-                safeLong(adminDashboardRepository.countExpectedEvaluationsByTerm(
-                        term.schoolYear(),
-                        term.semester()
-                ));
-        Long completedEvaluations =
-                safeLong(adminDashboardRepository.countCompletedEvaluationsByTerm(
-                        term.schoolYear(),
-                        term.semester()
-                ));
+                );
+
+        Long expectedEvaluations = safeLong(summary.getExpectedEvaluations());
+        Long completedEvaluations = safeLong(summary.getCompletedEvaluations());
 
         return AdminDashboardSummaryResponse.builder()
                 .schoolYear(term.schoolYear())
                 .semester(term.semester())
-                .totalStudents(totalStudents)
-                .totalFaculty(safeLong(
-                        adminDashboardRepository.countFacultyByTerm(
-                                term.schoolYear(),
-                                term.semester()
-                        )
-                ))
-                .totalClasses(safeLong(
-                        adminDashboardRepository.countClassesByTerm(
-                                term.schoolYear(),
-                                term.semester()
-                        )
-                ))
-                .totalSubjects(safeLong(
-                        adminDashboardRepository.countSubjectsByTerm(
-                                term.schoolYear(),
-                                term.semester()
-                        )
-                ))
-                .totalPrograms(safeLong(
-                        adminDashboardRepository.countProgramsByTerm(
-                                term.schoolYear(),
-                                term.semester()
-                        )
-                ))
-                .totalSections(safeLong(
-                        adminDashboardRepository.countSectionsByTerm(
-                                term.schoolYear(),
-                                term.semester()
-                        )
-                ))
+                .totalStudents(safeLong(summary.getTotalStudents()))
+                .totalFaculty(safeLong(summary.getTotalFaculty()))
+                .totalClasses(safeLong(summary.getTotalClasses()))
+                .totalSubjects(safeLong(summary.getTotalSubjects()))
+                .totalPrograms(safeLong(summary.getTotalPrograms()))
+                .totalSections(safeLong(summary.getTotalSections()))
                 .expectedEvaluations(expectedEvaluations)
                 .completedEvaluations(completedEvaluations)
-                .evaluatedStudents(safeLong(
-                        adminDashboardRepository.countEvaluatedStudentsByTerm(
-                                term.schoolYear(),
-                                term.semester()
-                        )
-                ))
+                .evaluatedStudents(safeLong(summary.getEvaluatedStudents()))
                 .pendingEvaluations(Math.max(
                         expectedEvaluations - completedEvaluations,
                         0
@@ -220,12 +197,7 @@ public class AdministratorService {
                 .evaluationCompletionRate(
                         percentage(completedEvaluations, expectedEvaluations)
                 )
-                .averageOverallScore(safeDouble(
-                        adminDashboardRepository.averageOverallScoreByTerm(
-                                term.schoolYear(),
-                                term.semester()
-                        )
-                ))
+                .averageOverallScore(safeDouble(summary.getAverageOverallScore()))
                 .build();
     }
 
@@ -236,8 +208,11 @@ public class AdministratorService {
     @Cacheable(value = "adminDashboardPrograms", key = "'active'")
     public List<AdminDashboardProgramBreakdownResponse>
     getDashboardProgramBreakdown() {
-        DashboardTerm term = resolveDashboardTerm();
+        return findDashboardProgramBreakdown(resolveDashboardTerm());
+    }
 
+    private List<AdminDashboardProgramBreakdownResponse>
+    findDashboardProgramBreakdown(DashboardTerm term) {
         return adminDashboardRepository
                 .findProgramBreakdown(term.schoolYear(), term.semester())
                 .stream()
@@ -253,7 +228,13 @@ public class AdministratorService {
     public List<AdminDashboardFacultyLoadResponse> getDashboardFacultyLoads(
             int limit
     ) {
-        DashboardTerm term = resolveDashboardTerm();
+        return findDashboardFacultyLoads(resolveDashboardTerm(), limit);
+    }
+
+    private List<AdminDashboardFacultyLoadResponse> findDashboardFacultyLoads(
+            DashboardTerm term,
+            int limit
+    ) {
         int safeLimit = Math.min(Math.max(limit, 1), 50);
 
         return adminDashboardRepository
@@ -342,6 +323,179 @@ public class AdministratorService {
         }
 
         throw new BadRequestException("Failed to update faculty.");
+    }
+
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
+    public PageResponse<FacultyWorkloadResponse> getFacultyWorkloads(
+            int page,
+            int size,
+            String search,
+            Integer schoolYear,
+            String semester
+    ) {
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 50);
+        Pageable pageable = PageRequest.of(
+                safePage,
+                safeSize,
+                Sort.by(Sort.Direction.DESC, "updatedAt")
+        );
+
+        Page<FacultyWorkload> workloadPage =
+                facultyWorkloadRepository.searchWorkloads(
+                        normalizeBlank(search),
+                        schoolYear,
+                        normalizeBlank(semester),
+                        pageable
+                );
+
+        List<FacultyWorkloadResponse> content = workloadPage
+                .getContent()
+                .stream()
+                .map(this::toFacultyWorkloadResponse)
+                .toList();
+
+        return PageResponse.<FacultyWorkloadResponse>builder()
+                .content(content)
+                .page(workloadPage.getNumber())
+                .size(workloadPage.getSize())
+                .totalElements(workloadPage.getTotalElements())
+                .totalPages(workloadPage.getTotalPages())
+                .build();
+    }
+
+    @Transactional(
+            transactionManager = "primaryTransactionManager"
+    )
+    public FacultyWorkloadResponse upsertFacultyWorkload(
+            FacultyWorkloadRequest request
+    ) {
+        validateFacultyWorkloadRequest(request);
+
+        String facultyId = request.getFacultyId().trim();
+        String semester = request.getSemester().trim();
+
+        primaryFacultyRepository.findByFacultyId(facultyId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Faculty not found.")
+                );
+
+        FacultyWorkload workload = resolveFacultyWorkloadForSave(
+                request,
+                facultyId,
+                semester
+        );
+
+        workload.setFacultyId(facultyId);
+        workload.setSchoolYear(request.getSchoolYear());
+        workload.setSemester(semester);
+        workload.setCourseCode(request.getCourseCode().trim());
+        workload.setProgramCode(request.getProgramCode().trim());
+        workload.setYearLevel(request.getYearLevel().trim());
+        workload.setSectionCode(request.getSectionCode().trim());
+        workload.setTotalTeachingLoad(request.getTotalTeachingLoad());
+        workload.setNumberOfPreparations(request.getNumberOfPreparations());
+        workload.setDesignationEtu(request.getDesignationEtu());
+        workload.setTotalWorkload(request.getTotalWorkload());
+        workload.setOverloadHours(
+                request.getOverloadHours() == null
+                        ? BigDecimal.ZERO
+                        : request.getOverloadHours()
+        );
+        workload.setSource(
+                request.getSource() == null
+                        ? FacultyWorkloadSource.MANUAL
+                        : request.getSource()
+        );
+        workload.setRemarks(normalizeBlank(request.getRemarks()));
+
+        return toFacultyWorkloadResponse(
+                facultyWorkloadRepository.save(workload)
+        );
+    }
+
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
+    public FacultyWorkloadResponse getFacultyWorkload(
+            String facultyId,
+            Integer schoolYear,
+            String semester,
+            String courseCode,
+            String programCode,
+            String yearLevel,
+            String sectionCode
+    ) {
+        if (facultyId == null || facultyId.trim().isEmpty()) {
+            throw new BadRequestException("Faculty ID is required.");
+        }
+
+        if (schoolYear == null) {
+            throw new BadRequestException("School year is required.");
+        }
+
+        if (semester == null || semester.trim().isEmpty()) {
+            throw new BadRequestException("Semester is required.");
+        }
+
+        if (courseCode == null || courseCode.trim().isEmpty()) {
+            throw new BadRequestException("Course code is required.");
+        }
+
+        if (programCode == null || programCode.trim().isEmpty()) {
+            throw new BadRequestException("Program code is required.");
+        }
+
+        if (yearLevel == null || yearLevel.trim().isEmpty()) {
+            throw new BadRequestException("Year level is required.");
+        }
+
+        if (sectionCode == null || sectionCode.trim().isEmpty()) {
+            throw new BadRequestException("Section code is required.");
+        }
+
+        FacultyWorkload workload = facultyWorkloadRepository
+                .findByFacultyIdAndSchoolYearAndSemesterAndCourseCodeAndProgramCodeAndYearLevelAndSectionCode(
+                        facultyId.trim(),
+                        schoolYear,
+                        semester.trim(),
+                        courseCode.trim(),
+                        programCode.trim(),
+                        yearLevel.trim(),
+                        sectionCode.trim()
+                )
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Faculty workload not found."
+                        )
+                );
+
+        return toFacultyWorkloadResponse(workload);
+    }
+
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
+    public FacultyWorkloadResponse getFacultyWorkloadById(
+            Long facultyWorkloadId
+    ) {
+        if (facultyWorkloadId == null) {
+            throw new BadRequestException("Faculty workload ID is required.");
+        }
+
+        return toFacultyWorkloadResponse(
+                facultyWorkloadRepository.findById(facultyWorkloadId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Faculty workload not found."
+                                )
+                        )
+        );
     }
 
     @Cacheable(
@@ -628,6 +782,140 @@ public class AdministratorService {
         }
 
         return Math.round((numerator * 10000.0) / denominator) / 100.0;
+    }
+
+    private void validateFacultyWorkloadRequest(FacultyWorkloadRequest request) {
+        if (request == null) {
+            throw new BadRequestException("Faculty workload request is required.");
+        }
+
+        if (request.getFacultyId() == null || request.getFacultyId().trim().isEmpty()) {
+            throw new BadRequestException("Faculty ID is required.");
+        }
+
+        if (request.getSchoolYear() == null) {
+            throw new BadRequestException("School year is required.");
+        }
+
+        if (request.getSemester() == null || request.getSemester().trim().isEmpty()) {
+            throw new BadRequestException("Semester is required.");
+        }
+
+        if (request.getCourseCode() == null || request.getCourseCode().trim().isEmpty()) {
+            throw new BadRequestException("Course code is required.");
+        }
+
+        if (request.getProgramCode() == null || request.getProgramCode().trim().isEmpty()) {
+            throw new BadRequestException("Program code is required.");
+        }
+
+        if (request.getYearLevel() == null || request.getYearLevel().trim().isEmpty()) {
+            throw new BadRequestException("Year level is required.");
+        }
+
+        if (request.getSectionCode() == null || request.getSectionCode().trim().isEmpty()) {
+            throw new BadRequestException("Section code is required.");
+        }
+
+        if (isNegative(request.getTotalTeachingLoad())) {
+            throw new BadRequestException("Total teaching load cannot be negative.");
+        }
+
+        if (request.getNumberOfPreparations() != null
+                && request.getNumberOfPreparations() < 0) {
+            throw new BadRequestException("Number of preparations cannot be negative.");
+        }
+
+        if (isNegative(request.getDesignationEtu())) {
+            throw new BadRequestException("Designation ETU cannot be negative.");
+        }
+
+        if (isNegative(request.getTotalWorkload())) {
+            throw new BadRequestException("Total workload cannot be negative.");
+        }
+
+        if (isNegative(request.getOverloadHours())) {
+            throw new BadRequestException("Overload hours cannot be negative.");
+        }
+    }
+
+    private FacultyWorkloadResponse toFacultyWorkloadResponse(
+            FacultyWorkload workload
+    ) {
+        PrimaryFaculty faculty = workload.getFaculty();
+        String facultyName = null;
+
+        if (faculty != null) {
+            facultyName = String.format(
+                    "%s %s",
+                    faculty.getFirstname() == null ? "" : faculty.getFirstname(),
+                    faculty.getLastname() == null ? "" : faculty.getLastname()
+            ).trim();
+        }
+
+        return FacultyWorkloadResponse.builder()
+                .facultyWorkloadId(workload.getFacultyWorkloadId())
+                .facultyId(workload.getFacultyId())
+                .facultyName(facultyName == null || facultyName.isBlank()
+                        ? workload.getFacultyId()
+                        : facultyName)
+                .college(faculty == null ? null : faculty.getCollege())
+                .loadLimit(faculty == null ? null : faculty.getLoadLimit())
+                .schoolYear(workload.getSchoolYear())
+                .semester(workload.getSemester())
+                .courseCode(workload.getCourseCode())
+                .programCode(workload.getProgramCode())
+                .yearLevel(workload.getYearLevel())
+                .sectionCode(workload.getSectionCode())
+                .totalTeachingLoad(workload.getTotalTeachingLoad())
+                .numberOfPreparations(workload.getNumberOfPreparations())
+                .designationEtu(workload.getDesignationEtu())
+                .totalWorkload(workload.getTotalWorkload())
+                .overloadHours(workload.getOverloadHours())
+                .loadStatus(workload.getLoadStatus())
+                .source(workload.getSource())
+                .remarks(workload.getRemarks())
+                .build();
+    }
+
+    private FacultyWorkload resolveFacultyWorkloadForSave(
+            FacultyWorkloadRequest request,
+            String facultyId,
+            String semester
+    ) {
+        if (request.getFacultyWorkloadId() != null) {
+            return facultyWorkloadRepository
+                    .findById(request.getFacultyWorkloadId())
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException(
+                                    "Faculty workload not found."
+                            )
+                    );
+        }
+
+        return facultyWorkloadRepository
+                .findByFacultyIdAndSchoolYearAndSemesterAndCourseCodeAndProgramCodeAndYearLevelAndSectionCode(
+                        facultyId,
+                        request.getSchoolYear(),
+                        semester,
+                        request.getCourseCode().trim(),
+                        request.getProgramCode().trim(),
+                        request.getYearLevel().trim(),
+                        request.getSectionCode().trim()
+                )
+                .orElseGet(FacultyWorkload::new);
+    }
+
+    private boolean isNegative(BigDecimal value) {
+        return value != null && value.compareTo(BigDecimal.ZERO) < 0;
+    }
+
+    private String normalizeBlank(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+
+        return value.trim();
     }
 
     private String normalizeLegacyDatabase(String legacyDatabase) {
