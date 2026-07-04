@@ -16,4 +16,5 @@ public class FetchFacultyResponse {
     private String loadLimit;
     private Status status;
     private College college;
+    private String legacyDatabase;
 }

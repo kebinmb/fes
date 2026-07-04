@@ -74,11 +74,22 @@ public class AdministratorController {
     }
 
     @GetMapping("/faculties")
-    public PageResponse<FetchFacultyResponse> getFacultyList(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size, @RequestParam(required = false) String search) {
+    public PageResponse<FetchFacultyResponse> getFacultyList(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String legacyDatabase
+    ) {
 
-        log.info("Fetching faculty list | page: {} size: {} search: {}", page, size, search);
+        log.info(
+                "Fetching faculty list | page: {} size: {} search: {} legacyDatabase: {}",
+                page,
+                size,
+                search,
+                legacyDatabase
+        );
 
-        return administratorService.facultyList(page, size, search);
+        return administratorService.facultyList(page, size, search, legacyDatabase);
     }
 
     @GetMapping("/user-accounts")

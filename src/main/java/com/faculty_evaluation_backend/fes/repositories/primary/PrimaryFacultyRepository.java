@@ -66,12 +66,32 @@ public interface PrimaryFacultyRepository extends JpaRepository<PrimaryFaculty, 
             @Param("status") Status status
     );
 
-    Page<PrimaryFaculty>
-    findByFirstnameContainingIgnoreCaseOrLastnameContainingIgnoreCaseOrFacultyIdContainingIgnoreCaseOrPositionContainingIgnoreCase(
-            String firstname,
-            String lastname,
-            String facultyId,
-            String position,
+    @Query("""
+                SELECT f
+                FROM PrimaryFaculty f
+                WHERE (f.college IS NULL OR f.college <> :excludedCollege)
+                  AND (
+                        :legacyDatabase IS NULL
+                        OR :legacyDatabase = ''
+                        OR UPPER(TRIM(f.legacyDatabase)) = UPPER(TRIM(:legacyDatabase))
+                  )
+                  AND (
+                        :search IS NULL
+                        OR :search = ''
+                        OR LOWER(COALESCE(f.firstname, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                        OR LOWER(COALESCE(f.lastname, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                        OR LOWER(COALESCE(f.facultyId, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                        OR LOWER(COALESCE(f.position, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                        OR LOWER(CONCAT(COALESCE(f.firstname, ''), ' ', COALESCE(f.lastname, '')))
+                           LIKE LOWER(CONCAT('%', :search, '%'))
+                        OR LOWER(CONCAT(COALESCE(f.lastname, ''), ', ', COALESCE(f.firstname, '')))
+                           LIKE LOWER(CONCAT('%', :search, '%'))
+                  )
+            """)
+    Page<PrimaryFaculty> searchExcludingCollege(
+            @Param("search") String search,
+            @Param("excludedCollege") College excludedCollege,
+            @Param("legacyDatabase") String legacyDatabase,
             Pageable pageable
     );
 

@@ -46,11 +46,19 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class AdministratorService {
+
+    private static final Set<String> ALLOWED_LEGACY_DATABASES = Set.of(
+            "LEGACY_TALISAY",
+            "LEGACY_ALIJIS",
+            "LEGACY_FT",
+            "LEGACY_BINALBAGAN"
+    );
 
     private final PrimaryFacultyRepository primaryFacultyRepository;
 
@@ -259,22 +267,26 @@ public class AdministratorService {
                 .toList();
     }
 
-    public PageResponse<FetchFacultyResponse> facultyList(int page, int size, String search) {
+    public PageResponse<FetchFacultyResponse> facultyList(
+            int page,
+            int size,
+            String search,
+            String legacyDatabase
+    ) {
 
         Page<PrimaryFaculty> facultyPage;
 
         Pageable pageable = PageRequest.of(page, size);
+        String normalizedLegacyDatabase = normalizeLegacyDatabase(legacyDatabase);
 
-        if (search != null && !search.trim().isEmpty()) {
+        facultyPage = primaryFacultyRepository.searchExcludingCollege(
+                search,
+                College.FOR_MIGRATION,
+                normalizedLegacyDatabase,
+                pageable
+        );
 
-            facultyPage = primaryFacultyRepository.findByFirstnameContainingIgnoreCaseOrLastnameContainingIgnoreCaseOrFacultyIdContainingIgnoreCaseOrPositionContainingIgnoreCase(search, search, search, search, pageable);
-
-        } else {
-
-            facultyPage = primaryFacultyRepository.findAll(pageable);
-        }
-
-        List<FetchFacultyResponse> responseList = facultyPage.getContent().stream().map(faculty -> FetchFacultyResponse.builder().facultyId(faculty.getFacultyId()).firstname(faculty.getFirstname()).lastname(faculty.getLastname()).middlename(faculty.getMiddlename()).position(faculty.getPosition()).loadLimit(faculty.getLoadLimit() != null ? faculty.getLoadLimit().toString() : null).status(faculty.getStatus()).college(faculty.getCollege()).build()).toList();
+        List<FetchFacultyResponse> responseList = facultyPage.getContent().stream().map(faculty -> FetchFacultyResponse.builder().facultyId(faculty.getFacultyId()).firstname(faculty.getFirstname()).lastname(faculty.getLastname()).middlename(faculty.getMiddlename()).position(faculty.getPosition()).loadLimit(faculty.getLoadLimit() != null ? faculty.getLoadLimit().toString() : null).status(faculty.getStatus()).college(faculty.getCollege()).legacyDatabase(faculty.getLegacyDatabase()).build()).toList();
 
         return PageResponse.<FetchFacultyResponse>builder().content(responseList).page(facultyPage.getNumber()).size(facultyPage.getSize()).totalElements(facultyPage.getTotalElements()).totalPages(facultyPage.getTotalPages()).build();
     }
@@ -616,6 +628,20 @@ public class AdministratorService {
         }
 
         return Math.round((numerator * 10000.0) / denominator) / 100.0;
+    }
+
+    private String normalizeLegacyDatabase(String legacyDatabase) {
+        if (legacyDatabase == null || legacyDatabase.trim().isEmpty()) {
+            return null;
+        }
+
+        String normalized = legacyDatabase.trim().toUpperCase();
+
+        if (!ALLOWED_LEGACY_DATABASES.contains(normalized)) {
+            throw new BadRequestException("Invalid legacy database filter: " + legacyDatabase);
+        }
+
+        return normalized;
     }
 
     private record DashboardTerm(Integer schoolYear, String semester) {
