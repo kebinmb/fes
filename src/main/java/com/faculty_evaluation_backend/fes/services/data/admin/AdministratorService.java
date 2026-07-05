@@ -10,8 +10,10 @@ import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardSummaryRes
 import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardSummaryProjection;
 import com.faculty_evaluation_backend.fes.dto.evaluation.StudentEvaluationStatusResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.StudentFacultyEvaluationDTO;
+import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadClassOptionResponse;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadRequest;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadResponse;
+import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadSectionOptionResponse;
 import com.faculty_evaluation_backend.fes.dto.response.FetchFacultyEvaluationScoreResponse;
 import com.faculty_evaluation_backend.fes.dto.response.FetchFacultyResponse;
 import com.faculty_evaluation_backend.fes.dto.response.FetchUserAccountsResponse;
@@ -36,6 +38,7 @@ import com.faculty_evaluation_backend.fes.repositories.data.SchoolYearAndSemeste
 import com.faculty_evaluation_backend.fes.repositories.evaluation.FacultyEvaluationScoreRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.AdminDashboardRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.FacultyWorkloadRepository;
+import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryClassRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryFacultyRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimarySectionRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryStudentLoadRepository;
@@ -77,6 +80,7 @@ public class AdministratorService {
 
     private final PasswordEncoder passwordEncoder;
     private final PrimarySectionRepository primarySectionRepository;
+    private final PrimaryClassRepository primaryClassRepository;
     private final PrimaryStudentLoadRepository primaryStudentLoadRepository;
     private final AdminDashboardRepository adminDashboardRepository;
     private final FacultyWorkloadRepository facultyWorkloadRepository;
@@ -378,7 +382,7 @@ public class AdministratorService {
         String facultyId = request.getFacultyId().trim();
         String semester = request.getSemester().trim();
 
-        primaryFacultyRepository.findByFacultyId(facultyId)
+        PrimaryFaculty faculty = primaryFacultyRepository.findByFacultyId(facultyId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Faculty not found.")
                 );
@@ -396,10 +400,11 @@ public class AdministratorService {
         workload.setProgramCode(request.getProgramCode().trim());
         workload.setYearLevel(request.getYearLevel().trim());
         workload.setSectionCode(request.getSectionCode().trim());
-        workload.setTotalTeachingLoad(request.getTotalTeachingLoad());
+        workload.setTotalHoursPerWeek(safeBigDecimal(request.getTotalHoursPerWeek()));
+        workload.setTotalTeachingLoad(BigDecimal.ZERO);
         workload.setNumberOfPreparations(request.getNumberOfPreparations());
-        workload.setDesignationEtu(request.getDesignationEtu());
-        workload.setTotalWorkload(request.getTotalWorkload());
+        workload.setDesignationEtu(safeBigDecimal(request.getDesignationEtu()));
+        workload.setTotalWorkload(BigDecimal.ZERO);
         workload.setOverloadHours(
                 request.getOverloadHours() == null
                         ? BigDecimal.ZERO
@@ -412,8 +417,18 @@ public class AdministratorService {
         );
         workload.setRemarks(normalizeBlank(request.getRemarks()));
 
+        FacultyWorkload savedWorkload = facultyWorkloadRepository.save(workload);
+        updateFacultyTermTeachingLoad(
+                facultyId,
+                request.getSchoolYear(),
+                semester,
+                faculty
+        );
+
         return toFacultyWorkloadResponse(
-                facultyWorkloadRepository.save(workload)
+                facultyWorkloadRepository
+                        .findById(savedWorkload.getFacultyWorkloadId())
+                        .orElse(savedWorkload)
         );
     }
 
@@ -496,6 +511,97 @@ public class AdministratorService {
                                 )
                         )
         );
+    }
+
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
+    public List<FacultyWorkloadSectionOptionResponse>
+    getFacultyWorkloadSectionOptions(
+            Integer schoolYear,
+            String semester
+    ) {
+        if (schoolYear == null) {
+            throw new BadRequestException("School year is required.");
+        }
+
+        if (semester == null || semester.trim().isEmpty()) {
+            throw new BadRequestException("Semester is required.");
+        }
+
+        return primarySectionRepository.findAvailableFacultyWorkloadSections(
+                schoolYear,
+                normalizeAcademicSemester(semester)
+        );
+    }
+
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
+    @Cacheable(
+            value = "facultyWorkloadClassOptions",
+            key = "T(java.util.Objects).toString(#facultyId, '').trim().toLowerCase() + ':' + #schoolYear + ':' + T(java.util.Objects).toString(#semester, '').trim().toUpperCase()"
+    )
+    public List<FacultyWorkloadClassOptionResponse>
+    getFacultyWorkloadClassOptions(
+            String facultyId,
+            Integer schoolYear,
+            String semester
+    ) {
+        if (facultyId == null || facultyId.trim().isEmpty()) {
+            throw new BadRequestException("Faculty ID is required.");
+        }
+
+        if (schoolYear == null) {
+            throw new BadRequestException("School year is required.");
+        }
+
+        if (semester == null || semester.trim().isEmpty()) {
+            throw new BadRequestException("Semester is required.");
+        }
+
+        primaryFacultyRepository.findByFacultyId(facultyId.trim())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Faculty not found.")
+                );
+
+        return primaryClassRepository.findFacultyWorkloadClassOptionRows(
+                        facultyId.trim(),
+                        schoolYear,
+                        normalizeAcademicSemester(semester)
+                )
+                .stream()
+                .map(this::toFacultyWorkloadClassOptionResponse)
+                .toList();
+    }
+
+    private FacultyWorkloadClassOptionResponse toFacultyWorkloadClassOptionResponse(Object[] row) {
+        return new FacultyWorkloadClassOptionResponse(
+                toStringValue(row[0]),
+                toStringValue(row[1]),
+                toIntegerValue(row[2]),
+                toStringValue(row[3]),
+                toStringValue(row[4]),
+                toStringValue(row[5])
+        );
+    }
+
+    private String toStringValue(Object value) {
+        return value == null ? "" : value.toString();
+    }
+
+    private Integer toIntegerValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+
+        return Integer.valueOf(value.toString());
     }
 
     @Cacheable(
@@ -821,6 +927,10 @@ public class AdministratorService {
             throw new BadRequestException("Total teaching load cannot be negative.");
         }
 
+        if (isNegative(request.getTotalHoursPerWeek())) {
+            throw new BadRequestException("Total hours per week cannot be negative.");
+        }
+
         if (request.getNumberOfPreparations() != null
                 && request.getNumberOfPreparations() < 0) {
             throw new BadRequestException("Number of preparations cannot be negative.");
@@ -867,6 +977,7 @@ public class AdministratorService {
                 .programCode(workload.getProgramCode())
                 .yearLevel(workload.getYearLevel())
                 .sectionCode(workload.getSectionCode())
+                .totalHoursPerWeek(workload.getTotalHoursPerWeek())
                 .totalTeachingLoad(workload.getTotalTeachingLoad())
                 .numberOfPreparations(workload.getNumberOfPreparations())
                 .designationEtu(workload.getDesignationEtu())
@@ -906,6 +1017,48 @@ public class AdministratorService {
                 .orElseGet(FacultyWorkload::new);
     }
 
+    private void updateFacultyTermTeachingLoad(
+            String facultyId,
+            Integer schoolYear,
+            String semester,
+            PrimaryFaculty faculty
+    ) {
+        List<FacultyWorkload> termWorkloads =
+                facultyWorkloadRepository.findAllByFacultyIdAndSchoolYearAndSemester(
+                        facultyId,
+                        schoolYear,
+                        semester
+                );
+
+        BigDecimal totalTeachingLoad = termWorkloads
+                .stream()
+                .map(FacultyWorkload::getTotalHoursPerWeek)
+                .map(this::safeBigDecimal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal loadLimit = BigDecimal.valueOf(safeDouble(faculty.getLoadLimit()));
+
+        termWorkloads.forEach(termWorkload -> {
+            BigDecimal totalWorkload =
+                    totalTeachingLoad.add(safeBigDecimal(termWorkload.getDesignationEtu()));
+            BigDecimal overloadHours = totalWorkload.subtract(loadLimit);
+
+            termWorkload.setTotalTeachingLoad(totalTeachingLoad);
+            termWorkload.setTotalWorkload(totalWorkload);
+            termWorkload.setOverloadHours(
+                    overloadHours.compareTo(BigDecimal.ZERO) > 0
+                            ? overloadHours
+                            : BigDecimal.ZERO
+            );
+        });
+
+        facultyWorkloadRepository.saveAll(termWorkloads);
+    }
+
+    private BigDecimal safeBigDecimal(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
+    }
+
     private boolean isNegative(BigDecimal value) {
         return value != null && value.compareTo(BigDecimal.ZERO) < 0;
     }
@@ -916,6 +1069,16 @@ public class AdministratorService {
         }
 
         return value.trim();
+    }
+
+    private String normalizeAcademicSemester(String value) {
+        String normalized = value.trim();
+
+        try {
+            return Semester.valueOf(normalized).getValue();
+        } catch (IllegalArgumentException ignored) {
+            return normalized;
+        }
     }
 
     private String normalizeLegacyDatabase(String legacyDatabase) {

@@ -32,6 +32,7 @@ public class CacheConfig {
                 "studentEvaluationStatus",
                 "studentFacultyEvaluations",
                 "facultyEvaluationScores",
+                "facultyWorkloadClassOptions",
                 "studentLoads",
                 "studentFacultyClassEvaluationChecks",
                 "classStudentCounts",

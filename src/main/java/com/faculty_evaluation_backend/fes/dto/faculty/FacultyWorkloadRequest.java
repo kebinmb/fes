@@ -35,6 +35,8 @@ public class FacultyWorkloadRequest {
     @NotBlank
     private String sectionCode;
 
+    private BigDecimal totalHoursPerWeek;
+
     private BigDecimal totalTeachingLoad;
 
     private Integer numberOfPreparations;

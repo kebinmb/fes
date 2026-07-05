@@ -9,8 +9,10 @@ import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardResponse;
 import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardSummaryResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationPrintResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.StudentEvaluationStatusResponse;
+import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadClassOptionResponse;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadRequest;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadResponse;
+import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadSectionOptionResponse;
 import com.faculty_evaluation_backend.fes.dto.response.FetchFacultyEvaluationScoreResponse;
 import com.faculty_evaluation_backend.fes.dto.response.FetchFacultyResponse;
 import com.faculty_evaluation_backend.fes.dto.response.FetchUserAccountsResponse;
@@ -175,6 +177,36 @@ public class AdministratorController {
         return ResponseEntity.ok(
                 administratorService.getFacultyWorkloadById(
                         facultyWorkloadId
+                )
+        );
+    }
+
+    @GetMapping("/faculty-workloads/section-options")
+    public ResponseEntity<List<FacultyWorkloadSectionOptionResponse>>
+    getFacultyWorkloadSectionOptions(
+            @RequestParam Integer schoolYear,
+            @RequestParam String semester
+    ) {
+        return ResponseEntity.ok(
+                administratorService.getFacultyWorkloadSectionOptions(
+                        schoolYear,
+                        semester
+                )
+        );
+    }
+
+    @GetMapping("/faculty-workloads/class-options")
+    public ResponseEntity<List<FacultyWorkloadClassOptionResponse>>
+    getFacultyWorkloadClassOptions(
+            @RequestParam String facultyId,
+            @RequestParam Integer schoolYear,
+            @RequestParam String semester
+    ) {
+        return ResponseEntity.ok(
+                administratorService.getFacultyWorkloadClassOptions(
+                        facultyId,
+                        schoolYear,
+                        semester
                 )
         );
     }

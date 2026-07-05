@@ -1,6 +1,7 @@
 package com.faculty_evaluation_backend.fes.repositories.primary;
 
 
+import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadSectionOptionResponse;
 import com.faculty_evaluation_backend.fes.dto.student.StudentSectionDTO;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimarySection;
 import org.springframework.data.domain.Page;
@@ -87,6 +88,28 @@ public interface PrimarySectionRepository extends JpaRepository<PrimarySection, 
             @Param("yearLevel") String yearLevel,
             @Param("sectionCode") String sectionCode,
             Pageable pageable
+    );
+
+    @Query("""
+            SELECT DISTINCT new com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadSectionOptionResponse(
+                ps.sectionId,
+                ps.programCode,
+                ps.yearLevel,
+                ps.sectionCode
+            )
+            FROM PrimaryClass pc
+            INNER JOIN pc.section ps
+            WHERE pc.schoolYear = :schoolYear
+              AND pc.semester = :semester
+              AND pc.sectionId IS NOT NULL
+            ORDER BY
+                ps.programCode ASC,
+                ps.yearLevel ASC,
+                ps.sectionCode ASC
+            """)
+    List<FacultyWorkloadSectionOptionResponse> findAvailableFacultyWorkloadSections(
+            @Param("schoolYear") Integer schoolYear,
+            @Param("semester") String semester
     );
 
 

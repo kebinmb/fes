@@ -98,6 +98,14 @@ public class FacultyWorkload extends Auditable {
     @Column(name = "section_code", nullable = false)
     private String sectionCode;
 
+    @Column(
+            name = "total_hours_per_week",
+            nullable = false,
+            precision = 8,
+            scale = 2
+    )
+    private BigDecimal totalHoursPerWeek = BigDecimal.ZERO;
+
     @Column(name = "total_teaching_load", precision = 8, scale = 2)
     private BigDecimal totalTeachingLoad;
 
@@ -132,6 +140,10 @@ public class FacultyWorkload extends Auditable {
     @PrePersist
     @PreUpdate
     void syncLoadStatus() {
+        if (totalHoursPerWeek == null) {
+            totalHoursPerWeek = BigDecimal.ZERO;
+        }
+
         if (overloadHours == null) {
             overloadHours = BigDecimal.ZERO;
         }

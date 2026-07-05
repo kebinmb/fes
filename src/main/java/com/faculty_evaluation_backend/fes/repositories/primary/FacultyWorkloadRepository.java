@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -17,6 +18,13 @@ public interface FacultyWorkloadRepository
 
     @EntityGraph(attributePaths = "faculty")
     Optional<FacultyWorkload> findByFacultyIdAndSchoolYearAndSemester(
+            String facultyId,
+            Integer schoolYear,
+            String semester
+    );
+
+    @EntityGraph(attributePaths = "faculty")
+    List<FacultyWorkload> findAllByFacultyIdAndSchoolYearAndSemester(
             String facultyId,
             Integer schoolYear,
             String semester

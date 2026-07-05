@@ -22,6 +22,7 @@ public class FacultyWorkloadResponse {
     private String programCode;
     private String yearLevel;
     private String sectionCode;
+    private BigDecimal totalHoursPerWeek;
     private BigDecimal totalTeachingLoad;
     private Integer numberOfPreparations;
     private BigDecimal designationEtu;

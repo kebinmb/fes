@@ -99,6 +99,40 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
 
             @Param("semester") String semester);
 
+    @Query(value = """
+            SELECT
+                MIN(pc.class_code) AS classCode,
+                pc.subject_code AS courseCode,
+                ps.section_id AS sectionId,
+                ps.program_code AS programCode,
+                ps.year_level AS yearLevel,
+                ps.section_code AS sectionCode
+            FROM primary_class pc
+            INNER JOIN primary_section ps
+                ON ps.section_id = pc.section_id
+            WHERE pc.faculty_id = :facultyId
+              AND pc.school_year = :schoolYear
+              AND pc.semester = :semester
+              AND pc.subject_code IS NOT NULL
+              AND pc.section_id IS NOT NULL
+            GROUP BY
+                pc.subject_code,
+                ps.section_id,
+                ps.program_code,
+                ps.year_level,
+                ps.section_code
+            ORDER BY
+                pc.subject_code ASC,
+                ps.program_code ASC,
+                ps.year_level ASC,
+                ps.section_code ASC
+            """, nativeQuery = true)
+    List<Object[]> findFacultyWorkloadClassOptionRows(
+            @Param("facultyId") String facultyId,
+            @Param("schoolYear") Integer schoolYear,
+            @Param("semester") String semester
+    );
+
     boolean existsByLegacyDatabaseAndLegacyId(String legacyDatabase, String legacyId);
 
     @Query("""
