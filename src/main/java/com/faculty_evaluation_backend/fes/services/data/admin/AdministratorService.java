@@ -99,6 +99,7 @@ public class AdministratorService {
                     "adminDashboardSummary",
                     "adminDashboardPrograms",
                     "adminDashboardFacultyLoads",
+                    "facultyWorkloadClassOptions",
                     "facultyClasses",
                     "facultyEvaluationReports",
                     "studentSections",
@@ -398,6 +399,19 @@ public class AdministratorService {
 
     @Transactional(
             transactionManager = "primaryTransactionManager"
+    )
+    @CacheEvict(
+            value = {
+                    "adminDashboard",
+                    "adminDashboardSummary",
+                    "adminDashboardPrograms",
+                    "adminDashboardFacultyLoads",
+                    "facultyWorkloadClassOptions",
+                    "facultyEvaluationReports",
+                    "supervisorFacultyLoads",
+                    "supervisorFacultyProgramLoads"
+            },
+            allEntries = true
     )
     public FacultyWorkloadResponse upsertFacultyWorkload(
             FacultyWorkloadRequest request

@@ -110,12 +110,41 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
             FROM primary_class pc
             INNER JOIN primary_section ps
                 ON ps.section_id = pc.section_id
+            LEFT JOIN faculty_workload fw
+                ON fw.faculty_id = pc.faculty_id
+               AND fw.school_year = pc.school_year
+               AND (
+                    LOWER(TRIM(fw.semester)) = LOWER(TRIM(pc.semester))
+                    OR (
+                        UPPER(TRIM(fw.semester)) = 'FIRST_SEMESTER'
+                        AND LOWER(TRIM(pc.semester)) = '1st'
+                    )
+                    OR (
+                        UPPER(TRIM(fw.semester)) = 'SECOND_SEMESTER'
+                        AND LOWER(TRIM(pc.semester)) = '2nd'
+                    )
+                    OR (
+                        UPPER(TRIM(fw.semester)) = 'SUMMER_SEMESTER'
+                        AND LOWER(TRIM(pc.semester)) = 'summer'
+                    )
+               )
+               AND (
+                    fw.class_code = pc.class_code
+                    OR (
+                        fw.class_code IS NULL
+                        AND fw.course_code = pc.subject_code
+                        AND fw.program_code = ps.program_code
+                        AND fw.year_level = ps.year_level
+                        AND fw.section_code = ps.section_code
+                    )
+               )
             WHERE pc.faculty_id = :facultyId
               AND pc.school_year = :schoolYear
               AND pc.semester = :semester
               AND pc.subject_code IS NOT NULL
               AND pc.section_id IS NOT NULL
               AND pc.class_code IS NOT NULL
+              AND fw.faculty_workload_id IS NULL
             ORDER BY
                 pc.subject_code ASC,
                 ps.program_code ASC,
