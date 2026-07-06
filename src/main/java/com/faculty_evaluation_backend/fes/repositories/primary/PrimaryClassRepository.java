@@ -101,7 +101,7 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
 
     @Query(value = """
             SELECT
-                MIN(pc.class_code) AS classCode,
+                pc.class_code AS classCode,
                 pc.subject_code AS courseCode,
                 ps.section_id AS sectionId,
                 ps.program_code AS programCode,
@@ -115,17 +115,13 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
               AND pc.semester = :semester
               AND pc.subject_code IS NOT NULL
               AND pc.section_id IS NOT NULL
-            GROUP BY
-                pc.subject_code,
-                ps.section_id,
-                ps.program_code,
-                ps.year_level,
-                ps.section_code
+              AND pc.class_code IS NOT NULL
             ORDER BY
                 pc.subject_code ASC,
                 ps.program_code ASC,
                 ps.year_level ASC,
-                ps.section_code ASC
+                ps.section_code ASC,
+                pc.class_code ASC
             """, nativeQuery = true)
     List<Object[]> findFacultyWorkloadClassOptionRows(
             @Param("facultyId") String facultyId,

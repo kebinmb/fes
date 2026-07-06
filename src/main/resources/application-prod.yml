@@ -106,8 +106,8 @@ spring:
 
   servlet:
     multipart:
-      max-file-size: 50MB
-      max-request-size: 50MB
+      max-file-size: ${EVIDENCE_MAX_FILE_SIZE:15MB}
+      max-request-size: ${EVIDENCE_MAX_REQUEST_SIZE:16MB}
 
   jpa:
     hibernate:

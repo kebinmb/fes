@@ -18,6 +18,7 @@ public class FacultyWorkloadResponse {
     private Double loadLimit;
     private Integer schoolYear;
     private String semester;
+    private String classCode;
     private String courseCode;
     private String programCode;
     private String yearLevel;

@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -25,9 +26,13 @@ public class StudentService {
             value = "studentLoads",
             key = "#studentId + ':' + #pageable.pageNumber + ':' + #pageable.pageSize + ':' + #pageable.sort.toString()"
     )
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
     public PageResponse<StudentClassLoadDTO> getStudentLoads(String studentId, Pageable pageable) {
         SchoolYearAndSemester data = schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE).orElseThrow(() -> new RuntimeException("No active school year and semester found."));
-        log.info("Active School Year: {}, Semester: {}", data.getSchoolYear(), data.getSemester());
+        log.debug("Active School Year: {}, Semester: {}", data.getSchoolYear(), data.getSemester());
         return PageMapper.toPageResponse(
 
                 primaryStudentLoadRepository.findStudentLoadDTO(studentId, data.getSchoolYear(), data.getSemester().getValue(), pageable));

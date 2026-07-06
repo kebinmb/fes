@@ -23,6 +23,8 @@ public class FacultyWorkloadRequest {
     @NotBlank
     private String semester;
 
+    private String classCode;
+
     @NotBlank
     private String courseCode;
 

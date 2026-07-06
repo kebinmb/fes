@@ -53,7 +53,7 @@ spring:
       order_updates: true
       ddl-auto: validate
 
-    show-sql: true
+    show-sql: false
 
   flyway:
     clean-disabled: false
@@ -92,10 +92,10 @@ app:
 
 logging:
   level:
-    root: DEBUG
-    org.hibernate.SQL: DEBUG
-    org.hibernate.orm.jdbc.bind: TRACE
-    org.springframework.security: DEBUG
+    root: INFO
+    org.hibernate.SQL: WARN
+    org.hibernate.orm.jdbc.bind: WARN
+    org.springframework.security: INFO
 
 server:
   port: 8090

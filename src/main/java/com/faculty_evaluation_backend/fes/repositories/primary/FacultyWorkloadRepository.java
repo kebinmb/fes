@@ -32,6 +32,19 @@ public interface FacultyWorkloadRepository
 
     @EntityGraph(attributePaths = "faculty")
     Optional<FacultyWorkload>
+    findByFacultyIdAndSchoolYearAndSemesterAndClassCodeAndCourseCodeAndProgramCodeAndYearLevelAndSectionCode(
+            String facultyId,
+            Integer schoolYear,
+            String semester,
+            String classCode,
+            String courseCode,
+            String programCode,
+            String yearLevel,
+            String sectionCode
+    );
+
+    @EntityGraph(attributePaths = "faculty")
+    Optional<FacultyWorkload>
     findByFacultyIdAndSchoolYearAndSemesterAndCourseCodeAndProgramCodeAndYearLevelAndSectionCode(
             String facultyId,
             Integer schoolYear,

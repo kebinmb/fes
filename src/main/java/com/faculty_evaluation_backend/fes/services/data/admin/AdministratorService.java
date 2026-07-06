@@ -63,6 +63,12 @@ import java.util.Set;
 @Slf4j
 public class AdministratorService {
 
+    private static final BigDecimal STANDARD_PREPARATION_LOAD_LIMIT =
+            BigDecimal.valueOf(21);
+    private static final BigDecimal HIGH_PREPARATION_LOAD_LIMIT =
+            BigDecimal.valueOf(18);
+    private static final int HIGH_PREPARATION_THRESHOLD = 3;
+
     private static final Set<String> ALLOWED_LEGACY_DATABASES = Set.of(
             "LEGACY_TALISAY",
             "LEGACY_ALIJIS",
@@ -138,6 +144,10 @@ public class AdministratorService {
         return SchoolYearAndSemesterDTO.builder().id(savedRecord.getId()).schoolYear(savedRecord.getSchoolYear()).semester(savedRecord.getSemester()).status(savedRecord.getStatus()).createdAt(savedRecord.getCreatedAt()).build();
     }
 
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
     @Cacheable(value = "currentSchoolYearSemester", key = "'active'")
     public SchoolYearAndSemesterDTO fetchCurrentSchoolYearAndSemester() {
 
@@ -228,7 +238,10 @@ public class AdministratorService {
             transactionManager = "primaryTransactionManager",
             readOnly = true
     )
-    @Cacheable(value = "adminDashboardFacultyLoads", key = "#limit")
+    @Cacheable(
+            value = "adminDashboardFacultyLoads",
+            key = "T(java.lang.Math).min(T(java.lang.Math).max(#limit, 1), 50)"
+    )
     public List<AdminDashboardFacultyLoadResponse> getDashboardFacultyLoads(
             int limit
     ) {
@@ -252,6 +265,10 @@ public class AdministratorService {
                 .toList();
     }
 
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
     public PageResponse<FetchFacultyResponse> facultyList(
             int page,
             int size,
@@ -276,6 +293,10 @@ public class AdministratorService {
         return PageResponse.<FetchFacultyResponse>builder().content(responseList).page(facultyPage.getNumber()).size(facultyPage.getSize()).totalElements(facultyPage.getTotalElements()).totalPages(facultyPage.getTotalPages()).build();
     }
 
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
     public PageResponse<FetchUserAccountsResponse> accountList(int page, int size) {
 
         Page<UserAccounts> userAccountsPage = userAccountsRepository.findAll(PageRequest.of(page, size));
@@ -285,6 +306,10 @@ public class AdministratorService {
         return PageResponse.<FetchUserAccountsResponse>builder().content(responseList).page(userAccountsPage.getNumber()).size(userAccountsPage.getSize()).totalElements(userAccountsPage.getTotalElements()).totalPages(userAccountsPage.getTotalPages()).build();
     }
 
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
     @Cacheable(value = "facultyEvaluationScores", key = "#page + ':' + #size")
     public PageResponse<FetchFacultyEvaluationScoreResponse> facultyEvaluationScore(int page, int size) {
 
@@ -294,7 +319,7 @@ public class AdministratorService {
 
             PrimaryFaculty faculty = score.getFaculty();
 
-            return FetchFacultyEvaluationScoreResponse.builder().facultyEvaluationScoreId(score.getFacultyEvaluationScoreId()).facultyId(score.getFacultyId()).facultyName(faculty != null ? faculty.getFirstname() + " " + faculty.getLastname() : "N/A").position(score.getFaculty().getPosition()).evaluatorId(score.getEvaluatorId()).classCode(score.getClassCode()).semester(score.getSemester()).schoolYear(String.valueOf(score.getSchoolYear())).subjectCode(score.getSubjectCode()).yearLevel(score.getYearLevel()).commentsOrFeedbacks(score.getCommentsOrFeedbacks()).overallAverageScore(score.getOverallAverageScore()).overallInterpretation(score.getOverallInterpretation()).build();
+            return FetchFacultyEvaluationScoreResponse.builder().facultyEvaluationScoreId(score.getFacultyEvaluationScoreId()).facultyId(score.getFacultyId()).facultyName(faculty != null ? faculty.getFirstname() + " " + faculty.getLastname() : "N/A").position(faculty != null ? faculty.getPosition() : null).evaluatorId(score.getEvaluatorId()).classCode(score.getClassCode()).semester(score.getSemester()).schoolYear(String.valueOf(score.getSchoolYear())).subjectCode(score.getSubjectCode()).yearLevel(score.getYearLevel()).commentsOrFeedbacks(score.getCommentsOrFeedbacks()).overallAverageScore(score.getOverallAverageScore()).overallInterpretation(score.getOverallInterpretation()).build();
         }).toList();
 
         return PageResponse.<FetchFacultyEvaluationScoreResponse>builder().content(responseList).page(scorePage.getNumber()).size(scorePage.getSize()).totalElements(scorePage.getTotalElements()).totalPages(scorePage.getTotalPages()).build();
@@ -382,7 +407,7 @@ public class AdministratorService {
         String facultyId = request.getFacultyId().trim();
         String semester = request.getSemester().trim();
 
-        PrimaryFaculty faculty = primaryFacultyRepository.findByFacultyId(facultyId)
+        primaryFacultyRepository.findByFacultyId(facultyId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Faculty not found.")
                 );
@@ -396,6 +421,7 @@ public class AdministratorService {
         workload.setFacultyId(facultyId);
         workload.setSchoolYear(request.getSchoolYear());
         workload.setSemester(semester);
+        workload.setClassCode(normalizeBlank(request.getClassCode()));
         workload.setCourseCode(request.getCourseCode().trim());
         workload.setProgramCode(request.getProgramCode().trim());
         workload.setYearLevel(request.getYearLevel().trim());
@@ -422,7 +448,8 @@ public class AdministratorService {
                 facultyId,
                 request.getSchoolYear(),
                 semester,
-                faculty
+                request.getNumberOfPreparations(),
+                request.getDesignationEtu()
         );
 
         return toFacultyWorkloadResponse(
@@ -440,6 +467,7 @@ public class AdministratorService {
             String facultyId,
             Integer schoolYear,
             String semester,
+            String classCode,
             String courseCode,
             String programCode,
             String yearLevel,
@@ -473,15 +501,35 @@ public class AdministratorService {
             throw new BadRequestException("Section code is required.");
         }
 
-        FacultyWorkload workload = facultyWorkloadRepository
-                .findByFacultyIdAndSchoolYearAndSemesterAndCourseCodeAndProgramCodeAndYearLevelAndSectionCode(
-                        facultyId.trim(),
-                        schoolYear,
-                        semester.trim(),
-                        courseCode.trim(),
-                        programCode.trim(),
-                        yearLevel.trim(),
-                        sectionCode.trim()
+        Optional<FacultyWorkload> workload =
+                Optional.empty();
+
+        String normalizedClassCode = normalizeBlank(classCode);
+        if (normalizedClassCode != null) {
+            workload = facultyWorkloadRepository
+                    .findByFacultyIdAndSchoolYearAndSemesterAndClassCodeAndCourseCodeAndProgramCodeAndYearLevelAndSectionCode(
+                            facultyId.trim(),
+                            schoolYear,
+                            semester.trim(),
+                            normalizedClassCode,
+                            courseCode.trim(),
+                            programCode.trim(),
+                            yearLevel.trim(),
+                            sectionCode.trim()
+                    );
+        }
+
+        FacultyWorkload resolvedWorkload = workload.or(() ->
+                        facultyWorkloadRepository
+                                .findByFacultyIdAndSchoolYearAndSemesterAndCourseCodeAndProgramCodeAndYearLevelAndSectionCode(
+                                        facultyId.trim(),
+                                        schoolYear,
+                                        semester.trim(),
+                                        courseCode.trim(),
+                                        programCode.trim(),
+                                        yearLevel.trim(),
+                                        sectionCode.trim()
+                                )
                 )
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
@@ -489,7 +537,7 @@ public class AdministratorService {
                         )
                 );
 
-        return toFacultyWorkloadResponse(workload);
+        return toFacultyWorkloadResponse(resolvedWorkload);
     }
 
     @Transactional(
@@ -608,6 +656,10 @@ public class AdministratorService {
             value = "studentFacultyEvaluations",
             key = "(#search == null ? '' : #search.trim().toLowerCase()) + ':' + #page + ':' + #size + ':' + #sortBy + ':' + #sortDirection"
     )
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
     public Page<StudentFacultyEvaluationDTO> getStudentFacultyEvaluationDetails(String search, int page, int size, String sortBy, String sortDirection) {
 
         Sort sort = sortDirection.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
@@ -711,6 +763,10 @@ public class AdministratorService {
             value = "studentSections",
             key = "(#programCode == null ? '' : #programCode.trim().toLowerCase()) + ':' + (#yearLevel == null ? '' : #yearLevel.trim().toLowerCase()) + ':' + (#sectionCode == null ? '' : #sectionCode.trim().toLowerCase()) + ':' + #page + ':' + #size"
     )
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
     public PageResponse<StudentSectionDTO> getStudentSections(
 
             String programCode,
@@ -723,14 +779,26 @@ public class AdministratorService {
 
             int size) {
 
+        DashboardTerm term = resolveDashboardTerm();
         Pageable pageable = PageRequest.of(page, size);
 
-        return PageMapper.toPageResponse(primarySectionRepository.getStudentSectionEvaluationData(programCode, yearLevel, sectionCode, pageable));
+        return PageMapper.toPageResponse(primarySectionRepository.getStudentSectionEvaluationData(
+                programCode,
+                yearLevel,
+                sectionCode,
+                term.schoolYear(),
+                term.semester(),
+                pageable
+        ));
     }
 
     @Cacheable(
             value = "studentEvaluationStatus",
             key = "(#programCode == null ? '' : #programCode.trim().toLowerCase()) + ':' + (#yearLevel == null ? '' : #yearLevel.trim().toLowerCase()) + ':' + (#sectionCode == null ? '' : #sectionCode.trim().toLowerCase())"
+    )
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
     )
     public List<StudentEvaluationStatusResponse> fetchStudentEvaluationStatus(
 
@@ -755,13 +823,19 @@ public class AdministratorService {
             throw new BadRequestException("Section code is required.");
         }
 
+        DashboardTerm term = resolveDashboardTerm();
+
         return primaryStudentLoadRepository.fetchStudentEvaluationStatus(
 
                 programCode,
 
                 yearLevel,
 
-                sectionCode);
+                sectionCode,
+
+                term.schoolYear(),
+
+                term.semester());
     }
 
     private void validateCreateUser(CreateUserAccountDTO dto) {
@@ -970,9 +1044,10 @@ public class AdministratorService {
                         ? workload.getFacultyId()
                         : facultyName)
                 .college(faculty == null ? null : faculty.getCollege())
-                .loadLimit(faculty == null ? null : faculty.getLoadLimit())
+                .loadLimit(effectiveLoadLimit(workload.getNumberOfPreparations()).doubleValue())
                 .schoolYear(workload.getSchoolYear())
                 .semester(workload.getSemester())
+                .classCode(workload.getClassCode())
                 .courseCode(workload.getCourseCode())
                 .programCode(workload.getProgramCode())
                 .yearLevel(workload.getYearLevel())
@@ -1004,6 +1079,27 @@ public class AdministratorService {
                     );
         }
 
+        String classCode = normalizeBlank(request.getClassCode());
+
+        if (classCode != null) {
+            Optional<FacultyWorkload> workload =
+                    facultyWorkloadRepository
+                            .findByFacultyIdAndSchoolYearAndSemesterAndClassCodeAndCourseCodeAndProgramCodeAndYearLevelAndSectionCode(
+                                    facultyId,
+                                    request.getSchoolYear(),
+                                    semester,
+                                    classCode,
+                                    request.getCourseCode().trim(),
+                                    request.getProgramCode().trim(),
+                                    request.getYearLevel().trim(),
+                                    request.getSectionCode().trim()
+                            );
+
+            if (workload.isPresent()) {
+                return workload.get();
+            }
+        }
+
         return facultyWorkloadRepository
                 .findByFacultyIdAndSchoolYearAndSemesterAndCourseCodeAndProgramCodeAndYearLevelAndSectionCode(
                         facultyId,
@@ -1021,7 +1117,8 @@ public class AdministratorService {
             String facultyId,
             Integer schoolYear,
             String semester,
-            PrimaryFaculty faculty
+            Integer numberOfPreparations,
+            BigDecimal designationEtu
     ) {
         List<FacultyWorkload> termWorkloads =
                 facultyWorkloadRepository.findAllByFacultyIdAndSchoolYearAndSemester(
@@ -1036,13 +1133,19 @@ public class AdministratorService {
                 .map(this::safeBigDecimal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal loadLimit = BigDecimal.valueOf(safeDouble(faculty.getLoadLimit()));
+        Integer effectiveNumberOfPreparations =
+                safeNumberOfPreparations(numberOfPreparations);
+        BigDecimal effectiveDesignationEtu = safeBigDecimal(designationEtu);
+        BigDecimal loadLimit =
+                effectiveLoadLimit(effectiveNumberOfPreparations);
 
         termWorkloads.forEach(termWorkload -> {
             BigDecimal totalWorkload =
-                    totalTeachingLoad.add(safeBigDecimal(termWorkload.getDesignationEtu()));
+                    totalTeachingLoad.add(effectiveDesignationEtu);
             BigDecimal overloadHours = totalWorkload.subtract(loadLimit);
 
+            termWorkload.setNumberOfPreparations(effectiveNumberOfPreparations);
+            termWorkload.setDesignationEtu(effectiveDesignationEtu);
             termWorkload.setTotalTeachingLoad(totalTeachingLoad);
             termWorkload.setTotalWorkload(totalWorkload);
             termWorkload.setOverloadHours(
@@ -1053,6 +1156,21 @@ public class AdministratorService {
         });
 
         facultyWorkloadRepository.saveAll(termWorkloads);
+    }
+
+    private BigDecimal effectiveLoadLimit(Integer numberOfPreparations) {
+        if (numberOfPreparations != null
+                && numberOfPreparations >= HIGH_PREPARATION_THRESHOLD) {
+            return HIGH_PREPARATION_LOAD_LIMIT;
+        }
+
+        return STANDARD_PREPARATION_LOAD_LIMIT;
+    }
+
+    private Integer safeNumberOfPreparations(Integer numberOfPreparations) {
+        return numberOfPreparations == null
+                ? 0
+                : Math.max(numberOfPreparations, 0);
     }
 
     private BigDecimal safeBigDecimal(BigDecimal value) {

@@ -39,6 +39,7 @@ import java.math.BigDecimal;
                                 "faculty_id",
                                 "school_year",
                                 "semester",
+                                "class_code",
                                 "course_code",
                                 "program_code",
                                 "year_level",
@@ -85,6 +86,9 @@ public class FacultyWorkload extends Auditable {
 
     @Column(name = "semester", nullable = false)
     private String semester;
+
+    @Column(name = "class_code")
+    private String classCode;
 
     @Column(name = "course_code", nullable = false)
     private String courseCode;

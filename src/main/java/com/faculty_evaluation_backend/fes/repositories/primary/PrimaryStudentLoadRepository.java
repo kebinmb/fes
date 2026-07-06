@@ -97,11 +97,15 @@ public interface PrimaryStudentLoadRepository extends JpaRepository<PrimaryStude
     LEFT JOIN faculty_evaluation_score fes
         ON fes.evaluator_id = psl.student_id
         AND fes.class_code = psl.class_code
+        AND fes.school_year = pc.school_year
+        AND fes.semester = pc.semester
 
     WHERE
         ps.program_code = :programCode
         AND ps.year_level = :yearLevel
         AND ps.section_code = :sectionCode
+        AND pc.school_year = :schoolYear
+        AND pc.semester = :semester
 
     ORDER BY
         psl.student_id,
@@ -111,6 +115,8 @@ public interface PrimaryStudentLoadRepository extends JpaRepository<PrimaryStude
     fetchStudentEvaluationStatus(
             @Param("programCode") String programCode,
             @Param("yearLevel") String yearLevel,
-            @Param("sectionCode") String sectionCode
+            @Param("sectionCode") String sectionCode,
+            @Param("schoolYear") Integer schoolYear,
+            @Param("semester") String semester
     );
 }

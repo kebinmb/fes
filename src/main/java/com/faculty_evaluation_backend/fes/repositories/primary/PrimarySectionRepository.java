@@ -67,9 +67,14 @@ public interface PrimarySectionRepository extends JpaRepository<PrimarySection, 
 
     LEFT JOIN FacultyEvaluationScore fes
         ON psl.studentId = fes.evaluatorId
+       AND psl.classCode = fes.classCode
+       AND fes.schoolYear = pc.schoolYear
+       AND fes.semester = pc.semester
 
     WHERE
-        (:programCode IS NULL OR ps.programCode = :programCode)
+        pc.schoolYear = :schoolYear
+    AND pc.semester = :semester
+    AND (:programCode IS NULL OR ps.programCode = :programCode)
     AND (:yearLevel IS NULL OR ps.yearLevel = :yearLevel)
     AND (:sectionCode IS NULL OR ps.sectionCode = :sectionCode)
 
@@ -87,6 +92,8 @@ public interface PrimarySectionRepository extends JpaRepository<PrimarySection, 
             @Param("programCode") String programCode,
             @Param("yearLevel") String yearLevel,
             @Param("sectionCode") String sectionCode,
+            @Param("schoolYear") Integer schoolYear,
+            @Param("semester") String semester,
             Pageable pageable
     );
 
