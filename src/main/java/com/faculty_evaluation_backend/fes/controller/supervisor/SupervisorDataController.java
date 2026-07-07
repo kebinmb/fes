@@ -1,5 +1,6 @@
 package com.faculty_evaluation_backend.fes.controller.supervisor;
 
+import com.faculty_evaluation_backend.fes.audit.AuditableAction;
 import com.faculty_evaluation_backend.fes.dto.authentication.ChangePasswordRequest;
 import com.faculty_evaluation_backend.fes.dto.evaluation.EvaluatedStudentsDTO;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassDTO;
@@ -39,11 +40,13 @@ import java.util.Map;
 public class SupervisorDataController {
     private final SupervisorDataService supervisorDataService;
     @GetMapping("/list")
+    @AuditableAction(action = "FETCH", entity = "FACULTY")
     public ResponseEntity<List<FacultyDTO>> getFacultiesByCollegeAndStatus(@RequestParam College college, @RequestParam Status status) {
         return ResponseEntity.ok(supervisorDataService.getFacultiesByCollegeAndStatus(college.name(), status.name()));
     }
 
     @GetMapping("/faculty-loads")
+    @AuditableAction(action = "FETCH", entity = "FACULTY_LOADS")
     public ResponseEntity<Page<FacultyLoadDTO>> getFacultyLoadsByProgram(
 
             @RequestParam Long userId,
@@ -62,6 +65,7 @@ public class SupervisorDataController {
     }
 
     @GetMapping("/faculty-classes")
+    @AuditableAction(action = "FETCH", entity = "FACULTY_CLASSES")
     public ResponseEntity<List<FacultyClassDTO>> getFacultyClasses(
 
             @RequestParam @NotBlank String facultyId) {
@@ -72,6 +76,7 @@ public class SupervisorDataController {
     }
 
     @GetMapping("/faculty-program-loads")
+    @AuditableAction(action = "FETCH", entity = "FACULTY_PROGRAM_LOADS")
     public ResponseEntity<Page<FacultyProgramLoadsDTO>> getFacultyProgramLoads(
 
             @RequestParam
@@ -117,6 +122,7 @@ public class SupervisorDataController {
     }
 
     @GetMapping("/check")
+    @AuditableAction(action = "CHECK", entity = "FACULTY_EVALUATION_STATUS")
     public ResponseEntity<?> checkEvaluationStatus(@RequestParam String facultyId, @RequestParam String evaluatorId, @RequestParam String classCode, @RequestParam String subjectCode, @RequestParam String yearLevel, @RequestParam String semester, @RequestParam Integer schoolYear) {
         try {
             boolean hasEvaluated = supervisorDataService.hasEvaluated(facultyId, evaluatorId, classCode, subjectCode, yearLevel, semester, schoolYear);
@@ -132,6 +138,7 @@ public class SupervisorDataController {
     }
 
     @GetMapping("/evaluated-students")
+    @AuditableAction(action = "FETCH", entity = "EVALUATED_STUDENTS")
     public ResponseEntity<Page<EvaluatedStudentsDTO>> getEvaluatedStudents(
 
             @RequestParam

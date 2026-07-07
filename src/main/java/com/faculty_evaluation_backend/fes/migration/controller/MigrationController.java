@@ -1,5 +1,6 @@
 package com.faculty_evaluation_backend.fes.migration.controller;
 
+import com.faculty_evaluation_backend.fes.audit.AuditableAction;
 import com.faculty_evaluation_backend.fes.dto.migration.MigrationErrorResponse;
 import com.faculty_evaluation_backend.fes.dto.migration.MigrationResponse;
 import com.faculty_evaluation_backend.fes.dto.migration.MigrationStatistics;
@@ -26,6 +27,7 @@ public class MigrationController {
             new AtomicBoolean(false);
 
     @PostMapping("/all")
+    @AuditableAction(action = "START", entity = "DATABASE_MIGRATION")
     public MigrationResponse<Void> migrateAll() {
 
         Instant start = Instant.now();

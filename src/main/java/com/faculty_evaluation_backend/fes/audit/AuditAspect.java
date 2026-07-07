@@ -1,6 +1,7 @@
 package com.faculty_evaluation_backend.fes.audit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.faculty_evaluation_backend.fes.entities.authentication.CustomUserDetails;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -70,8 +71,29 @@ public class AuditAspect {
         }
         String username = authentication.getName();
         log.setUsername(username);
-        //Check student or faculty if it exists in the database
-        //Logic is faculty or supervisor logs in using username and password. student logs in using access code
+
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof CustomUserDetails userDetails) {
+            setNumericUserId(log, userDetails.getUserId());
+            log.setUsername(userDetails.getUsername());
+            return;
+        }
+
+        try {
+            log.setUserId(Integer.valueOf(username));
+        } catch (NumberFormatException ignored) {
+            // Some authentication paths use usernames instead of numeric IDs.
+        }
+    }
+
+    private void setNumericUserId(AuditLog log, Long userId) {
+        if (userId == null
+                || userId > Integer.MAX_VALUE
+                || userId < Integer.MIN_VALUE) {
+            return;
+        }
+
+        log.setUserId(userId.intValue());
     }
 
     private String safeMessage(Exception ex) {

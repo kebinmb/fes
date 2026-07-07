@@ -122,6 +122,7 @@ public class AuthenticationController {
         return ResponseEntity.ok(Map.of("authenticated", true, "userId", userId, "role", role));
     }
     @PutMapping("/change-password")
+    @AuditableAction(action = "CHANGE_PASSWORD", entity = "USER_ACCOUNTS")
     public ResponseEntity<String> changePassword(
             @Valid @RequestBody ChangePasswordRequest request,
             Authentication authentication) {

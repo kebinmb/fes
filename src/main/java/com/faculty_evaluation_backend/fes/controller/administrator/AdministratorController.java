@@ -1,7 +1,10 @@
 package com.faculty_evaluation_backend.fes.controller.administrator;
 
 import com.faculty_evaluation_backend.fes.audit.AuditableAction;
+import com.faculty_evaluation_backend.fes.audit.AuditLogService;
+import com.faculty_evaluation_backend.fes.dto.audit.AuditLogSliceResponse;
 import com.faculty_evaluation_backend.fes.controller.evaluation.EvaluationController;
+import com.faculty_evaluation_backend.fes.dto.audit.AuditLogResponse;
 import com.faculty_evaluation_backend.fes.dto.data.SchoolYearAndSemesterDTO;
 import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardFacultyLoadResponse;
 import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardProgramBreakdownResponse;
@@ -34,6 +37,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
 import java.util.List;
 
 @RestController
@@ -43,8 +47,10 @@ import java.util.List;
 public class AdministratorController {
     private final AdministratorService administratorService;
     private final EvaluationDataService evaluationDataService;
+    private final AuditLogService auditLogService;
 
     @GetMapping("/dashboard")
+    @AuditableAction(action = "FETCH", entity = "ADMIN_DASHBOARD")
     public ResponseEntity<AdminDashboardResponse> getDashboard() {
         return ResponseEntity.ok(
                 administratorService.getDashboard()
@@ -52,6 +58,7 @@ public class AdministratorController {
     }
 
     @GetMapping("/dashboard/summary")
+    @AuditableAction(action = "FETCH", entity = "ADMIN_DASHBOARD_SUMMARY")
     public ResponseEntity<AdminDashboardSummaryResponse> getDashboardSummary() {
         return ResponseEntity.ok(
                 administratorService.getDashboardSummary()
@@ -59,6 +66,7 @@ public class AdministratorController {
     }
 
     @GetMapping("/dashboard/programs")
+    @AuditableAction(action = "FETCH", entity = "ADMIN_DASHBOARD_PROGRAMS")
     public ResponseEntity<List<AdminDashboardProgramBreakdownResponse>>
     getDashboardProgramBreakdown() {
         return ResponseEntity.ok(
@@ -67,6 +75,7 @@ public class AdministratorController {
     }
 
     @GetMapping("/dashboard/faculty-loads")
+    @AuditableAction(action = "FETCH", entity = "ADMIN_DASHBOARD_FACULTY_LOADS")
     public ResponseEntity<List<AdminDashboardFacultyLoadResponse>>
     getDashboardFacultyLoads(
             @RequestParam(defaultValue = "10") int limit
@@ -79,6 +88,7 @@ public class AdministratorController {
     }
 
     @GetMapping("/faculties")
+    @AuditableAction(action = "FETCH", entity = "FACULTY")
     public PageResponse<FetchFacultyResponse> getFacultyList(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -98,11 +108,13 @@ public class AdministratorController {
     }
 
     @GetMapping("/user-accounts")
+    @AuditableAction(action = "FETCH", entity = "USER_ACCOUNTS")
     public PageResponse<FetchUserAccountsResponse> getAccounts(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
         return administratorService.accountList(page, size);
     }
 
     @GetMapping("/faculty-evaluation-score")
+    @AuditableAction(action = "FETCH", entity = "FACULTY_EVALUATION_SCORE")
     public PageResponse<FetchFacultyEvaluationScoreResponse> getFacultyEvaluationScores(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
 
         log.info("Fetching faculty evaluation scores | page: {} size: {}", page, size);
@@ -111,6 +123,7 @@ public class AdministratorController {
     }
 
     @PutMapping("/update-faculty")
+    @AuditableAction(action = "UPDATE", entity = "FACULTY")
     public ResponseEntity<String> updateFaculty(@RequestParam String facultyId, @RequestParam String firstname, @RequestParam(required = false) String middlename, @RequestParam String lastname, @RequestParam String position, @RequestParam Double loadLimit, @RequestParam College college, @RequestParam Status status) {
 
         log.info("Updating faculty with facultyId: {}", facultyId);
@@ -121,6 +134,7 @@ public class AdministratorController {
     }
 
     @GetMapping("/faculty-workloads")
+    @AuditableAction(action = "FETCH", entity = "FACULTY_WORKLOAD")
     public PageResponse<FacultyWorkloadResponse> getFacultyWorkloads(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -148,6 +162,7 @@ public class AdministratorController {
     }
 
     @GetMapping("/faculty-workloads/record")
+    @AuditableAction(action = "FETCH", entity = "FACULTY_WORKLOAD_RECORD")
     public ResponseEntity<FacultyWorkloadResponse> getFacultyWorkload(
             @RequestParam String facultyId,
             @RequestParam Integer schoolYear,
@@ -173,6 +188,7 @@ public class AdministratorController {
     }
 
     @GetMapping("/faculty-workloads/{facultyWorkloadId}")
+    @AuditableAction(action = "FETCH", entity = "FACULTY_WORKLOAD")
     public ResponseEntity<FacultyWorkloadResponse> getFacultyWorkloadById(
             @PathVariable Long facultyWorkloadId
     ) {
@@ -184,6 +200,7 @@ public class AdministratorController {
     }
 
     @GetMapping("/faculty-workloads/section-options")
+    @AuditableAction(action = "FETCH", entity = "FACULTY_WORKLOAD_SECTION_OPTIONS")
     public ResponseEntity<List<FacultyWorkloadSectionOptionResponse>>
     getFacultyWorkloadSectionOptions(
             @RequestParam Integer schoolYear,
@@ -198,6 +215,7 @@ public class AdministratorController {
     }
 
     @GetMapping("/faculty-workloads/class-options")
+    @AuditableAction(action = "FETCH", entity = "FACULTY_WORKLOAD_CLASS_OPTIONS")
     public ResponseEntity<List<FacultyWorkloadClassOptionResponse>>
     getFacultyWorkloadClassOptions(
             @RequestParam String facultyId,
@@ -243,6 +261,7 @@ public class AdministratorController {
     }
 
     @PutMapping("/school-year-semester")
+    @AuditableAction(action = "UPDATE", entity = "SCHOOL_YEAR_SEMESTER")
     public ResponseEntity<?> updateSchoolYearAndSemester(
             @RequestParam Integer schoolYear,
             @RequestParam Semester semester
@@ -293,6 +312,7 @@ public class AdministratorController {
     }
 
     @GetMapping("/school-year-semester")
+    @AuditableAction(action = "FETCH", entity = "SCHOOL_YEAR_SEMESTER")
     public ResponseEntity<?> fetchCurrentSchoolYearAndSemester() {
 
         try {
@@ -334,6 +354,7 @@ public class AdministratorController {
         }
     }
     @GetMapping("/student-faculty-evaluation")
+    @AuditableAction(action = "FETCH", entity = "STUDENT_FACULTY_EVALUATION")
     public ResponseEntity<?> getStudentFacultyEvaluationDetails(
 
             @RequestParam(defaultValue = "") String search,
@@ -434,6 +455,7 @@ public class AdministratorController {
     }
 
     @GetMapping("/student-sections")
+    @AuditableAction(action = "FETCH", entity = "STUDENT_SECTIONS")
     public ResponseEntity<?> getStudentSections(
 
             @RequestParam(required = false) String programCode,
@@ -512,6 +534,7 @@ public class AdministratorController {
     }
 
     @GetMapping("/student-evaluation-status")
+    @AuditableAction(action = "FETCH", entity = "STUDENT_EVALUATION_STATUS")
     public ResponseEntity<List<StudentEvaluationStatusResponse>>
     fetchStudentEvaluationStatus(
 
@@ -533,6 +556,58 @@ public class AdministratorController {
 
                                 sectionCode
                         )
+        );
+    }
+
+    @GetMapping("/audit-logs")
+    @AuditableAction(action = "FETCH", entity = "AUDIT_LOG")
+    public PageResponse<AuditLogResponse> getAuditLogs(
+            @RequestParam(required = false) Integer userId,
+            @RequestParam(required = false) String username,
+            @RequestParam(required = false) String action,
+            @RequestParam(required = false) String entityType,
+            @RequestParam(required = false) Instant startDate,
+            @RequestParam(required = false) Instant endDate,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size
+    ) {
+        return auditLogService.findAuditLogs(
+                userId,
+                username,
+                action,
+                entityType,
+                startDate,
+                endDate,
+                search,
+                page,
+                size
+        );
+    }
+
+    @GetMapping("/audit-logs/slice")
+    @AuditableAction(action = "FETCH", entity = "AUDIT_LOG")
+    public AuditLogSliceResponse getAuditLogSlice(
+            @RequestParam(required = false) Integer userId,
+            @RequestParam(required = false) String username,
+            @RequestParam(required = false) String action,
+            @RequestParam(required = false) String entityType,
+            @RequestParam(required = false) Instant startDate,
+            @RequestParam(required = false) Instant endDate,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size
+    ) {
+        return auditLogService.findAuditLogSlice(
+                userId,
+                username,
+                action,
+                entityType,
+                startDate,
+                endDate,
+                search,
+                page,
+                size
         );
     }
 }

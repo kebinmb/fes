@@ -1,5 +1,6 @@
 package com.faculty_evaluation_backend.fes.controller.supervisor;
 
+import com.faculty_evaluation_backend.fes.audit.AuditableAction;
 import com.faculty_evaluation_backend.fes.dto.evidence.EvaluationEvidenceCriterionResponse;
 import com.faculty_evaluation_backend.fes.dto.evidence.FacultyEvaluationEvidenceResponse;
 import com.faculty_evaluation_backend.fes.dto.evidence.FacultyEvaluationEvidenceSliceResponse;
@@ -30,12 +31,14 @@ public class FacultyEvaluationEvidenceController {
     private final FacultyEvaluationEvidenceService evidenceService;
 
     @GetMapping("/criteria")
+    @AuditableAction(action = "FETCH", entity = "EVIDENCE_CRITERIA")
     public ResponseEntity<List<EvaluationEvidenceCriterionResponse>>
     listCriteria() {
         return ResponseEntity.ok(evidenceService.listCriteria());
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @AuditableAction(action = "UPLOAD", entity = "FACULTY_EVALUATION_EVIDENCE")
     public ResponseEntity<FacultyEvaluationEvidenceResponse> upload(
             @RequestParam @NotBlank String facultyId,
             @RequestParam(required = false) String classCode,
@@ -65,6 +68,7 @@ public class FacultyEvaluationEvidenceController {
     }
 
     @GetMapping
+    @AuditableAction(action = "FETCH", entity = "FACULTY_EVALUATION_EVIDENCE")
     public ResponseEntity<Page<FacultyEvaluationEvidenceResponse>> list(
             @RequestParam @NotBlank String facultyId,
             @RequestParam(required = false) String classCode,
@@ -94,6 +98,7 @@ public class FacultyEvaluationEvidenceController {
     }
 
     @GetMapping("/slice")
+    @AuditableAction(action = "FETCH", entity = "FACULTY_EVALUATION_EVIDENCE")
     public ResponseEntity<FacultyEvaluationEvidenceSliceResponse> listSlice(
             @RequestParam @NotBlank String facultyId,
             @RequestParam(required = false) String classCode,
@@ -123,6 +128,7 @@ public class FacultyEvaluationEvidenceController {
     }
 
     @GetMapping("/{evidenceId}/download")
+    @AuditableAction(action = "DOWNLOAD", entity = "FACULTY_EVALUATION_EVIDENCE")
     public ResponseEntity<Resource> download(
             @PathVariable @NotNull Long evidenceId
     ) {
@@ -146,6 +152,7 @@ public class FacultyEvaluationEvidenceController {
     }
 
     @DeleteMapping("/{evidenceId}")
+    @AuditableAction(action = "DELETE", entity = "FACULTY_EVALUATION_EVIDENCE")
     public ResponseEntity<Void> delete(
             @PathVariable @NotNull Long evidenceId
     ) {

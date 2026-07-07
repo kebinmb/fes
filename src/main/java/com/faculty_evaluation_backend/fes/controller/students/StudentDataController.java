@@ -1,5 +1,6 @@
 package com.faculty_evaluation_backend.fes.controller.students;
 
+import com.faculty_evaluation_backend.fes.audit.AuditableAction;
 import com.faculty_evaluation_backend.fes.dto.student.PageResponse;
 import com.faculty_evaluation_backend.fes.dto.student.StudentClassLoadDTO;
 import com.faculty_evaluation_backend.fes.dto.student.StudentEvaluationCheckResponse;
@@ -27,6 +28,7 @@ public class StudentDataController {
     private final StudentService studentService;
     private final StudentEvaluationService studentEvaluationService;
     @GetMapping("/student-loads")
+    @AuditableAction(action = "FETCH", entity = "STUDENT_LOADS")
     public PageResponse<StudentClassLoadDTO> getStudentLoads(
             @RequestParam @NotBlank String studentId,
             @RequestParam(defaultValue = "0") int page,
@@ -53,6 +55,7 @@ public class StudentDataController {
     }
 
     @GetMapping("/check")
+    @AuditableAction(action = "CHECK", entity = "STUDENT_EVALUATION_STATUS")
     public ResponseEntity<StudentEvaluationCheckResponse> checkEvaluationStatus(
             @RequestParam @NotBlank(message = "facultyId is required") String facultyId,
             @RequestParam @NotBlank(message = "evaluatorId is required") String evaluatorId,
