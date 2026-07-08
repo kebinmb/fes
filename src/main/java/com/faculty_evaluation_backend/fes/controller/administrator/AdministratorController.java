@@ -6,10 +6,12 @@ import com.faculty_evaluation_backend.fes.dto.audit.AuditLogSliceResponse;
 import com.faculty_evaluation_backend.fes.controller.evaluation.EvaluationController;
 import com.faculty_evaluation_backend.fes.dto.audit.AuditLogResponse;
 import com.faculty_evaluation_backend.fes.dto.data.SchoolYearAndSemesterDTO;
+import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationGeneratedReportResponse;
 import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardFacultyLoadResponse;
 import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardProgramBreakdownResponse;
 import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardResponse;
 import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardSummaryResponse;
+import com.faculty_evaluation_backend.fes.dto.dashboard.FacultyWorkloadCoverageResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationPrintResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.StudentEvaluationStatusResponse;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadClassOptionResponse;
@@ -24,6 +26,7 @@ import com.faculty_evaluation_backend.fes.dto.student.StudentSectionDTO;
 import com.faculty_evaluation_backend.fes.dto.user_accounts.CreateUserAccountDTO;
 import com.faculty_evaluation_backend.fes.dto.user_accounts.UpdateUserAccountDTO;
 import com.faculty_evaluation_backend.fes.dto.user_accounts.UpdateUserPasswordDTO;
+import com.faculty_evaluation_backend.fes.entities.authentication.CustomUserDetails;
 import com.faculty_evaluation_backend.fes.entities.data.enums.Semester;
 import com.faculty_evaluation_backend.fes.entities.evaluation.FacultyEvaluationScore;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.College;
@@ -32,9 +35,11 @@ import com.faculty_evaluation_backend.fes.services.data.admin.AdministratorServi
 import com.faculty_evaluation_backend.fes.services.data.evaluation.EvaluationDataService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
@@ -84,6 +89,15 @@ public class AdministratorController {
                 administratorService.getDashboardFacultyLoads(
                         limit
                 )
+        );
+    }
+
+    @GetMapping("/dashboard/faculty-workload-coverage")
+    @AuditableAction(action = "FETCH", entity = "FACULTY_WORKLOAD_COVERAGE")
+    public ResponseEntity<FacultyWorkloadCoverageResponse>
+    getFacultyWorkloadCoverage() {
+        return ResponseEntity.ok(
+                administratorService.getFacultyWorkloadCoverage()
         );
     }
 
@@ -258,6 +272,32 @@ public class AdministratorController {
     }
 
     record ErrorResponse(String status, String message) {
+    }
+
+    @PostMapping("/faculty-evaluation-reports/{facultyId}")
+    @AuditableAction(action = "GENERATE", entity = "FACULTY_EVALUATION_REPORT")
+    public ResponseEntity<FacultyEvaluationGeneratedReportResponse>
+    generateFacultyEvaluationReport(
+            @PathVariable String facultyId,
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            HttpServletRequest request
+    ) {
+        String verificationBaseUrl =
+                request.getScheme()
+                        + "://"
+                        + request.getServerName()
+                        + (request.getServerPort() == 80
+                        || request.getServerPort() == 443
+                        ? ""
+                        : ":" + request.getServerPort());
+
+        return ResponseEntity.ok(
+                evaluationDataService.generateFacultyEvaluationReport(
+                        facultyId,
+                        verificationBaseUrl,
+                        userDetails
+                )
+        );
     }
 
     @PutMapping("/school-year-semester")

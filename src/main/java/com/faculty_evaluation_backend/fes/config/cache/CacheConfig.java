@@ -26,6 +26,7 @@ public class CacheConfig {
                 "adminDashboardSummary",
                 "adminDashboardPrograms",
                 "adminDashboardFacultyLoads",
+                "facultyWorkloadCoverage",
                 "facultyEvaluationReports",
                 "evidenceCriteria",
                 "studentSections",

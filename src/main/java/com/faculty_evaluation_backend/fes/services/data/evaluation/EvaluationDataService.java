@@ -2,22 +2,37 @@ package com.faculty_evaluation_backend.fes.services.data.evaluation;
 
 import com.faculty_evaluation_backend.fes.dto.evaluation.BaseEvaluationDTO;
 import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationPrintResponse;
+import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationGeneratedReportResponse;
+import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationReportVerificationResponse;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassDetailsDTO;
+import com.faculty_evaluation_backend.fes.entities.authentication.CustomUserDetails;
 import com.faculty_evaluation_backend.fes.entities.data.SchoolYearAndSemester;
 import com.faculty_evaluation_backend.fes.entities.evaluation.CommitmentAndTransparency;
 import com.faculty_evaluation_backend.fes.entities.evaluation.ContentKnowledgePedagogyAndTechnology;
+import com.faculty_evaluation_backend.fes.entities.evaluation.FacultyEvaluationReport;
 import com.faculty_evaluation_backend.fes.entities.evaluation.FacultyEvaluationScore;
 import com.faculty_evaluation_backend.fes.entities.evaluation.ManagementOfTeachingAndLearning;
+import com.faculty_evaluation_backend.fes.entities.evaluation.enums.FacultyEvaluationReportStatus;
 import com.faculty_evaluation_backend.fes.entities.evaluation.enums.RatingScale;
+import com.faculty_evaluation_backend.fes.entities.primary.FacultyWorkload;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.Status;
 import com.faculty_evaluation_backend.fes.repositories.data.SchoolYearAndSemesterRepository;
+import com.faculty_evaluation_backend.fes.repositories.evaluation.FacultyEvaluationReportRepository;
 import com.faculty_evaluation_backend.fes.repositories.evaluation.FacultyEvaluationScoreRepository;
+import com.faculty_evaluation_backend.fes.repositories.primary.FacultyWorkloadRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryFacultyRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryStudentLoadRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryStudentRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimarySubjectRepository;
 import com.faculty_evaluation_backend.fes.services.data.evaluation.strategies.EvaluationStrategy;
 import com.faculty_evaluation_backend.fes.services.data.evaluation.strategies.EvaluationStrategyFactory;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.WriterException;
+import com.google.zxing.client.j2se.MatrixToImageWriter;
+import com.google.zxing.common.BitMatrix;
+import com.google.zxing.qrcode.QRCodeWriter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -26,16 +41,33 @@ import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.ByteArrayOutputStream;
+import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class EvaluationDataService {
+    private static final BigDecimal STANDARD_PREPARATION_LOAD_LIMIT =
+            BigDecimal.valueOf(21);
+    private static final BigDecimal HIGH_PREPARATION_LOAD_LIMIT =
+            BigDecimal.valueOf(18);
+    private static final int HIGH_PREPARATION_THRESHOLD = 3;
+
     private final EvaluationStrategyFactory factory;
     private final FacultyEvaluationScoreRepository facultyEvaluationScoreRepository;
     private final PrimaryFacultyRepository primaryFacultyRepository;
@@ -43,6 +75,9 @@ public class EvaluationDataService {
     private final PrimaryStudentRepository primaryStudentRepository;
     private final PrimaryStudentLoadRepository primaryStudentLoadRepository;
     private final SchoolYearAndSemesterRepository schoolYearAndSemesterRepository;
+    private final FacultyWorkloadRepository facultyWorkloadRepository;
+    private final FacultyEvaluationReportRepository facultyEvaluationReportRepository;
+    private final ObjectMapper objectMapper;
 
     @Transactional(transactionManager = "primaryTransactionManager")
     @Caching(evict = {
@@ -241,7 +276,141 @@ public class EvaluationDataService {
             responses.add(response);
         }
 
-        return responses;
+        return selectPrintableWorkloadSubjects(
+                facultyId,
+                schoolYearAndSemester.getSchoolYear(),
+                schoolYearAndSemester.getSemester().getValue(),
+                responses
+        );
+    }
+
+    @Transactional(transactionManager = "primaryTransactionManager")
+    public FacultyEvaluationGeneratedReportResponse generateFacultyEvaluationReport(
+            String facultyId,
+            String verificationBaseUrl,
+            CustomUserDetails generatedBy
+    ) {
+        SchoolYearAndSemester term =
+                schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "No active school year and semester found."
+                                )
+                        );
+        List<FacultyEvaluationPrintResponse> items =
+                getSumOfAllFacultyEvaluationPerSubject(facultyId);
+
+        if (items.isEmpty()) {
+            throw new RuntimeException(
+                    "No printable evaluated workload subjects found for this faculty."
+            );
+        }
+
+        facultyEvaluationReportRepository
+                .findByFacultyIdAndSchoolYearAndSemesterAndStatus(
+                        facultyId,
+                        term.getSchoolYear(),
+                        term.getSemester().getValue(),
+                        FacultyEvaluationReportStatus.VALID
+                )
+                .forEach(report ->
+                        report.setStatus(
+                                FacultyEvaluationReportStatus.SUPERSEDED
+                        )
+                );
+
+        String reportId = UUID.randomUUID().toString();
+        String verificationUrl =
+                normalizeBaseUrl(verificationBaseUrl)
+                        + "/verify-report/"
+                        + reportId;
+        int versionNumber =
+                (int) facultyEvaluationReportRepository
+                        .countByFacultyIdAndSchoolYearAndSemester(
+                                facultyId,
+                                term.getSchoolYear(),
+                                term.getSemester().getValue()
+                        )
+                        + 1;
+        Instant generatedAt = Instant.now();
+        String facultyName = items.getFirst().getFacultyName();
+        Long generatedByUserId =
+                generatedBy == null ? null : generatedBy.getUserId();
+        String generatedByUsername =
+                generatedBy == null ? null : generatedBy.getUsername();
+        Map<String, Object> snapshot =
+                reportSnapshot(
+                        reportId,
+                        facultyId,
+                        facultyName,
+                        term.getSchoolYear(),
+                        term.getSemester().getValue(),
+                        versionNumber,
+                        generatedAt,
+                        generatedByUserId,
+                        generatedByUsername,
+                        items
+                );
+        String snapshotJson = toJson(snapshot);
+        String reportHash = sha256(snapshotJson);
+
+        FacultyEvaluationReport report =
+                FacultyEvaluationReport.builder()
+                        .reportId(reportId)
+                        .facultyId(facultyId)
+                        .facultyName(facultyName)
+                        .schoolYear(term.getSchoolYear())
+                        .semester(term.getSemester().getValue())
+                        .versionNumber(versionNumber)
+                        .status(FacultyEvaluationReportStatus.VALID)
+                        .reportHash(reportHash)
+                        .snapshotJson(snapshotJson)
+                        .verificationUrl(verificationUrl)
+                        .generatedByUserId(generatedByUserId)
+                        .generatedByUsername(generatedByUsername)
+                        .generatedAt(generatedAt)
+                        .build();
+
+        FacultyEvaluationReport savedReport =
+                facultyEvaluationReportRepository.save(report);
+
+        return toGeneratedReportResponse(
+                savedReport,
+                items,
+                qrCodeDataUri(verificationUrl)
+        );
+    }
+
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
+    public FacultyEvaluationReportVerificationResponse verifyReport(
+            String reportId
+    ) {
+        FacultyEvaluationReport report =
+                facultyEvaluationReportRepository.findById(reportId)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Faculty evaluation report was not found."
+                                )
+                        );
+
+        return FacultyEvaluationReportVerificationResponse.builder()
+                .reportId(report.getReportId())
+                .facultyId(report.getFacultyId())
+                .facultyName(report.getFacultyName())
+                .schoolYear(report.getSchoolYear())
+                .semester(report.getSemester())
+                .versionNumber(report.getVersionNumber())
+                .status(report.getStatus())
+                .reportHash(report.getReportHash())
+                .generatedAt(report.getGeneratedAt())
+                .generatedByUsername(report.getGeneratedByUsername())
+                .message(report.getStatus() == FacultyEvaluationReportStatus.VALID
+                        ? "This report is valid and matches an official generated record."
+                        : "This report exists but is no longer the current valid version.")
+                .build();
     }
 
     @Cacheable(value = "classStudentCounts", key = "#classCode")
@@ -281,6 +450,317 @@ public class EvaluationDataService {
         }
 
         return "Poor";
+    }
+
+    private List<FacultyEvaluationPrintResponse> selectPrintableWorkloadSubjects(
+            String facultyId,
+            Integer schoolYear,
+            String semester,
+            List<FacultyEvaluationPrintResponse> responses
+    ) {
+        if (responses.isEmpty()) {
+            return responses;
+        }
+
+        List<FacultyWorkload> workloads =
+                facultyWorkloadRepository.findAllByFacultyIdAndSchoolYearAndSemester(
+                        facultyId,
+                        schoolYear,
+                        semester
+                );
+
+        if (workloads.isEmpty()) {
+            return responses;
+        }
+
+        Map<String, FacultyWorkload> workloadsByClassCode =
+                workloads.stream()
+                        .filter(workload -> normalizeKey(workload.getClassCode()) != null)
+                        .collect(Collectors.toMap(
+                                workload -> normalizeKey(workload.getClassCode()),
+                                workload -> workload,
+                                this::preferWorkloadWithHours
+                        ));
+
+        Map<String, FacultyWorkload> workloadsByCourseSection =
+                workloads.stream()
+                        .collect(Collectors.toMap(
+                                this::workloadCourseSectionKey,
+                                workload -> workload,
+                                this::preferWorkloadWithHours
+                        ));
+
+        BigDecimal loadLimit =
+                effectiveLoadLimit(resolveNumberOfPreparations(workloads));
+        BigDecimal selectedLoad = BigDecimal.ZERO;
+        List<FacultyEvaluationPrintResponse> selectedResponses =
+                new ArrayList<>();
+
+        List<FacultyEvaluationPrintResponse> rankedResponses =
+                responses.stream()
+                        .filter(response ->
+                                findMatchingWorkload(
+                                        response,
+                                        workloadsByClassCode,
+                                        workloadsByCourseSection
+                                ).isPresent()
+                        )
+                        .sorted(
+                                Comparator
+                                        .comparingDouble(
+                                                this::printSelectionScore
+                                        )
+                                        .reversed()
+                                        .thenComparing(
+                                                FacultyEvaluationPrintResponse::getSubjectCode,
+                                                Comparator.nullsLast(String::compareTo)
+                                        )
+                                        .thenComparing(
+                                                FacultyEvaluationPrintResponse::getClassCode,
+                                                Comparator.nullsLast(String::compareTo)
+                                        )
+                        )
+                        .toList();
+
+        for (FacultyEvaluationPrintResponse response : rankedResponses) {
+            FacultyWorkload workload =
+                    findMatchingWorkload(
+                            response,
+                            workloadsByClassCode,
+                            workloadsByCourseSection
+                    ).orElse(null);
+
+            if (workload == null) {
+                continue;
+            }
+
+            BigDecimal subjectLoad =
+                    safeBigDecimal(workload.getTotalHoursPerWeek());
+            BigDecimal proposedLoad = selectedLoad.add(subjectLoad);
+
+            if (proposedLoad.compareTo(loadLimit) <= 0) {
+                selectedLoad = proposedLoad;
+                selectedResponses.add(response);
+            }
+        }
+
+        return selectedResponses;
+    }
+
+    private Optional<FacultyWorkload> findMatchingWorkload(
+            FacultyEvaluationPrintResponse response,
+            Map<String, FacultyWorkload> workloadsByClassCode,
+            Map<String, FacultyWorkload> workloadsByCourseSection
+    ) {
+        String classCode = normalizeKey(response.getClassCode());
+
+        if (classCode != null
+                && workloadsByClassCode.containsKey(classCode)) {
+            return Optional.of(workloadsByClassCode.get(classCode));
+        }
+
+        return Optional.ofNullable(
+                workloadsByCourseSection.get(responseCourseSectionKey(response))
+        );
+    }
+
+    private FacultyWorkload preferWorkloadWithHours(
+            FacultyWorkload current,
+            FacultyWorkload candidate
+    ) {
+        return safeBigDecimal(candidate.getTotalHoursPerWeek())
+                .compareTo(safeBigDecimal(current.getTotalHoursPerWeek())) > 0
+                ? candidate
+                : current;
+    }
+
+    private Integer resolveNumberOfPreparations(List<FacultyWorkload> workloads) {
+        return workloads.stream()
+                .map(FacultyWorkload::getNumberOfPreparations)
+                .filter(value -> value != null && value >= 0)
+                .findFirst()
+                .orElse(0);
+    }
+
+    private BigDecimal effectiveLoadLimit(Integer numberOfPreparations) {
+        if (numberOfPreparations != null
+                && numberOfPreparations >= HIGH_PREPARATION_THRESHOLD) {
+            return HIGH_PREPARATION_LOAD_LIMIT;
+        }
+
+        return STANDARD_PREPARATION_LOAD_LIMIT;
+    }
+
+    private double printSelectionScore(FacultyEvaluationPrintResponse response) {
+        double setRating = safeDouble(response.getSetRating());
+        double sefRating = safeDouble(response.getSefRating());
+        int availableRatings = 0;
+        double total = 0.0;
+
+        if (setRating > 0) {
+            total += setRating;
+            availableRatings++;
+        }
+
+        if (sefRating > 0) {
+            total += sefRating;
+            availableRatings++;
+        }
+
+        return availableRatings == 0
+                ? safeDouble(response.getOverallAverageScore())
+                : total / availableRatings;
+    }
+
+    private String workloadCourseSectionKey(FacultyWorkload workload) {
+        return keyParts(
+                workload.getCourseCode(),
+                workload.getProgramCode(),
+                workload.getYearLevel(),
+                workload.getSectionCode()
+        );
+    }
+
+    private String responseCourseSectionKey(
+            FacultyEvaluationPrintResponse response
+    ) {
+        return keyParts(
+                response.getSubjectCode(),
+                response.getProgramCode(),
+                response.getYearLevel(),
+                response.getSectionCode()
+        );
+    }
+
+    private String keyParts(String... values) {
+        return java.util.Arrays.stream(values)
+                .map(this::normalizeKey)
+                .map(value -> value == null ? "" : value)
+                .collect(Collectors.joining("|"));
+    }
+
+    private String normalizeKey(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+
+        return value.trim().toUpperCase();
+    }
+
+    private BigDecimal safeBigDecimal(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private double safeDouble(Double value) {
+        return value == null ? 0.0 : value;
+    }
+
+    private FacultyEvaluationGeneratedReportResponse toGeneratedReportResponse(
+            FacultyEvaluationReport report,
+            List<FacultyEvaluationPrintResponse> items,
+            String qrCodeDataUri
+    ) {
+        return FacultyEvaluationGeneratedReportResponse.builder()
+                .reportId(report.getReportId())
+                .facultyId(report.getFacultyId())
+                .facultyName(report.getFacultyName())
+                .schoolYear(report.getSchoolYear())
+                .semester(report.getSemester())
+                .versionNumber(report.getVersionNumber())
+                .status(report.getStatus())
+                .reportHash(report.getReportHash())
+                .verificationUrl(report.getVerificationUrl())
+                .qrCodeDataUri(qrCodeDataUri)
+                .generatedByUserId(report.getGeneratedByUserId())
+                .generatedByUsername(report.getGeneratedByUsername())
+                .generatedAt(report.getGeneratedAt())
+                .items(items)
+                .build();
+    }
+
+    private Map<String, Object> reportSnapshot(
+            String reportId,
+            String facultyId,
+            String facultyName,
+            Integer schoolYear,
+            String semester,
+            Integer versionNumber,
+            Instant generatedAt,
+            Long generatedByUserId,
+            String generatedByUsername,
+            List<FacultyEvaluationPrintResponse> items
+    ) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+
+        snapshot.put("reportId", reportId);
+        snapshot.put("facultyId", facultyId);
+        snapshot.put("facultyName", facultyName);
+        snapshot.put("schoolYear", schoolYear);
+        snapshot.put("semester", semester);
+        snapshot.put("versionNumber", versionNumber);
+        snapshot.put("generatedAt", generatedAt.toString());
+        snapshot.put("generatedByUserId", generatedByUserId);
+        snapshot.put("generatedByUsername", generatedByUsername);
+        snapshot.put("items", items);
+
+        return snapshot;
+    }
+
+    private String toJson(Map<String, Object> snapshot) {
+        try {
+            return objectMapper.writeValueAsString(snapshot);
+        } catch (JsonProcessingException exception) {
+            throw new RuntimeException(
+                    "Failed to create report verification snapshot.",
+                    exception
+            );
+        }
+    }
+
+    private String sha256(String value) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash =
+                    digest.digest(value.getBytes(StandardCharsets.UTF_8));
+            StringBuilder builder = new StringBuilder(hash.length * 2);
+
+            for (byte item : hash) {
+                builder.append(String.format("%02x", item));
+            }
+
+            return builder.toString();
+        } catch (NoSuchAlgorithmException exception) {
+            throw new RuntimeException(
+                    "SHA-256 hashing is not available.",
+                    exception
+            );
+        }
+    }
+
+    private String qrCodeDataUri(String value) {
+        try {
+            QRCodeWriter writer = new QRCodeWriter();
+            BitMatrix matrix =
+                    writer.encode(value, BarcodeFormat.QR_CODE, 220, 220);
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+            MatrixToImageWriter.writeToStream(matrix, "PNG", output);
+
+            return "data:image/png;base64,"
+                    + Base64.getEncoder().encodeToString(output.toByteArray());
+        } catch (WriterException | java.io.IOException exception) {
+            throw new RuntimeException("Failed to generate report QR code.", exception);
+        }
+    }
+
+    private String normalizeBaseUrl(String baseUrl) {
+        if (baseUrl == null || baseUrl.trim().isEmpty()) {
+            return "";
+        }
+
+        return baseUrl.endsWith("/")
+                ? baseUrl.substring(0, baseUrl.length() - 1)
+                : baseUrl;
     }
 
     private RatingScale map(Map<String, String> ratings, String key) {

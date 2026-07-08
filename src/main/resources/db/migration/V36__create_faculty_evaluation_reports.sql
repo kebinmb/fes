@@ -1,0 +1,21 @@
+CREATE TABLE faculty_evaluation_report (
+    report_id VARCHAR(36) PRIMARY KEY,
+    faculty_id VARCHAR(60) NOT NULL,
+    faculty_name VARCHAR(255),
+    school_year INT NOT NULL,
+    semester VARCHAR(30) NOT NULL,
+    version_number INT NOT NULL,
+    status ENUM('VALID','SUPERSEDED','REVOKED') NOT NULL,
+    report_hash VARCHAR(64) NOT NULL UNIQUE,
+    snapshot_json LONGTEXT NOT NULL,
+    verification_url VARCHAR(1000) NOT NULL,
+    generated_by_user_id BIGINT,
+    generated_by_username VARCHAR(255),
+    generated_at DATETIME(6) NOT NULL,
+    created_at DATETIME(6) NOT NULL,
+    updated_at DATETIME(6),
+    created_by VARCHAR(255),
+    updated_by VARCHAR(255),
+    INDEX idx_faculty_evaluation_report_faculty_term (faculty_id, school_year, semester),
+    INDEX idx_faculty_evaluation_report_hash (report_hash)
+);

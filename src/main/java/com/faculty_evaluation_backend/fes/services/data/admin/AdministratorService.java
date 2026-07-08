@@ -8,6 +8,9 @@ import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardProgramBre
 import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardResponse;
 import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardSummaryResponse;
 import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardSummaryProjection;
+import com.faculty_evaluation_backend.fes.dto.dashboard.FacultyWorkloadCoverageFacultyResponse;
+import com.faculty_evaluation_backend.fes.dto.dashboard.FacultyWorkloadCoverageProjection;
+import com.faculty_evaluation_backend.fes.dto.dashboard.FacultyWorkloadCoverageResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.StudentEvaluationStatusResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.StudentFacultyEvaluationDTO;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadClassOptionResponse;
@@ -99,6 +102,7 @@ public class AdministratorService {
                     "adminDashboardSummary",
                     "adminDashboardPrograms",
                     "adminDashboardFacultyLoads",
+                    "facultyWorkloadCoverage",
                     "facultyWorkloadClassOptions",
                     "facultyClasses",
                     "facultyEvaluationReports",
@@ -249,6 +253,48 @@ public class AdministratorService {
         return findDashboardFacultyLoads(resolveDashboardTerm(), limit);
     }
 
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
+    @Cacheable(value = "facultyWorkloadCoverage", key = "'active'")
+    public FacultyWorkloadCoverageResponse getFacultyWorkloadCoverage() {
+        DashboardTerm term = resolveDashboardTerm();
+        List<FacultyWorkloadCoverageFacultyResponse> rows =
+                primaryFacultyRepository
+                        .findFacultyWorkloadCoverage(
+                                term.schoolYear(),
+                                term.semester(),
+                                Status.ACTIVE,
+                                College.FOR_MIGRATION
+                        )
+                        .stream()
+                        .map(this::toFacultyWorkloadCoverageFacultyResponse)
+                        .toList();
+
+        List<FacultyWorkloadCoverageFacultyResponse> withWorkload =
+                rows.stream()
+                        .filter(FacultyWorkloadCoverageFacultyResponse::isHasWorkload)
+                        .toList();
+        List<FacultyWorkloadCoverageFacultyResponse> withoutWorkload =
+                rows.stream()
+                        .filter(row -> !row.isHasWorkload())
+                        .toList();
+        long totalActiveFaculty = rows.size();
+        long withWorkloadCount = withWorkload.size();
+
+        return FacultyWorkloadCoverageResponse.builder()
+                .schoolYear(term.schoolYear())
+                .semester(term.semester())
+                .totalActiveFaculty(totalActiveFaculty)
+                .withWorkloadCount(withWorkloadCount)
+                .withoutWorkloadCount((long) withoutWorkload.size())
+                .coverageRate(percentage(withWorkloadCount, totalActiveFaculty))
+                .withWorkload(withWorkload)
+                .withoutWorkload(withoutWorkload)
+                .build();
+    }
+
     private List<AdminDashboardFacultyLoadResponse> findDashboardFacultyLoads(
             DashboardTerm term,
             int limit
@@ -335,6 +381,7 @@ public class AdministratorService {
                     "adminDashboardSummary",
                     "adminDashboardPrograms",
                     "adminDashboardFacultyLoads",
+                    "facultyWorkloadCoverage",
                     "studentLoads",
                     "supervisorFacultyLoads",
                     "supervisorFacultyProgramLoads"
@@ -406,6 +453,7 @@ public class AdministratorService {
                     "adminDashboardSummary",
                     "adminDashboardPrograms",
                     "adminDashboardFacultyLoads",
+                    "facultyWorkloadCoverage",
                     "facultyWorkloadClassOptions",
                     "facultyEvaluationReports",
                     "supervisorFacultyLoads",
@@ -960,6 +1008,54 @@ public class AdministratorService {
                         projection.getAverageOverallScore()
                 ))
                 .build();
+    }
+
+    private FacultyWorkloadCoverageFacultyResponse
+    toFacultyWorkloadCoverageFacultyResponse(
+            FacultyWorkloadCoverageProjection projection
+    ) {
+        Long workloadCount = safeLong(projection.getWorkloadCount());
+        Integer numberOfPreparations = projection.getNumberOfPreparations();
+
+        return FacultyWorkloadCoverageFacultyResponse.builder()
+                .facultyId(projection.getFacultyId())
+                .facultyName(fullFacultyName(
+                        projection.getFirstname(),
+                        projection.getMiddlename(),
+                        projection.getLastname(),
+                        projection.getFacultyId()
+                ))
+                .position(projection.getPosition())
+                .college(projection.getCollege())
+                .status(projection.getStatus())
+                .loadLimit(numberOfPreparations == null
+                        ? projection.getLoadLimit()
+                        : effectiveLoadLimit(numberOfPreparations).doubleValue())
+                .hasWorkload(workloadCount > 0)
+                .workloadCount(workloadCount)
+                .totalHoursPerWeek(safeBigDecimal(
+                        projection.getTotalHoursPerWeek()
+                ))
+                .numberOfPreparations(numberOfPreparations)
+                .build();
+    }
+
+    private String fullFacultyName(
+            String firstname,
+            String middlename,
+            String lastname,
+            String fallback
+    ) {
+        String name = String.join(
+                        " ",
+                        firstname == null ? "" : firstname.trim(),
+                        middlename == null ? "" : middlename.trim(),
+                        lastname == null ? "" : lastname.trim()
+                )
+                .replaceAll("\\s+", " ")
+                .trim();
+
+        return name.isBlank() ? fallback : name;
     }
 
     private Long safeLong(Long value) {

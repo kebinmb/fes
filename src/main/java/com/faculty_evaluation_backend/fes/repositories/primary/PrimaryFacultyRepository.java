@@ -1,5 +1,6 @@
 package com.faculty_evaluation_backend.fes.repositories.primary;
 
+import com.faculty_evaluation_backend.fes.dto.dashboard.FacultyWorkloadCoverageProjection;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryFaculty;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.College;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.Status;
@@ -40,6 +41,44 @@ public interface PrimaryFacultyRepository extends JpaRepository<PrimaryFaculty, 
     );
 
     List<PrimaryFaculty> findByCollegeAndStatus(College college, Status status);
+
+    @Query("""
+                SELECT
+                    f.facultyId AS facultyId,
+                    f.firstname AS firstname,
+                    f.middlename AS middlename,
+                    f.lastname AS lastname,
+                    f.position AS position,
+                    f.college AS college,
+                    f.status AS status,
+                    f.loadLimit AS loadLimit,
+                    COUNT(fw.facultyWorkloadId) AS workloadCount,
+                    SUM(fw.totalHoursPerWeek) AS totalHoursPerWeek,
+                    MAX(fw.numberOfPreparations) AS numberOfPreparations
+                FROM PrimaryFaculty f
+                LEFT JOIN FacultyWorkload fw
+                    ON fw.facultyId = f.facultyId
+                   AND fw.schoolYear = :schoolYear
+                   AND LOWER(TRIM(fw.semester)) = LOWER(TRIM(:semester))
+                WHERE f.status = :status
+                  AND (:excludedCollege IS NULL OR f.college IS NULL OR f.college <> :excludedCollege)
+                GROUP BY
+                    f.facultyId,
+                    f.firstname,
+                    f.middlename,
+                    f.lastname,
+                    f.position,
+                    f.college,
+                    f.status,
+                    f.loadLimit
+                ORDER BY f.lastname ASC, f.firstname ASC, f.facultyId ASC
+            """)
+    List<FacultyWorkloadCoverageProjection> findFacultyWorkloadCoverage(
+            @Param("schoolYear") Integer schoolYear,
+            @Param("semester") String semester,
+            @Param("status") Status status,
+            @Param("excludedCollege") College excludedCollege
+    );
 
     @Transactional
     @Modifying
