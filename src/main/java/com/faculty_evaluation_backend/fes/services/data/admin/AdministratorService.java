@@ -257,7 +257,6 @@ public class AdministratorService {
             transactionManager = "primaryTransactionManager",
             readOnly = true
     )
-    @Cacheable(value = "facultyWorkloadCoverage", key = "'active'")
     public FacultyWorkloadCoverageResponse getFacultyWorkloadCoverage() {
         DashboardTerm term = resolveDashboardTerm();
         List<FacultyWorkloadCoverageFacultyResponse> rows =
@@ -265,8 +264,9 @@ public class AdministratorService {
                         .findFacultyWorkloadCoverage(
                                 term.schoolYear(),
                                 term.semester(),
-                                Status.ACTIVE,
-                                College.FOR_MIGRATION
+                                term.workloadSemester(),
+                                Status.ACTIVE.name(),
+                                null
                         )
                         .stream()
                         .map(this::toFacultyWorkloadCoverageFacultyResponse)
@@ -967,7 +967,8 @@ public class AdministratorService {
 
         return new DashboardTerm(
                 activeTerm.getSchoolYear(),
-                activeTerm.getSemester().getValue()
+                activeTerm.getSemester().getValue(),
+                activeTerm.getSemester().name()
         );
     }
 
@@ -1016,6 +1017,14 @@ public class AdministratorService {
     ) {
         Long workloadCount = safeLong(projection.getWorkloadCount());
         Integer numberOfPreparations = projection.getNumberOfPreparations();
+        College college = parseEnum(
+                College.class,
+                projection.getCollege()
+        );
+        Status status = parseEnum(
+                Status.class,
+                projection.getStatus()
+        );
 
         return FacultyWorkloadCoverageFacultyResponse.builder()
                 .facultyId(projection.getFacultyId())
@@ -1026,8 +1035,8 @@ public class AdministratorService {
                         projection.getFacultyId()
                 ))
                 .position(projection.getPosition())
-                .college(projection.getCollege())
-                .status(projection.getStatus())
+                .college(college)
+                .status(status)
                 .loadLimit(numberOfPreparations == null
                         ? projection.getLoadLimit()
                         : effectiveLoadLimit(numberOfPreparations).doubleValue())
@@ -1064,6 +1073,18 @@ public class AdministratorService {
 
     private Double safeDouble(Double value) {
         return value == null ? 0.0 : value;
+    }
+
+    private <E extends Enum<E>> E parseEnum(Class<E> enumType, String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+
+        try {
+            return Enum.valueOf(enumType, value.trim().toUpperCase());
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
     }
 
     private Double percentage(Long numerator, Long denominator) {
@@ -1323,7 +1344,11 @@ public class AdministratorService {
         return normalized;
     }
 
-    private record DashboardTerm(Integer schoolYear, String semester) {
+    private record DashboardTerm(
+            Integer schoolYear,
+            String semester,
+            String workloadSemester
+    ) {
     }
 }
 

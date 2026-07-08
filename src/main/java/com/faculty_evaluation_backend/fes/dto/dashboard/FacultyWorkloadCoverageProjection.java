@@ -1,8 +1,5 @@
 package com.faculty_evaluation_backend.fes.dto.dashboard;
 
-import com.faculty_evaluation_backend.fes.entities.primary.enums.College;
-import com.faculty_evaluation_backend.fes.entities.primary.enums.Status;
-
 import java.math.BigDecimal;
 
 public interface FacultyWorkloadCoverageProjection {
@@ -16,9 +13,9 @@ public interface FacultyWorkloadCoverageProjection {
 
     String getPosition();
 
-    College getCollege();
+    String getCollege();
 
-    Status getStatus();
+    String getStatus();
 
     Double getLoadLimit();
 

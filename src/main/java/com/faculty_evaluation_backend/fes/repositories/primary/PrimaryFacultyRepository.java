@@ -42,42 +42,53 @@ public interface PrimaryFacultyRepository extends JpaRepository<PrimaryFaculty, 
 
     List<PrimaryFaculty> findByCollegeAndStatus(College college, Status status);
 
-    @Query("""
-                SELECT
-                    f.facultyId AS facultyId,
-                    f.firstname AS firstname,
-                    f.middlename AS middlename,
-                    f.lastname AS lastname,
-                    f.position AS position,
-                    f.college AS college,
-                    f.status AS status,
-                    f.loadLimit AS loadLimit,
-                    COUNT(fw.facultyWorkloadId) AS workloadCount,
-                    SUM(fw.totalHoursPerWeek) AS totalHoursPerWeek,
-                    MAX(fw.numberOfPreparations) AS numberOfPreparations
-                FROM PrimaryFaculty f
-                LEFT JOIN FacultyWorkload fw
-                    ON fw.facultyId = f.facultyId
-                   AND fw.schoolYear = :schoolYear
-                   AND LOWER(TRIM(fw.semester)) = LOWER(TRIM(:semester))
-                WHERE f.status = :status
-                  AND (:excludedCollege IS NULL OR f.college IS NULL OR f.college <> :excludedCollege)
-                GROUP BY
-                    f.facultyId,
-                    f.firstname,
-                    f.middlename,
-                    f.lastname,
-                    f.position,
-                    f.college,
-                    f.status,
-                    f.loadLimit
-                ORDER BY f.lastname ASC, f.firstname ASC, f.facultyId ASC
-            """)
+    @Query(
+            value = """
+                    SELECT
+                        f.faculty_id AS facultyId,
+                        f.firstname AS firstname,
+                        f.middlename AS middlename,
+                        f.lastname AS lastname,
+                        f.position AS position,
+                        f.college AS college,
+                        f.status AS status,
+                        f.load_limit AS loadLimit,
+                        COUNT(DISTINCT fw.faculty_workload_id) AS workloadCount,
+                        COALESCE(SUM(fw.total_hours_per_week), 0) AS totalHoursPerWeek,
+                        MAX(fw.number_of_preparations) AS numberOfPreparations
+                    FROM primary_faculty f
+                    LEFT JOIN faculty_workload fw
+                        ON fw.faculty_id = f.faculty_id
+                       AND fw.school_year = :schoolYear
+                       AND (
+                            LOWER(TRIM(fw.semester)) = LOWER(TRIM(:semester))
+                            OR UPPER(TRIM(fw.semester)) = UPPER(TRIM(:workloadSemester))
+                       )
+                    WHERE f.status = :status
+                      AND (
+                            :excludedCollege IS NULL
+                            OR f.college IS NULL
+                            OR f.college <> :excludedCollege
+                      )
+                    GROUP BY
+                        f.faculty_id,
+                        f.firstname,
+                        f.middlename,
+                        f.lastname,
+                        f.position,
+                        f.college,
+                        f.status,
+                        f.load_limit
+                    ORDER BY f.lastname ASC, f.firstname ASC, f.faculty_id ASC
+                    """,
+            nativeQuery = true
+    )
     List<FacultyWorkloadCoverageProjection> findFacultyWorkloadCoverage(
             @Param("schoolYear") Integer schoolYear,
             @Param("semester") String semester,
-            @Param("status") Status status,
-            @Param("excludedCollege") College excludedCollege
+            @Param("workloadSemester") String workloadSemester,
+            @Param("status") String status,
+            @Param("excludedCollege") String excludedCollege
     );
 
     @Transactional
