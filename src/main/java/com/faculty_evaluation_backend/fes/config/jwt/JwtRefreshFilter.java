@@ -152,7 +152,7 @@ public class JwtRefreshFilter extends OncePerRequestFilter {
                 }
 
                 if (role.equals("ROLE_SUPERVISOR")
-                        && !"faculty_refresh".equals(type)) {
+                        && !"supervisor_refresh".equals(type)) {
 
                     throw new UnauthorizedException(
                             "Invalid token type"
@@ -405,6 +405,12 @@ public class JwtRefreshFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(
             HttpServletRequest request
     ) {
-        return false;
+        String path = request.getServletPath();
+
+        return path.equals("/auth/student/login")
+                || path.equals("/auth/supervisor/login")
+                || path.equals("/auth/administrator/login")
+                || path.equals("/auth/access-code/generate")
+                || path.equals("/auth/logout");
     }
 }

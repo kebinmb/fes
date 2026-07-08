@@ -116,9 +116,9 @@ public class SecurityConfig {
 
                 .authenticationProvider(authenticationProvider())
 
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(jwtRefreshFilter, UsernamePasswordAuthenticationFilter.class)
 
-                .addFilterAfter(jwtRefreshFilter, JwtAuthenticationFilter.class);
+                .addFilterAfter(jwtAuthenticationFilter, JwtRefreshFilter.class);
 
         return http.build();
     }
