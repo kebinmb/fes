@@ -11,6 +11,7 @@ import org.aspectj.lang.annotation.Aspect;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
+import org.springframework.http.ResponseEntity;
 
 import java.time.Instant;
 import java.util.Map;
@@ -40,7 +41,13 @@ public class AuditAspect {
         try{
             Object result = joinPoint.proceed();
             auditLog.setAction(auditLog.getAction() + "_SUCCESS");
-            auditLog.setNewValue(objectMapper.writeValueAsString(Map.of("status","success")));
+            if (!applyChangeDetails(auditLog, result)) {
+                auditLog.setNewValue(
+                        objectMapper.writeValueAsString(
+                                Map.of("status", "success")
+                        )
+                );
+            }
             return result;
         }catch (Exception ex){
             auditLog.setAction(auditLog.getAction() + "_FAILED");
@@ -84,6 +91,32 @@ public class AuditAspect {
         } catch (NumberFormatException ignored) {
             // Some authentication paths use usernames instead of numeric IDs.
         }
+    }
+
+    private boolean applyChangeDetails(AuditLog auditLog, Object result)
+            throws Exception {
+        Object body = result instanceof ResponseEntity<?> responseEntity
+                ? responseEntity.getBody()
+                : result;
+
+        if (!(body instanceof AuditableChange change)) {
+            return false;
+        }
+
+        Long entityId = change.auditEntityId();
+        if (entityId != null
+                && entityId <= Integer.MAX_VALUE
+                && entityId >= Integer.MIN_VALUE) {
+            auditLog.setEntityId(entityId.intValue());
+        }
+
+        auditLog.setOldValue(
+                objectMapper.writeValueAsString(change.auditOldValue())
+        );
+        auditLog.setNewValue(
+                objectMapper.writeValueAsString(change.auditNewValue())
+        );
+        return true;
     }
 
     private void setNumericUserId(AuditLog log, Long userId) {

@@ -25,5 +25,9 @@ public interface AuditLogSummaryProjection {
 
     Long getExecutionTimeMs();
 
+    String getOldValue();
+
+    String getNewValue();
+
     Instant getCreatedAt();
 }

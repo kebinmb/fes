@@ -27,6 +27,8 @@ public interface AuditLogRepository extends JpaRepository<AuditLog,Long> {
             a.requestMethod AS requestMethod,
             a.requestPath AS requestPath,
             a.executionTimeMs AS executionTimeMs,
+            a.oldValue AS oldValue,
+            a.newValue AS newValue,
             a.createdAt AS createdAt
         FROM AuditLog a
         WHERE (:userId IS NULL OR a.userId = :userId)
@@ -95,6 +97,8 @@ public interface AuditLogRepository extends JpaRepository<AuditLog,Long> {
             a.requestMethod AS requestMethod,
             a.requestPath AS requestPath,
             a.executionTimeMs AS executionTimeMs,
+            a.oldValue AS oldValue,
+            a.newValue AS newValue,
             a.createdAt AS createdAt
         FROM AuditLog a
         WHERE (:userId IS NULL OR a.userId = :userId)

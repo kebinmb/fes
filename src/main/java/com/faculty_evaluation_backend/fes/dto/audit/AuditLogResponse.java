@@ -17,6 +17,8 @@ public record AuditLogResponse(
         String requestMethod,
         String requestPath,
         Long executionTimeMs,
+        String oldValue,
+        String newValue,
         String status,
         Instant createdAt
 ) {
@@ -33,6 +35,8 @@ public record AuditLogResponse(
                 log.getRequestMethod(),
                 log.getRequestPath(),
                 log.getExecutionTimeMs(),
+                log.getOldValue(),
+                log.getNewValue(),
                 resolveStatus(log.getAction()),
                 log.getCreatedAt()
         );
@@ -51,6 +55,8 @@ public record AuditLogResponse(
                 log.getRequestMethod(),
                 log.getRequestPath(),
                 log.getExecutionTimeMs(),
+                log.getOldValue(),
+                log.getNewValue(),
                 resolveStatus(log.getAction()),
                 log.getCreatedAt()
         );

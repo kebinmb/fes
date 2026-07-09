@@ -8,6 +8,31 @@ This project follows a simple semantic versioning style:
 - `MINOR` for new backward-compatible endpoints or features.
 - `PATCH` for bug fixes, optimizations, and documentation.
 
+## [0.2.0] - 2026-07-09
+
+### Added
+
+- Added current-term admin endpoints for paginated class assignment browsing, active faculty options, and faculty reassignment.
+- Added structured reassignment auditing with the affected `primaryClassId`, previous faculty ID, new faculty ID, administrator identity, request metadata, and execution time.
+- Added optimized indexes for current-term class assignment and active faculty-option queries.
+
+### Changed
+
+- Class reassignment updates only `primary_class.faculty_id`; student loads, evaluation records, workload records, and migration provenance remain unchanged.
+- Reassignment now validates that the class belongs to the active term and the selected faculty is active and belongs to the same source database.
+- Added stale-edit protection to prevent one administrator from silently overwriting another administrator's newer assignment.
+- Reassignment invalidates dependent dashboard, workload, faculty-class, student-load, and evaluation caches.
+- Audit-log responses now expose structured `oldValue` and `newValue` details.
+
+### Fixed
+
+- Corrected the `V38` MySQL indexes to use bounded prefixes and remain below the InnoDB 3072-byte key limit under `utf8mb4`.
+
+### Database Notes
+
+- If an earlier `V38` attempt was recorded as failed, remove only the failed version-38 row from `flyway_schema_history` before restarting Flyway.
+- The `V38` migration adds indexes only and does not modify populated application data.
+
 ## [0.1.0] - 2026-07-08
 
 ### Added
