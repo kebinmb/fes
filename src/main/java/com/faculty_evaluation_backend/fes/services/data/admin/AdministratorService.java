@@ -14,6 +14,10 @@ import com.faculty_evaluation_backend.fes.dto.dashboard.FacultyWorkloadCoverageR
 import com.faculty_evaluation_backend.fes.dto.evaluation.StudentEvaluationStatusResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.StudentFacultyEvaluationDTO;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadClassOptionResponse;
+import com.faculty_evaluation_backend.fes.dto.faculty.ClassFacultyAssignmentResponse;
+import com.faculty_evaluation_backend.fes.dto.faculty.ClassFacultyReassignmentRequest;
+import com.faculty_evaluation_backend.fes.dto.faculty.ClassFacultyReassignmentResponse;
+import com.faculty_evaluation_backend.fes.dto.faculty.FacultyAssignmentOptionResponse;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadRequest;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadResponse;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadSectionOptionResponse;
@@ -30,6 +34,7 @@ import com.faculty_evaluation_backend.fes.entities.data.SchoolYearAndSemester;
 import com.faculty_evaluation_backend.fes.entities.data.enums.Semester;
 import com.faculty_evaluation_backend.fes.entities.evaluation.FacultyEvaluationScore;
 import com.faculty_evaluation_backend.fes.entities.primary.FacultyWorkload;
+import com.faculty_evaluation_backend.fes.entities.primary.PrimaryClass;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryFaculty;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.College;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.FacultyWorkloadSource;
@@ -58,6 +63,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -159,6 +165,149 @@ public class AdministratorService {
         SchoolYearAndSemester data = schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE).orElseThrow(() -> new ResourceNotFoundException("No active semester found."));
 
         return SchoolYearAndSemesterDTO.builder().id(data.getId()).schoolYear(data.getSchoolYear()).semester(data.getSemester()).status(data.getStatus()).createdAt(data.getCreatedAt()).build();
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<ClassFacultyAssignmentResponse> getClassAssignments(
+            int page,
+            int size,
+            String search,
+            String legacyDatabase
+    ) {
+        DashboardTerm term = resolveDashboardTerm();
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 100);
+        Pageable pageable = PageRequest.of(
+                safePage,
+                safeSize,
+                Sort.by(
+                        Sort.Order.asc("subjectCode"),
+                        Sort.Order.asc("classCode"),
+                        Sort.Order.asc("primaryClassId")
+                )
+        );
+
+        Page<ClassFacultyAssignmentResponse> assignments =
+                primaryClassRepository.findAdminClassAssignments(
+                        term.schoolYear(),
+                        term.semester(),
+                        normalizeOptional(search),
+                        normalizeOptional(legacyDatabase),
+                        pageable
+                ).map(this::toClassFacultyAssignmentResponse);
+
+        return PageMapper.toPageResponse(assignments);
+    }
+
+    @Transactional(readOnly = true)
+    public List<FacultyAssignmentOptionResponse>
+    getClassAssignmentFacultyOptions(String legacyDatabase) {
+        return primaryFacultyRepository.findAssignmentOptions(
+                        Status.ACTIVE,
+                        normalizeOptional(legacyDatabase)
+                ).stream()
+                .map(this::toFacultyAssignmentOptionResponse)
+                .toList();
+    }
+
+    @Transactional
+    @CacheEvict(
+            value = {
+                    "adminDashboard",
+                    "adminDashboardSummary",
+                    "adminDashboardPrograms",
+                    "adminDashboardFacultyLoads",
+                    "facultyWorkloadCoverage",
+                    "facultyWorkloadClassOptions",
+                    "facultyClasses",
+                    "facultyEvaluationReports",
+                    "studentSections",
+                    "studentEvaluationStatus",
+                    "studentFacultyEvaluations",
+                    "facultyEvaluationScores",
+                    "studentLoads",
+                    "studentFacultyClassEvaluationChecks",
+                    "supervisorFacultyLoads",
+                    "supervisorFacultyProgramLoads",
+                    "supervisorEvaluatedStudents"
+            },
+            allEntries = true
+    )
+    public ClassFacultyReassignmentResponse reassignClassFaculty(
+            Long primaryClassId,
+            ClassFacultyReassignmentRequest request
+    ) {
+        if (primaryClassId == null) {
+            throw new BadRequestException("Primary class ID is required.");
+        }
+
+        PrimaryClass primaryClass = primaryClassRepository
+                .findAssignmentById(primaryClassId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Class assignment not found.")
+                );
+
+        DashboardTerm term = resolveDashboardTerm();
+        if (!Objects.equals(primaryClass.getSchoolYear(), term.schoolYear())
+                || !term.semester().equalsIgnoreCase(
+                        primaryClass.getSemester()
+                )) {
+            throw new BadRequestException(
+                    "Only classes in the current school year and semester can be reassigned."
+            );
+        }
+
+        String previousFacultyId = normalizeOptional(
+                primaryClass.getFacultyId()
+        );
+        String expectedFacultyId = normalizeOptional(
+                request.expectedCurrentFacultyId()
+        );
+        if (!Objects.equals(previousFacultyId, expectedFacultyId)) {
+            throw new BadRequestException(
+                    "This class assignment has changed. Refresh the list and try again."
+            );
+        }
+
+        String newFacultyId = request.facultyId().trim();
+        PrimaryFaculty newFaculty = primaryFacultyRepository
+                .findByFacultyId(newFacultyId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Faculty not found.")
+                );
+
+        if (newFaculty.getStatus() != Status.ACTIVE) {
+            throw new BadRequestException(
+                    "Only an active faculty member can be assigned."
+            );
+        }
+
+        String classDatabase = normalizeOptional(
+                primaryClass.getLegacyDatabase()
+        );
+        String facultyDatabase = normalizeOptional(
+                newFaculty.getLegacyDatabase()
+        );
+        if (classDatabase != null
+                && !classDatabase.equalsIgnoreCase(facultyDatabase)) {
+            throw new BadRequestException(
+                    "The faculty member must belong to the same source database as the class."
+            );
+        }
+
+        boolean changed = !Objects.equals(previousFacultyId, newFacultyId);
+        if (changed) {
+            primaryClass.setFacultyId(newFacultyId);
+            primaryClassRepository.saveAndFlush(primaryClass);
+            primaryClass.setFaculty(newFaculty);
+        }
+
+        return new ClassFacultyReassignmentResponse(
+                toClassFacultyAssignmentResponse(primaryClass),
+                previousFacultyId,
+                newFacultyId,
+                changed
+        );
     }
 
     @Transactional(
@@ -970,6 +1119,77 @@ public class AdministratorService {
                 activeTerm.getSemester().getValue(),
                 activeTerm.getSemester().name()
         );
+    }
+
+    private ClassFacultyAssignmentResponse toClassFacultyAssignmentResponse(
+            PrimaryClass primaryClass
+    ) {
+        PrimaryFaculty faculty = primaryClass.getFaculty();
+
+        return new ClassFacultyAssignmentResponse(
+                primaryClass.getPrimaryClassId(),
+                primaryClass.getClassCode(),
+                primaryClass.getSubjectCode(),
+                primaryClass.getSubject() == null
+                        ? null
+                        : primaryClass.getSubject().getDescriptiveTitle(),
+                primaryClass.getSectionId(),
+                primaryClass.getSection() == null
+                        ? null
+                        : primaryClass.getSection().getProgramCode(),
+                primaryClass.getSection() == null
+                        ? null
+                        : primaryClass.getSection().getYearLevel(),
+                primaryClass.getSection() == null
+                        ? null
+                        : primaryClass.getSection().getSectionCode(),
+                primaryClass.getFacultyId(),
+                faculty == null ? null : formatFacultyName(faculty),
+                primaryClass.getSchoolYear(),
+                primaryClass.getSemester(),
+                primaryClass.getLegacyDatabase(),
+                primaryClass.getSourceCampus() == null
+                        ? null
+                        : primaryClass.getSourceCampus().name()
+        );
+    }
+
+    private FacultyAssignmentOptionResponse toFacultyAssignmentOptionResponse(
+            PrimaryFaculty faculty
+    ) {
+        return new FacultyAssignmentOptionResponse(
+                faculty.getFacultyId(),
+                formatFacultyName(faculty),
+                faculty.getPosition(),
+                faculty.getCollege() == null
+                        ? null
+                        : faculty.getCollege().name(),
+                faculty.getLegacyDatabase()
+        );
+    }
+
+    private String formatFacultyName(PrimaryFaculty faculty) {
+        String firstName = normalizeOptional(faculty.getFirstname());
+        String middleName = normalizeOptional(faculty.getMiddlename());
+        String lastName = normalizeOptional(faculty.getLastname());
+
+        return String.join(
+                " ",
+                java.util.stream.Stream.of(
+                                firstName,
+                                middleName,
+                                lastName
+                        )
+                        .filter(Objects::nonNull)
+                        .toList()
+        );
+    }
+
+    private String normalizeOptional(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        return value.trim();
     }
 
     private AdminDashboardProgramBreakdownResponse

@@ -13,10 +13,85 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 @Repository
 public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long> {
+    @Query(
+            value = """
+                    SELECT pc
+                    FROM PrimaryClass pc
+                    LEFT JOIN FETCH pc.faculty faculty
+                    LEFT JOIN FETCH pc.section section
+                    LEFT JOIN FETCH pc.subject subject
+                    WHERE pc.schoolYear = :schoolYear
+                      AND LOWER(TRIM(pc.semester)) = LOWER(TRIM(:semester))
+                      AND (
+                            :legacyDatabase IS NULL
+                            OR :legacyDatabase = ''
+                            OR UPPER(TRIM(pc.legacyDatabase)) = UPPER(TRIM(:legacyDatabase))
+                      )
+                      AND (
+                            :search IS NULL
+                            OR :search = ''
+                            OR LOWER(COALESCE(pc.classCode, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                            OR LOWER(COALESCE(pc.subjectCode, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                            OR LOWER(COALESCE(subject.descriptiveTitle, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                            OR LOWER(COALESCE(pc.facultyId, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                            OR LOWER(CONCAT(COALESCE(faculty.firstname, ''), ' ', COALESCE(faculty.lastname, '')))
+                               LIKE LOWER(CONCAT('%', :search, '%'))
+                            OR LOWER(COALESCE(section.programCode, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                            OR LOWER(COALESCE(section.sectionCode, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                      )
+                    """,
+            countQuery = """
+                    SELECT COUNT(pc)
+                    FROM PrimaryClass pc
+                    LEFT JOIN pc.faculty faculty
+                    LEFT JOIN pc.section section
+                    LEFT JOIN pc.subject subject
+                    WHERE pc.schoolYear = :schoolYear
+                      AND LOWER(TRIM(pc.semester)) = LOWER(TRIM(:semester))
+                      AND (
+                            :legacyDatabase IS NULL
+                            OR :legacyDatabase = ''
+                            OR UPPER(TRIM(pc.legacyDatabase)) = UPPER(TRIM(:legacyDatabase))
+                      )
+                      AND (
+                            :search IS NULL
+                            OR :search = ''
+                            OR LOWER(COALESCE(pc.classCode, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                            OR LOWER(COALESCE(pc.subjectCode, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                            OR LOWER(COALESCE(subject.descriptiveTitle, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                            OR LOWER(COALESCE(pc.facultyId, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                            OR LOWER(CONCAT(COALESCE(faculty.firstname, ''), ' ', COALESCE(faculty.lastname, '')))
+                               LIKE LOWER(CONCAT('%', :search, '%'))
+                            OR LOWER(COALESCE(section.programCode, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                            OR LOWER(COALESCE(section.sectionCode, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                      )
+                    """
+    )
+    Page<PrimaryClass> findAdminClassAssignments(
+            @Param("schoolYear") Integer schoolYear,
+            @Param("semester") String semester,
+            @Param("search") String search,
+            @Param("legacyDatabase") String legacyDatabase,
+            Pageable pageable
+    );
+
+    @Query("""
+            SELECT pc
+            FROM PrimaryClass pc
+            LEFT JOIN FETCH pc.faculty
+            LEFT JOIN FETCH pc.section
+            LEFT JOIN FETCH pc.subject
+            WHERE pc.primaryClassId = :primaryClassId
+            """)
+    Optional<PrimaryClass> findAssignmentById(
+            @Param("primaryClassId") Long primaryClassId
+    );
+
     @Query("SELECT CASE WHEN COUNT(c) > 0 THEN true ELSE false END FROM PrimaryClass c " + "WHERE c.classCode = :classCode " + "AND c.facultyId = :facultyId " + "AND c.subjectCode = :subjectCode " + "AND c.sectionId = :sectionId " + "AND c.schoolYear = :schoolYear " + "AND c.semester = :semester")
     boolean existsByClassCodeAndFacultyIdAndSubjectCodeAndSectionIdAndSchoolYearAndSemester(@Param("classCode") String classCode, @Param("facultyId") String facultyId, @Param("subjectCode") String subjectCode, @Param("sectionId") Integer sectionId, @Param("schoolYear") Integer schoolYear, @Param("semester") String semester);
 

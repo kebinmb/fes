@@ -15,6 +15,10 @@ import com.faculty_evaluation_backend.fes.dto.dashboard.FacultyWorkloadCoverageR
 import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationPrintResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.StudentEvaluationStatusResponse;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadClassOptionResponse;
+import com.faculty_evaluation_backend.fes.dto.faculty.ClassFacultyAssignmentResponse;
+import com.faculty_evaluation_backend.fes.dto.faculty.ClassFacultyReassignmentRequest;
+import com.faculty_evaluation_backend.fes.dto.faculty.ClassFacultyReassignmentResponse;
+import com.faculty_evaluation_backend.fes.dto.faculty.FacultyAssignmentOptionResponse;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadRequest;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadResponse;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadSectionOptionResponse;
@@ -119,6 +123,49 @@ public class AdministratorController {
         );
 
         return administratorService.facultyList(page, size, search, legacyDatabase);
+    }
+
+    @GetMapping("/class-assignments")
+    @AuditableAction(action = "FETCH", entity = "PRIMARY_CLASS_ASSIGNMENT")
+    public PageResponse<ClassFacultyAssignmentResponse> getClassAssignments(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String legacyDatabase
+    ) {
+        return administratorService.getClassAssignments(
+                page,
+                size,
+                search,
+                legacyDatabase
+        );
+    }
+
+    @GetMapping("/class-assignments/faculties")
+    @AuditableAction(action = "FETCH", entity = "CLASS_ASSIGNMENT_FACULTY_OPTIONS")
+    public ResponseEntity<List<FacultyAssignmentOptionResponse>>
+    getClassAssignmentFacultyOptions(
+            @RequestParam(required = false) String legacyDatabase
+    ) {
+        return ResponseEntity.ok(
+                administratorService.getClassAssignmentFacultyOptions(
+                        legacyDatabase
+                )
+        );
+    }
+
+    @PatchMapping("/class-assignments/{primaryClassId}/faculty")
+    @AuditableAction(action = "REASSIGN", entity = "PRIMARY_CLASS_FACULTY")
+    public ResponseEntity<ClassFacultyReassignmentResponse> reassignClassFaculty(
+            @PathVariable Long primaryClassId,
+            @Valid @RequestBody ClassFacultyReassignmentRequest request
+    ) {
+        return ResponseEntity.ok(
+                administratorService.reassignClassFaculty(
+                        primaryClassId,
+                        request
+                )
+        );
     }
 
     @GetMapping("/user-accounts")

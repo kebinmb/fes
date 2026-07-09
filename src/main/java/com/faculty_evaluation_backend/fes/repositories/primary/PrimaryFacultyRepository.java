@@ -42,6 +42,22 @@ public interface PrimaryFacultyRepository extends JpaRepository<PrimaryFaculty, 
 
     List<PrimaryFaculty> findByCollegeAndStatus(College college, Status status);
 
+    @Query("""
+            SELECT f
+            FROM PrimaryFaculty f
+            WHERE f.status = :status
+              AND (
+                    :legacyDatabase IS NULL
+                    OR :legacyDatabase = ''
+                    OR UPPER(TRIM(f.legacyDatabase)) = UPPER(TRIM(:legacyDatabase))
+              )
+            ORDER BY f.lastname ASC, f.firstname ASC, f.facultyId ASC
+            """)
+    List<PrimaryFaculty> findAssignmentOptions(
+            @Param("status") Status status,
+            @Param("legacyDatabase") String legacyDatabase
+    );
+
     @Query(
             value = """
                     SELECT
