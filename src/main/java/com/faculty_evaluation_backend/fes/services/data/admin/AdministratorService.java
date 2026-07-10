@@ -79,6 +79,8 @@ public class AdministratorService {
     private static final int HIGH_PREPARATION_THRESHOLD = 3;
     private static final String REGULAR_LOAD_STATUS = "Regular";
     private static final String OVERLOAD_LOAD_STATUS = "Overload";
+    private static final int DEFAULT_PAGE_SIZE = 10;
+    private static final int MAX_PAGE_SIZE = 100;
 
     private static final Set<String> ALLOWED_LEGACY_DATABASES = Set.of(
             "LEGACY_TALISAY",
@@ -476,11 +478,20 @@ public class AdministratorService {
 
         Page<PrimaryFaculty> facultyPage;
 
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = PageRequest.of(
+                safePage(page),
+                safePageSize(size),
+                Sort.by(
+                        Sort.Order.asc("lastname"),
+                        Sort.Order.asc("firstname"),
+                        Sort.Order.asc("facultyId")
+                )
+        );
+        String normalizedSearch = normalizeOptional(search);
         String normalizedLegacyDatabase = normalizeLegacyDatabase(legacyDatabase);
 
         facultyPage = primaryFacultyRepository.searchExcludingCollege(
-                search,
+                normalizedSearch,
                 College.FOR_MIGRATION,
                 normalizedLegacyDatabase,
                 pageable
@@ -1565,6 +1576,18 @@ public class AdministratorService {
         }
 
         return value.trim();
+    }
+
+    private int safePage(int page) {
+        return Math.max(page, 0);
+    }
+
+    private int safePageSize(int size) {
+        if (size <= 0) {
+            return DEFAULT_PAGE_SIZE;
+        }
+
+        return Math.min(size, MAX_PAGE_SIZE);
     }
 
     private String normalizeAcademicSemester(String value) {

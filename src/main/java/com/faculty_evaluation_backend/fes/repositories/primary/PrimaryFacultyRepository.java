@@ -49,7 +49,7 @@ public interface PrimaryFacultyRepository extends JpaRepository<PrimaryFaculty, 
               AND (
                     :legacyDatabase IS NULL
                     OR :legacyDatabase = ''
-                    OR UPPER(TRIM(f.legacyDatabase)) = UPPER(TRIM(:legacyDatabase))
+                    OR f.legacyDatabase = :legacyDatabase
               )
             ORDER BY f.lastname ASC, f.firstname ASC, f.facultyId ASC
             """)
@@ -139,7 +139,7 @@ public interface PrimaryFacultyRepository extends JpaRepository<PrimaryFaculty, 
                   AND (
                         :legacyDatabase IS NULL
                         OR :legacyDatabase = ''
-                        OR UPPER(TRIM(f.legacyDatabase)) = UPPER(TRIM(:legacyDatabase))
+                        OR f.legacyDatabase = :legacyDatabase
                   )
                   AND (
                         :search IS NULL
