@@ -25,6 +25,8 @@ import java.time.Instant;
 @RequiredArgsConstructor
 @Slf4j
 public class JwtRefreshFilter extends OncePerRequestFilter {
+    private static final String ACTIVITY_SYNCED_HEADER =
+            "X-FES-Session-Activity-Synced";
 
     private final JwtService jwtService;
     private final RefreshTokenRepository refreshTokenRepository;
@@ -255,6 +257,13 @@ public class JwtRefreshFilter extends OncePerRequestFilter {
                 refreshTokenRepository.save(
                         newStoredToken
                 );
+
+                if (hasUserActivity) {
+                    response.setHeader(
+                            ACTIVITY_SYNCED_HEADER,
+                            "true"
+                    );
+                }
 
                 // =========================================
                 // SET NEW COOKIES

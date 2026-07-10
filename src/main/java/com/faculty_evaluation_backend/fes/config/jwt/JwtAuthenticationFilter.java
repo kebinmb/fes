@@ -23,6 +23,9 @@ import java.util.Collections;
 @RequiredArgsConstructor
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+    private static final String ACTIVITY_SYNCED_HEADER =
+            "X-FES-Session-Activity-Synced";
+
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
     @Override
@@ -68,11 +71,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             extractRefreshToken(request, tokenType);
 
                     if (refreshToken != null) {
-                        refreshTokenService
+                        boolean activitySynced = refreshTokenService
                                 .validateAndTouchActiveSession(
                                         refreshToken,
                                         hasUserActivity(request)
                                 );
+
+                        if (activitySynced) {
+                            response.setHeader(
+                                    ACTIVITY_SYNCED_HEADER,
+                                    "true"
+                            );
+                        }
                     }
 
                     log.debug("JWT authenticated subject {} with role {}", userId, role);

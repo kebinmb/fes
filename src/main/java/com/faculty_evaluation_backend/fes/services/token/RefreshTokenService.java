@@ -58,7 +58,7 @@ public class RefreshTokenService {
     }
 
     @Transactional(transactionManager = "primaryTransactionManager")
-    public void validateAndTouchActiveSession(
+    public boolean validateAndTouchActiveSession(
             String rawRefreshToken,
             boolean hasUserActivity
     ) {
@@ -80,7 +80,10 @@ public class RefreshTokenService {
 
             storedToken.setLastActivityAt(now);
             refreshTokenRepository.save(storedToken);
+            return true;
         }
+
+        return false;
     }
 
     public void validateSession(

@@ -136,7 +136,10 @@ public class SecurityConfig {
 
         configuration.setAllowCredentials(true);
 
-        configuration.setExposedHeaders(List.of("Authorization"));
+        configuration.setExposedHeaders(List.of(
+                "Authorization",
+                "X-FES-Session-Activity-Synced"
+        ));
 
         configuration.setMaxAge(3600L);
 
