@@ -1,7 +1,6 @@
 package com.faculty_evaluation_backend.fes.entities.primary;
 
 import com.faculty_evaluation_backend.fes.audit.Auditable;
-import com.faculty_evaluation_backend.fes.entities.primary.enums.FacultyLoadStatus;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.FacultyWorkloadSource;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -130,9 +129,8 @@ public class FacultyWorkload extends Auditable {
     )
     private BigDecimal overloadHours = BigDecimal.ZERO;
 
-    @Enumerated(EnumType.STRING)
     @Column(name = "load_status", nullable = false, length = 30)
-    private FacultyLoadStatus loadStatus = FacultyLoadStatus.REGULAR_LOAD;
+    private String loadStatus = "Regular";
 
     @Enumerated(EnumType.STRING)
     @Column(name = "source", nullable = false, length = 30)
@@ -143,7 +141,7 @@ public class FacultyWorkload extends Auditable {
 
     @PrePersist
     @PreUpdate
-    void syncLoadStatus() {
+    void prepareForSave() {
         if (totalHoursPerWeek == null) {
             totalHoursPerWeek = BigDecimal.ZERO;
         }
@@ -152,9 +150,9 @@ public class FacultyWorkload extends Auditable {
             overloadHours = BigDecimal.ZERO;
         }
 
-        loadStatus = overloadHours.compareTo(BigDecimal.ZERO) > 0
-                ? FacultyLoadStatus.OVERLOAD
-                : FacultyLoadStatus.REGULAR_LOAD;
+        if (loadStatus == null || loadStatus.isBlank()) {
+            loadStatus = "Regular";
+        }
 
         if (source == null) {
             source = FacultyWorkloadSource.MANUAL;

@@ -1,7 +1,6 @@
 package com.faculty_evaluation_backend.fes.dto.faculty;
 
 import com.faculty_evaluation_backend.fes.entities.primary.enums.College;
-import com.faculty_evaluation_backend.fes.entities.primary.enums.FacultyLoadStatus;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.FacultyWorkloadSource;
 import lombok.Builder;
 import lombok.Getter;
@@ -29,7 +28,7 @@ public class FacultyWorkloadResponse {
     private BigDecimal designationEtu;
     private BigDecimal totalWorkload;
     private BigDecimal overloadHours;
-    private FacultyLoadStatus loadStatus;
+    private String loadStatus;
     private FacultyWorkloadSource source;
     private String remarks;
 }

@@ -49,6 +49,8 @@ public class FacultyWorkloadRequest {
 
     private BigDecimal overloadHours;
 
+    private String loadStatus;
+
     private FacultyWorkloadSource source;
 
     private String remarks;

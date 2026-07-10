@@ -77,6 +77,8 @@ public class AdministratorService {
     private static final BigDecimal HIGH_PREPARATION_LOAD_LIMIT =
             BigDecimal.valueOf(18);
     private static final int HIGH_PREPARATION_THRESHOLD = 3;
+    private static final String REGULAR_LOAD_STATUS = "Regular";
+    private static final String OVERLOAD_LOAD_STATUS = "Overload";
 
     private static final Set<String> ALLOWED_LEGACY_DATABASES = Set.of(
             "LEGACY_TALISAY",
@@ -647,6 +649,7 @@ public class AdministratorService {
                         ? BigDecimal.ZERO
                         : request.getOverloadHours()
         );
+        workload.setLoadStatus(normalizeLoadStatus(request.getLoadStatus()));
         workload.setSource(
                 request.getSource() == null
                         ? FacultyWorkloadSource.MANUAL
@@ -1372,6 +1375,30 @@ public class AdministratorService {
         if (isNegative(request.getOverloadHours())) {
             throw new BadRequestException("Overload hours cannot be negative.");
         }
+
+        normalizeLoadStatus(request.getLoadStatus());
+    }
+
+    private String normalizeLoadStatus(String loadStatus) {
+        if (loadStatus == null || loadStatus.trim().isEmpty()) {
+            return REGULAR_LOAD_STATUS;
+        }
+
+        String normalized = loadStatus.trim();
+
+        if (normalized.equalsIgnoreCase(REGULAR_LOAD_STATUS)
+                || normalized.equalsIgnoreCase("REGULAR_LOAD")
+                || normalized.equalsIgnoreCase("REGULAR")) {
+            return REGULAR_LOAD_STATUS;
+        }
+
+        if (normalized.equalsIgnoreCase(OVERLOAD_LOAD_STATUS)) {
+            return OVERLOAD_LOAD_STATUS;
+        }
+
+        throw new BadRequestException(
+                "Load status must be Regular or Overload."
+        );
     }
 
     private FacultyWorkloadResponse toFacultyWorkloadResponse(
