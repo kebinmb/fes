@@ -28,6 +28,9 @@ public class RefreshToken {
 
     private Instant expiryDate;
 
+    @Column(nullable = false)
+    private Instant lastActivityAt;
+
     private boolean revoked;
 
     private String deviceInfo;

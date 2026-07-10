@@ -1,6 +1,7 @@
 package com.faculty_evaluation_backend.fes.config.jwt;
 
 import com.faculty_evaluation_backend.fes.services.jwt.JwtService;
+import com.faculty_evaluation_backend.fes.services.token.RefreshTokenService;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -23,6 +24,7 @@ import java.util.Collections;
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
+    private final RefreshTokenService refreshTokenService;
     @Override
     protected void doFilterInternal(
             HttpServletRequest request,
@@ -58,6 +60,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                     String role =
                             claims.get("role", String.class);
+
+                    String tokenType =
+                            claims.get("type", String.class);
+
+                    String refreshToken =
+                            extractRefreshToken(request, tokenType);
+
+                    if (refreshToken != null) {
+                        refreshTokenService
+                                .validateAndTouchActiveSession(
+                                        refreshToken,
+                                        hasUserActivity(request)
+                                );
+                    }
 
                     log.debug("JWT authenticated subject {} with role {}", userId, role);
 
@@ -154,5 +170,40 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         return null;
+    }
+
+    private String extractRefreshToken(
+            HttpServletRequest request,
+            String accessTokenType
+    ) {
+        if (accessTokenType == null
+                || request.getCookies() == null) {
+            return null;
+        }
+
+        String refreshCookieName = switch (accessTokenType) {
+            case "student_access" -> "student_refresh";
+            case "supervisor_access" -> "supervisor_refresh";
+            case "administrator_access" -> "administrator_refresh";
+            default -> null;
+        };
+
+        if (refreshCookieName == null) {
+            return null;
+        }
+
+        for (Cookie cookie : request.getCookies()) {
+            if (refreshCookieName.equals(cookie.getName())) {
+                return cookie.getValue();
+            }
+        }
+
+        return null;
+    }
+
+    private boolean hasUserActivity(HttpServletRequest request) {
+        return "true".equalsIgnoreCase(
+                request.getHeader("X-FES-User-Activity")
+        );
     }
 }

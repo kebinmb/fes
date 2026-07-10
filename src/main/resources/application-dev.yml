@@ -104,6 +104,7 @@ jwt:
   secret: ${JWT_SECRET:dev-only-change-this-secret-before-sharing}
   expiration: 900000
   refresh-expiration: 604800000
+  idle-timeout: 600000
 
 management:
   endpoint:

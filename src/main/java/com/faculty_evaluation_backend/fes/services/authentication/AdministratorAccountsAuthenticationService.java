@@ -9,6 +9,8 @@ import com.faculty_evaluation_backend.fes.entities.primary.enums.Role;
 import com.faculty_evaluation_backend.fes.exceptions.UnauthorizedException;
 import com.faculty_evaluation_backend.fes.repositories.authentication.UserAccountsRepository;
 import com.faculty_evaluation_backend.fes.services.jwt.JwtService;
+import com.faculty_evaluation_backend.fes.services.token.RefreshTokenService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -25,9 +27,13 @@ public class AdministratorAccountsAuthenticationService {
     private final JwtService jwtService;
     private final JwtConfig jwtConfig;
     private final UserAccountsRepository userAccountsRepository;
+    private final RefreshTokenService refreshTokenService;
 
     @Transactional(transactionManager = "primaryTransactionManager")
-    public UserAuthenticationResponse login (LoginRequest loginRequest){
+    public UserAuthenticationResponse login(
+            LoginRequest loginRequest,
+            HttpServletRequest request
+    ){
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         loginRequest.getUsernameOrEmail(),
@@ -41,6 +47,7 @@ public class AdministratorAccountsAuthenticationService {
         }
         String accessToken = jwtService.generateAccessTokenForAdministrator(user.getUserId());
         String refreshToken = jwtService.generateRefreshTokenForAdministrator(user.getUserId());
+        refreshTokenService.createSession(user.getUserId().toString(), refreshToken, request);
         user.lastLoginNow();
         userAccountsRepository.save(user);
 

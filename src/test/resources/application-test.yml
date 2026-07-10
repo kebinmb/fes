@@ -59,6 +59,9 @@ spring:
 
 jwt:
   secret: test-only-secret-key-with-enough-length-for-hmac-signing
+  expiration: 900000
+  refresh-expiration: 604800000
+  idle-timeout: 600000
 
 app:
   oauth2:

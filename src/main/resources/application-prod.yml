@@ -213,3 +213,4 @@ management:
 
 jwt:
   secret: ${JWT_SECRET}
+  idle-timeout: 600000

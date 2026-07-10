@@ -4,6 +4,7 @@ import com.faculty_evaluation_backend.fes.entities.tokens.RefreshToken;
 import com.faculty_evaluation_backend.fes.exceptions.UnauthorizedException;
 import com.faculty_evaluation_backend.fes.repositories.tokens.RefreshTokenRepository;
 import com.faculty_evaluation_backend.fes.services.jwt.JwtService;
+import com.faculty_evaluation_backend.fes.services.token.RefreshTokenService;
 import com.faculty_evaluation_backend.fes.utilities.token.TokenHashUtil;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
@@ -28,6 +29,7 @@ public class JwtRefreshFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtConfig jwtConfig;
+    private final RefreshTokenService refreshTokenService;
 
     @Override
     protected void doFilterInternal(
@@ -103,6 +105,8 @@ public class JwtRefreshFilter extends OncePerRequestFilter {
                             || jwtService.isTokenExpired(accessToken);
 
             if (shouldRefresh && refreshToken != null) {
+                Instant now = Instant.now();
+                boolean hasUserActivity = hasUserActivity(request);
 
                 String tokenHash =
                         TokenHashUtil.sha256(refreshToken);
@@ -116,14 +120,11 @@ public class JwtRefreshFilter extends OncePerRequestFilter {
                                         )
                                 );
 
-                if (storedToken.getExpiryDate()
-                        .minusSeconds(5)
-                        .isBefore(Instant.now())) {
-
-                    throw new UnauthorizedException(
-                            "Refresh token expired."
-                    );
-                }
+                refreshTokenService.validateSession(
+                        storedToken,
+                        now,
+                        hasUserActivity
+                );
 
                 if (!jwtService.isRefreshTokenValid(refreshToken)) {
 
@@ -170,15 +171,8 @@ public class JwtRefreshFilter extends OncePerRequestFilter {
                 // =========================================
                 // DEVICE FINGERPRINT
                 // =========================================
-                String requestDevice =
-                        request.getHeader("User-Agent");
-
                 String deviceFingerprint =
-                        TokenHashUtil.sha256(
-                                requestDevice != null
-                                        ? requestDevice
-                                        : "unknown"
-                        ).substring(0, 16);
+                        refreshTokenService.deviceFingerprint(request);
 
                 String storedFingerprint =
                         storedToken.getDeviceInfo();
@@ -244,24 +238,22 @@ public class JwtRefreshFilter extends OncePerRequestFilter {
                 // =========================================
                 // SAVE NEW REFRESH TOKEN
                 // =========================================
+                RefreshToken newStoredToken =
+                        refreshTokenService.buildRefreshToken(
+                                userId,
+                                newRefreshToken,
+                                deviceFingerprint,
+                                now
+                        );
+
+                if (!hasUserActivity) {
+                    newStoredToken.setLastActivityAt(
+                            storedToken.getLastActivityAt()
+                    );
+                }
+
                 refreshTokenRepository.save(
-                        RefreshToken.builder()
-                                .userId(userId)
-                                .tokenHash(
-                                        TokenHashUtil.sha256(
-                                                newRefreshToken
-                                        )
-                                )
-                                .expiryDate(
-                                        Instant.now()
-                                                .plusMillis(
-                                                        jwtConfig
-                                                                .getRefreshExpiration()
-                                                )
-                                )
-                                .revoked(false)
-                                .deviceInfo(deviceFingerprint)
-                                .build()
+                        newStoredToken
                 );
 
                 // =========================================
@@ -399,6 +391,12 @@ public class JwtRefreshFilter extends OncePerRequestFilter {
                 .sameSite("Lax")
                 .maxAge(0)
                 .build();
+    }
+
+    private boolean hasUserActivity(HttpServletRequest request) {
+        return "true".equalsIgnoreCase(
+                request.getHeader("X-FES-User-Activity")
+        );
     }
 
     @Override

@@ -5,17 +5,15 @@ import com.faculty_evaluation_backend.fes.config.jwt.JwtConfig;
 import com.faculty_evaluation_backend.fes.dto.authentication.AuthenticationResponse;
 import com.faculty_evaluation_backend.fes.dto.authentication.StudentAuthenticationDTO;
 import com.faculty_evaluation_backend.fes.entities.authentication.StudentAccessCode;
-import com.faculty_evaluation_backend.fes.entities.tokens.RefreshToken;
 import com.faculty_evaluation_backend.fes.exceptions.BadRequestException;
 import com.faculty_evaluation_backend.fes.exceptions.ResourceNotFoundException;
 import com.faculty_evaluation_backend.fes.exceptions.UnauthorizedException;
 import com.faculty_evaluation_backend.fes.repositories.authentication.StudentAccessCodeRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryStudentRepository;
-import com.faculty_evaluation_backend.fes.repositories.tokens.RefreshTokenRepository;
 import com.faculty_evaluation_backend.fes.services.cache.StudentCacheService;
 import com.faculty_evaluation_backend.fes.services.jwt.JwtService;
 import com.faculty_evaluation_backend.fes.services.rateLimiting.RateLimitingService;
-import com.faculty_evaluation_backend.fes.utilities.token.TokenHashUtil;
+import com.faculty_evaluation_backend.fes.services.token.RefreshTokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,7 +40,7 @@ public class StudentAuthenticationService {
     private final RateLimitingService rateLimitingService;
     private final JwtConfig jwtConfig;
     private final EmailService emailService;
-    private final RefreshTokenRepository refreshTokenRepository;
+    private final RefreshTokenService refreshTokenService;
     private static final int ACCESS_CODE_EXPIRY_MINUTES = 15;
     private final StudentAuthenticationLookUpService studentAuthenticationLookupService;
     private final PasswordEncoder passwordEncoder;
@@ -209,11 +207,7 @@ public class StudentAuthenticationService {
         String accessToken = jwtService.generateAccessTokenForStudent(studentId);
 
         String refreshToken = jwtService.generateRefreshTokenForStudent(studentId);
-        String tokenHash = TokenHashUtil.sha256(refreshToken);
-        String rawDevice = request.getHeader("User-Agent");
-        String deviceInfo = TokenHashUtil.sha256(rawDevice != null ? rawDevice : "unknown").substring(0, 16);
-        refreshTokenRepository.revokeAllByUserId(studentId);
-        refreshTokenRepository.save(RefreshToken.builder().userId(studentId).tokenHash(tokenHash).expiryDate(Instant.now().plusMillis(jwtConfig.getRefreshExpiration())).revoked(false).deviceInfo(deviceInfo).build());
+        refreshTokenService.createSession(studentId, refreshToken, request);
         log.info("Student {} authenticated", studentId);
 
         return AuthenticationResponse.builder().accessToken(accessToken).refreshToken(refreshToken).accessCode(accessCode).tokenType("Bearer").expiresIn(jwtConfig.getExpiration()).studentId(transformedStudentId).build();

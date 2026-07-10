@@ -10,6 +10,8 @@ import com.faculty_evaluation_backend.fes.exceptions.BadRequestException;
 import com.faculty_evaluation_backend.fes.repositories.authentication.UserAccountsRepository;
 import com.faculty_evaluation_backend.fes.services.jwt.JwtService;
 import com.faculty_evaluation_backend.fes.services.rateLimiting.RateLimitingService;
+import com.faculty_evaluation_backend.fes.services.token.RefreshTokenService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.*;
@@ -31,9 +33,13 @@ public class SupervisorAccountsAuthenticationService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final JwtConfig jwtConfig;
+    private final RefreshTokenService refreshTokenService;
 
     @Transactional(transactionManager = "primaryTransactionManager")
-    public UserAuthenticationResponse login(LoginRequest loginRequest) {
+    public UserAuthenticationResponse login(
+            LoginRequest loginRequest,
+            HttpServletRequest request
+    ) {
 
         String identifier = loginRequest.getUsernameOrEmail();
 
@@ -49,6 +55,7 @@ public class SupervisorAccountsAuthenticationService {
 
             String accessToken = jwtService.generateAccessTokenForSupervisor(userId);
             String refreshToken = jwtService.generateRefreshTokenForSupervisor(userId);
+            refreshTokenService.createSession(userId.toString(), refreshToken, request);
 
             UserAccounts userAccount = userDetails.getUser();
             userAccount.lastLoginNow();

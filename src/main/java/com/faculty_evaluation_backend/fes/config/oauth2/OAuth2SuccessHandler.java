@@ -7,6 +7,7 @@ import com.faculty_evaluation_backend.fes.entities.primary.enums.Status;
 import com.faculty_evaluation_backend.fes.exceptions.UnauthorizedException;
 import com.faculty_evaluation_backend.fes.repositories.authentication.UserAccountsRepository;
 import com.faculty_evaluation_backend.fes.services.jwt.JwtService;
+import com.faculty_evaluation_backend.fes.services.token.RefreshTokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     private final UserAccountsRepository userAccountsRepository;
     private final JwtService jwtService;
     private final JwtConfig jwtConfig;
+    private final RefreshTokenService refreshTokenService;
 
     @Value("${app.oauth2.redirect-url-success}")
     private String successRedirectUrl;
@@ -68,6 +70,12 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
             refreshCookieName = "supervisor_refresh";
         }
+
+        refreshTokenService.createSession(
+                user.getUserId().toString(),
+                refreshToken,
+                request
+        );
 
         ResponseCookie accessCookie = ResponseCookie.from(accessCookieName, accessToken).httpOnly(true).secure(true).path("/").sameSite("None").maxAge(Math.max(1, jwtConfig.getExpiration() / 1000)).build();
 

@@ -14,4 +14,6 @@ public class JwtConfig {
     private Long expiration;
     @Value("${jwt.refresh-expiration}")
     private Long refreshExpiration;
+    @Value("${jwt.idle-timeout:600000}")
+    private Long idleTimeout;
 }

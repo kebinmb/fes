@@ -87,7 +87,7 @@ public class AuthenticationController {
     @PostMapping("/supervisor/login")
     @AuditableAction(action = "AUTHENTICATE_SUPERVISOR", entity = "SUPERVISOR_AUTHENTICATION")
     public ResponseEntity<?> supervisorLogin(@RequestBody LoginRequest loginRequest, HttpServletRequest request) {
-        var response = supervisorAccountsAuthenticationService.login(loginRequest);
+        var response = supervisorAccountsAuthenticationService.login(loginRequest, request);
         return ResponseEntity.ok().header("Set-Cookie", buildSupervisorAccessTokenCookie(response.getAccessToken()).toString()).header("Set-Cookie", buildSupervisorRefreshTokenCookie(response.getRefreshToken()).toString()).body(Map.of("message", "Authentication successful", "evaluatorId", response.getEvaluatorId(), "college", response.getCollege(), "program", response.getPrograms(), "requiresPasswordChange",
                 response.getRequiresPasswordChange()));
     }
@@ -95,7 +95,7 @@ public class AuthenticationController {
     @PostMapping("/administrator/login")
     @AuditableAction(action = "AUTHENTICATE_ADMINISTRATOR", entity = "ADMINISTRATOR_AUTHENTICATION")
     public ResponseEntity<?> administratorLogin(@RequestBody LoginRequest loginRequest, HttpServletRequest request) {
-        var response = administratorAccountsAuthenticationService.login(loginRequest);
+        var response = administratorAccountsAuthenticationService.login(loginRequest, request);
 
         return ResponseEntity.ok().header("Set-Cookie", buildAdministratorAccessTokenCookie(response.getAccessToken()).toString()).header("Set-Cookie", buildAdministratorRefreshTokenCookie(response.getRefreshToken()).toString()).body(Map.of("message", "Authentication successful", "administratorId", response.getEvaluatorId()));
     }
