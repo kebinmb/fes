@@ -8,6 +8,26 @@ This project follows a simple semantic versioning style:
 - `MINOR` for new backward-compatible endpoints or features.
 - `PATCH` for bug fixes, optimizations, and documentation.
 
+## [0.2.1] - 2026-07-10
+
+### Added
+
+- Added `last_activity_at` tracking to refresh-token sessions through a new forward-only Flyway migration.
+- Added configurable `jwt.idle-timeout` support, set to ten minutes by default.
+- Added backend support for the frontend `X-FES-User-Activity` signal so session renewal is tied to recent user interaction.
+
+### Changed
+
+- Refresh-token rotation now blocks sessions that exceeded the configured inactivity window.
+- Protected requests validate the stored refresh-token session before authentication is accepted.
+- Refresh-token activity is updated only when recent frontend user activity is present, preventing background API calls from extending idle sessions.
+- Supervisor, administrator, and OAuth login flows now persist refresh-token sessions consistently with student login.
+
+### Database Notes
+
+- `V39__add_refresh_token_last_activity.sql` adds the `refresh_tokens.last_activity_at` column and backfills existing rows with the migration timestamp.
+- Existing migrations remain unchanged because Flyway migrations may already be applied in production-like environments.
+
 ## [0.2.0] - 2026-07-09
 
 ### Added
