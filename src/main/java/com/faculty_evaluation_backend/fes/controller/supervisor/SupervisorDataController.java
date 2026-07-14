@@ -170,7 +170,7 @@ public class SupervisorDataController {
     public ResponseEntity<Page<EvaluatedStudentsDTO>> getEvaluatedStudents(
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false, defaultValue = "") String searchTerm,
-            @PageableDefault(page = 0, size = 10, sort = "createdAt")
+            @PageableDefault(page = 0, size = 10)
             Pageable pageable,
             Authentication authentication
     ) {

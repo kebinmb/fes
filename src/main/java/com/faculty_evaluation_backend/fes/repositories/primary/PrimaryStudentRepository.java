@@ -67,13 +67,18 @@ public interface PrimaryStudentRepository extends JpaRepository<PrimaryStudent, 
             """)
     Set<String> findStudentIdsByLegacyDatabase(@Param("database") String database);
 
-    @Query("""
-    SELECT DISTINCT ps.studentId
-    FROM PrimaryStudent ps
-    JOIN PrimaryStudentLoad psl
-        ON psl.studentId = ps.studentId
-    WHERE ps.legacyId = :studentId
-""")
+    @Query(
+            value = """
+                    SELECT DISTINCT ps.student_id
+                    FROM primary_student ps
+                    INNER JOIN primary_student_load psl
+                        ON (CAST(psl.student_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
+                           (CAST(ps.student_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+                    WHERE (CAST(ps.legacy_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
+                          (CAST(:studentId AS CHAR) COLLATE utf8mb4_unicode_ci)
+                    """,
+            nativeQuery = true
+    )
     Optional<String> findByLegacyStudentIdWithLoad(
             @Param("studentId") String studentId
     );

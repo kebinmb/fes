@@ -30,7 +30,6 @@ public interface FacultyWorkloadRepository
             String semester
     );
 
-    @EntityGraph(attributePaths = "faculty")
     @Query(
             value = """
                     SELECT fw
@@ -61,22 +60,25 @@ public interface FacultyWorkloadRepository
                     SELECT CASE WHEN COUNT(*) > 0 THEN TRUE ELSE FALSE END
                     FROM faculty_workload fw
                     INNER JOIN primary_faculty pf
-                        ON pf.faculty_id = fw.faculty_id
+                        ON (CAST(pf.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
+                           (CAST(fw.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci)
                     INNER JOIN user_accounts ua
                         ON ua.user_id = :userId
-                       AND UPPER(TRIM(ua.data_source)) =
-                           UPPER(TRIM(pf.legacy_database))
-                    WHERE fw.faculty_id = :facultyId
+                       AND (UPPER(TRIM(CAST(ua.data_source AS CHAR))) COLLATE utf8mb4_unicode_ci) =
+                           (UPPER(TRIM(CAST(pf.legacy_database AS CHAR))) COLLATE utf8mb4_unicode_ci)
+                    WHERE (CAST(fw.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
+                          (CAST(:facultyId AS CHAR) COLLATE utf8mb4_unicode_ci)
                       AND fw.school_year = :schoolYear
                       AND (
-                            LOWER(TRIM(fw.semester)) = LOWER(TRIM(:semester))
+                            (LOWER(TRIM(CAST(fw.semester AS CHAR))) COLLATE utf8mb4_unicode_ci) =
+                            (LOWER(TRIM(CAST(:semester AS CHAR))) COLLATE utf8mb4_unicode_ci)
                             OR (
-                                UPPER(TRIM(:semester)) IN ('1ST', 'FIRST_SEMESTER')
-                                AND UPPER(TRIM(fw.semester)) IN ('1ST', 'FIRST_SEMESTER')
+                                UPPER(TRIM(CAST(:semester AS CHAR))) IN ('1ST', 'FIRST_SEMESTER')
+                                AND UPPER(TRIM(CAST(fw.semester AS CHAR))) IN ('1ST', 'FIRST_SEMESTER')
                             )
                             OR (
-                                UPPER(TRIM(:semester)) IN ('2ND', 'SECOND_SEMESTER')
-                                AND UPPER(TRIM(fw.semester)) IN ('2ND', 'SECOND_SEMESTER')
+                                UPPER(TRIM(CAST(:semester AS CHAR))) IN ('2ND', 'SECOND_SEMESTER')
+                                AND UPPER(TRIM(CAST(fw.semester AS CHAR))) IN ('2ND', 'SECOND_SEMESTER')
                             )
                       )
                     """,
@@ -116,57 +118,83 @@ public interface FacultyWorkloadRepository
 
     @Query(
             value = """
-                    SELECT fw
-                    FROM FacultyWorkload fw
-                    LEFT JOIN fw.faculty f
+                    SELECT fw.*
+                    FROM faculty_workload fw
+                    LEFT JOIN primary_faculty f
+                        ON (CAST(f.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
+                           (CAST(fw.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci)
                     WHERE (
                             :search IS NULL
                             OR :search = ''
-                            OR LOWER(fw.facultyId) LIKE LOWER(CONCAT('%', :search, '%'))
-                            OR LOWER(COALESCE(fw.courseCode, '')) LIKE LOWER(CONCAT('%', :search, '%'))
-                            OR LOWER(COALESCE(fw.programCode, '')) LIKE LOWER(CONCAT('%', :search, '%'))
-                            OR LOWER(COALESCE(fw.yearLevel, '')) LIKE LOWER(CONCAT('%', :search, '%'))
-                            OR LOWER(COALESCE(fw.sectionCode, '')) LIKE LOWER(CONCAT('%', :search, '%'))
-                            OR LOWER(COALESCE(f.firstname, '')) LIKE LOWER(CONCAT('%', :search, '%'))
-                            OR LOWER(COALESCE(f.lastname, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                            OR (LOWER(COALESCE(CAST(fw.faculty_id AS CHAR), '')) COLLATE utf8mb4_unicode_ci)
+                               LIKE (LOWER(CONCAT('%', CAST(:search AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
+                            OR (LOWER(COALESCE(CAST(fw.course_code AS CHAR), '')) COLLATE utf8mb4_unicode_ci)
+                               LIKE (LOWER(CONCAT('%', CAST(:search AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
+                            OR (LOWER(COALESCE(CAST(fw.program_code AS CHAR), '')) COLLATE utf8mb4_unicode_ci)
+                               LIKE (LOWER(CONCAT('%', CAST(:search AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
+                            OR (LOWER(COALESCE(CAST(fw.year_level AS CHAR), '')) COLLATE utf8mb4_unicode_ci)
+                               LIKE (LOWER(CONCAT('%', CAST(:search AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
+                            OR (LOWER(COALESCE(CAST(fw.section_code AS CHAR), '')) COLLATE utf8mb4_unicode_ci)
+                               LIKE (LOWER(CONCAT('%', CAST(:search AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
+                            OR (LOWER(COALESCE(CAST(f.firstname AS CHAR), '')) COLLATE utf8mb4_unicode_ci)
+                               LIKE (LOWER(CONCAT('%', CAST(:search AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
+                            OR (LOWER(COALESCE(CAST(f.lastname AS CHAR), '')) COLLATE utf8mb4_unicode_ci)
+                               LIKE (LOWER(CONCAT('%', CAST(:search AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
                             OR LOWER(CONCAT(COALESCE(f.firstname, ''), ' ', COALESCE(f.lastname, '')))
-                               LIKE LOWER(CONCAT('%', :search, '%'))
+                               COLLATE utf8mb4_unicode_ci LIKE
+                               (LOWER(CONCAT('%', CAST(:search AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
                             OR LOWER(CONCAT(COALESCE(f.lastname, ''), ', ', COALESCE(f.firstname, '')))
-                               LIKE LOWER(CONCAT('%', :search, '%'))
+                               COLLATE utf8mb4_unicode_ci LIKE
+                               (LOWER(CONCAT('%', CAST(:search AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
                     )
-                      AND (:schoolYear IS NULL OR fw.schoolYear = :schoolYear)
+                      AND (:schoolYear IS NULL OR fw.school_year = :schoolYear)
                       AND (
                             :semester IS NULL
                             OR :semester = ''
-                            OR LOWER(TRIM(fw.semester)) = LOWER(TRIM(:semester))
+                            OR (LOWER(TRIM(CAST(fw.semester AS CHAR))) COLLATE utf8mb4_unicode_ci) =
+                               (LOWER(TRIM(CAST(:semester AS CHAR))) COLLATE utf8mb4_unicode_ci)
                       )
+                    ORDER BY fw.updated_at DESC, fw.faculty_workload_id DESC
                     """,
             countQuery = """
-                    SELECT COUNT(fw)
-                    FROM FacultyWorkload fw
-                    LEFT JOIN fw.faculty f
+                    SELECT COUNT(*)
+                    FROM faculty_workload fw
+                    LEFT JOIN primary_faculty f
+                        ON (CAST(f.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
+                           (CAST(fw.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci)
                     WHERE (
                             :search IS NULL
                             OR :search = ''
-                            OR LOWER(fw.facultyId) LIKE LOWER(CONCAT('%', :search, '%'))
-                            OR LOWER(COALESCE(fw.courseCode, '')) LIKE LOWER(CONCAT('%', :search, '%'))
-                            OR LOWER(COALESCE(fw.programCode, '')) LIKE LOWER(CONCAT('%', :search, '%'))
-                            OR LOWER(COALESCE(fw.yearLevel, '')) LIKE LOWER(CONCAT('%', :search, '%'))
-                            OR LOWER(COALESCE(fw.sectionCode, '')) LIKE LOWER(CONCAT('%', :search, '%'))
-                            OR LOWER(COALESCE(f.firstname, '')) LIKE LOWER(CONCAT('%', :search, '%'))
-                            OR LOWER(COALESCE(f.lastname, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                            OR (LOWER(COALESCE(CAST(fw.faculty_id AS CHAR), '')) COLLATE utf8mb4_unicode_ci)
+                               LIKE (LOWER(CONCAT('%', CAST(:search AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
+                            OR (LOWER(COALESCE(CAST(fw.course_code AS CHAR), '')) COLLATE utf8mb4_unicode_ci)
+                               LIKE (LOWER(CONCAT('%', CAST(:search AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
+                            OR (LOWER(COALESCE(CAST(fw.program_code AS CHAR), '')) COLLATE utf8mb4_unicode_ci)
+                               LIKE (LOWER(CONCAT('%', CAST(:search AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
+                            OR (LOWER(COALESCE(CAST(fw.year_level AS CHAR), '')) COLLATE utf8mb4_unicode_ci)
+                               LIKE (LOWER(CONCAT('%', CAST(:search AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
+                            OR (LOWER(COALESCE(CAST(fw.section_code AS CHAR), '')) COLLATE utf8mb4_unicode_ci)
+                               LIKE (LOWER(CONCAT('%', CAST(:search AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
+                            OR (LOWER(COALESCE(CAST(f.firstname AS CHAR), '')) COLLATE utf8mb4_unicode_ci)
+                               LIKE (LOWER(CONCAT('%', CAST(:search AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
+                            OR (LOWER(COALESCE(CAST(f.lastname AS CHAR), '')) COLLATE utf8mb4_unicode_ci)
+                               LIKE (LOWER(CONCAT('%', CAST(:search AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
                             OR LOWER(CONCAT(COALESCE(f.firstname, ''), ' ', COALESCE(f.lastname, '')))
-                               LIKE LOWER(CONCAT('%', :search, '%'))
+                               COLLATE utf8mb4_unicode_ci LIKE
+                               (LOWER(CONCAT('%', CAST(:search AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
                             OR LOWER(CONCAT(COALESCE(f.lastname, ''), ', ', COALESCE(f.firstname, '')))
-                               LIKE LOWER(CONCAT('%', :search, '%'))
+                               COLLATE utf8mb4_unicode_ci LIKE
+                               (LOWER(CONCAT('%', CAST(:search AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
                     )
-                      AND (:schoolYear IS NULL OR fw.schoolYear = :schoolYear)
+                      AND (:schoolYear IS NULL OR fw.school_year = :schoolYear)
                       AND (
                             :semester IS NULL
                             OR :semester = ''
-                            OR LOWER(TRIM(fw.semester)) = LOWER(TRIM(:semester))
+                            OR (LOWER(TRIM(CAST(fw.semester AS CHAR))) COLLATE utf8mb4_unicode_ci) =
+                               (LOWER(TRIM(CAST(:semester AS CHAR))) COLLATE utf8mb4_unicode_ci)
                       )
-                    """
+                    """,
+            nativeQuery = true
     )
     Page<FacultyWorkload> searchWorkloads(
             @Param("search") String search,

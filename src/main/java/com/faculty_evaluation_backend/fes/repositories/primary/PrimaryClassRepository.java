@@ -96,7 +96,7 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
     boolean existsByClassCodeAndFacultyIdAndSubjectCodeAndSectionIdAndSchoolYearAndSemester(@Param("classCode") String classCode, @Param("facultyId") String facultyId, @Param("subjectCode") String subjectCode, @Param("sectionId") Integer sectionId, @Param("schoolYear") Integer schoolYear, @Param("semester") String semester);
 
     // Using native query to handle String/Integer type mismatch in JOIN
-    @Query(value = "SELECT " + "pc.class_code AS classCode, " + "pc.faculty_id AS facultyId, " + "pc.subject_code AS subjectCode, " + "pc.section_id AS section, " + "pc.schedule_day AS scheduleDay, " + "pc.schedule_time AS scheduleTime, " + "pc.room AS room, " + "pc.semester AS semester, " + "pc.school_year AS schoolYear, " + "sl.primary_student_load_id AS studentLoadId, " + "sl.student_id AS studentId, " + "sl.grade AS grade " + "FROM primary_class pc " + "INNER JOIN primary_student_load sl ON pc.class_code = sl.class_code " + "WHERE sl.student_id = :studentId", nativeQuery = true)
+    @Query(value = "SELECT " + "pc.class_code AS classCode, " + "pc.faculty_id AS facultyId, " + "pc.subject_code AS subjectCode, " + "pc.section_id AS section, " + "pc.schedule_day AS scheduleDay, " + "pc.schedule_time AS scheduleTime, " + "pc.room AS room, " + "pc.semester AS semester, " + "pc.school_year AS schoolYear, " + "sl.primary_student_load_id AS studentLoadId, " + "sl.student_id AS studentId, " + "sl.grade AS grade " + "FROM primary_class pc " + "INNER JOIN primary_student_load sl ON (CAST(pc.class_code AS CHAR) COLLATE utf8mb4_unicode_ci) = (CAST(sl.class_code AS CHAR) COLLATE utf8mb4_unicode_ci) " + "WHERE (CAST(sl.student_id AS CHAR) COLLATE utf8mb4_unicode_ci) = (CAST(:studentId AS CHAR) COLLATE utf8mb4_unicode_ci)", nativeQuery = true)
     List<Object[]> findClassesByStudentIdNative(@Param("studentId") String studentId);
 
 //    default List<StudentClassLoadDTO> findClassesByStudentId(String studentId) {
@@ -121,7 +121,7 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
     @Query("SELECT pc FROM PrimaryClass pc " + "LEFT JOIN FETCH pc.faculty f " + "LEFT JOIN FETCH pc.section s " + "LEFT JOIN FETCH pc.subject sub " + "WHERE pc.classCode = :classCode")
     PrimaryClass findClassWithFacultyByClassCode(@Param("classCode") String classCode);
 
-    @Query(value = "SELECT " + "pc.class_code, pc.faculty_id, pc.subject_code, pc.section_id, " + "pc.semester, pc.school_year, pc.schedule_day, pc.schedule_time, pc.room, " + "pf.firstname AS faculty_firstname, pf.lastname AS faculty_lastname, pf.position AS faculty_position, " + "ps.program_code AS section_program_code, ps.section_code, ps.year_level, " + "psub.descriptive_title, " + "pst.student_id, pst.student_firstname, pst.student_lastname, pst.program_code AS student_program_code, " + "psl.grade " + "FROM primary_class pc " + "LEFT JOIN primary_faculty pf ON pc.faculty_id = pf.faculty_id " + "LEFT JOIN primary_section ps ON pc.section_id = ps.section_id " + "LEFT JOIN primary_subject psub ON pc.subject_code = psub.subject_code " + "INNER JOIN primary_student_load psl ON pc.class_code = psl.class_code " + "INNER JOIN primary_student pst ON psl.student_id = pst.student_id " + "WHERE pc.class_code = :classCode " + "AND psl.student_id = :studentId", nativeQuery = true)
+    @Query(value = "SELECT " + "pc.class_code, pc.faculty_id, pc.subject_code, pc.section_id, " + "pc.semester, pc.school_year, pc.schedule_day, pc.schedule_time, pc.room, " + "pf.firstname AS faculty_firstname, pf.lastname AS faculty_lastname, pf.position AS faculty_position, " + "ps.program_code AS section_program_code, ps.section_code, ps.year_level, " + "psub.descriptive_title, " + "pst.student_id, pst.student_firstname, pst.student_lastname, pst.program_code AS student_program_code, " + "psl.grade " + "FROM primary_class pc " + "LEFT JOIN primary_faculty pf ON (CAST(pc.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) = (CAST(pf.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) " + "LEFT JOIN primary_section ps ON pc.section_id = ps.section_id " + "LEFT JOIN primary_subject psub ON (CAST(pc.subject_code AS CHAR) COLLATE utf8mb4_unicode_ci) = (CAST(psub.subject_code AS CHAR) COLLATE utf8mb4_unicode_ci) " + "INNER JOIN primary_student_load psl ON (CAST(pc.class_code AS CHAR) COLLATE utf8mb4_unicode_ci) = (CAST(psl.class_code AS CHAR) COLLATE utf8mb4_unicode_ci) " + "INNER JOIN primary_student pst ON (CAST(psl.student_id AS CHAR) COLLATE utf8mb4_unicode_ci) = (CAST(pst.student_id AS CHAR) COLLATE utf8mb4_unicode_ci) " + "WHERE (CAST(pc.class_code AS CHAR) COLLATE utf8mb4_unicode_ci) = (CAST(:classCode AS CHAR) COLLATE utf8mb4_unicode_ci) " + "AND (CAST(psl.student_id AS CHAR) COLLATE utf8mb4_unicode_ci) = (CAST(:studentId AS CHAR) COLLATE utf8mb4_unicode_ci)", nativeQuery = true)
     Object[] findClassWithDetailsForStudentNative(@Param("classCode") String classCode, @Param("studentId") String studentId);
 
     @Query(value = """
@@ -162,14 +162,17 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
             SELECT CASE WHEN COUNT(*) > 0 THEN TRUE ELSE FALSE END
             FROM primary_class pc
             INNER JOIN primary_faculty pf
-                ON pf.faculty_id = pc.faculty_id
+                ON (CAST(pf.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
+                   (CAST(pc.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci)
             INNER JOIN user_accounts ua
                 ON ua.user_id = :userId
-               AND UPPER(TRIM(ua.data_source)) =
-                   UPPER(TRIM(pf.legacy_database))
-            WHERE pc.faculty_id = :facultyId
+               AND (UPPER(TRIM(CAST(ua.data_source AS CHAR))) COLLATE utf8mb4_unicode_ci) =
+                   (UPPER(TRIM(CAST(pf.legacy_database AS CHAR))) COLLATE utf8mb4_unicode_ci)
+            WHERE (CAST(pc.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
+                  (CAST(:facultyId AS CHAR) COLLATE utf8mb4_unicode_ci)
               AND pc.school_year = :schoolYear
-              AND LOWER(TRIM(pc.semester)) = LOWER(TRIM(:semester))
+              AND (LOWER(TRIM(CAST(pc.semester AS CHAR))) COLLATE utf8mb4_unicode_ci) =
+                  (LOWER(TRIM(CAST(:semester AS CHAR))) COLLATE utf8mb4_unicode_ci)
             """, nativeQuery = true)
     boolean existsFacultyInSupervisorScope(
             @Param("userId") Long userId,
@@ -190,36 +193,45 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
             INNER JOIN primary_section ps
                 ON ps.section_id = pc.section_id
             LEFT JOIN faculty_workload fw
-                ON fw.faculty_id = pc.faculty_id
+                ON (CAST(fw.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
+                   (CAST(pc.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci)
                AND fw.school_year = pc.school_year
                AND (
-                    LOWER(TRIM(fw.semester)) = LOWER(TRIM(pc.semester))
+                    (LOWER(TRIM(CAST(fw.semester AS CHAR))) COLLATE utf8mb4_unicode_ci) =
+                    (LOWER(TRIM(CAST(pc.semester AS CHAR))) COLLATE utf8mb4_unicode_ci)
                     OR (
-                        UPPER(TRIM(fw.semester)) = 'FIRST_SEMESTER'
-                        AND LOWER(TRIM(pc.semester)) = '1st'
+                        UPPER(TRIM(CAST(fw.semester AS CHAR))) = 'FIRST_SEMESTER'
+                        AND LOWER(TRIM(CAST(pc.semester AS CHAR))) = '1st'
                     )
                     OR (
-                        UPPER(TRIM(fw.semester)) = 'SECOND_SEMESTER'
-                        AND LOWER(TRIM(pc.semester)) = '2nd'
+                        UPPER(TRIM(CAST(fw.semester AS CHAR))) = 'SECOND_SEMESTER'
+                        AND LOWER(TRIM(CAST(pc.semester AS CHAR))) = '2nd'
                     )
                     OR (
-                        UPPER(TRIM(fw.semester)) = 'SUMMER_SEMESTER'
-                        AND LOWER(TRIM(pc.semester)) = 'summer'
+                        UPPER(TRIM(CAST(fw.semester AS CHAR))) = 'SUMMER_SEMESTER'
+                        AND LOWER(TRIM(CAST(pc.semester AS CHAR))) = 'summer'
                     )
                )
                AND (
-                    fw.class_code = pc.class_code
+                    (CAST(fw.class_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
+                    (CAST(pc.class_code AS CHAR) COLLATE utf8mb4_unicode_ci)
                     OR (
                         fw.class_code IS NULL
-                        AND fw.course_code = pc.subject_code
-                        AND fw.program_code = ps.program_code
-                        AND fw.year_level = ps.year_level
-                        AND fw.section_code = ps.section_code
+                        AND (CAST(fw.course_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
+                            (CAST(pc.subject_code AS CHAR) COLLATE utf8mb4_unicode_ci)
+                        AND (CAST(fw.program_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
+                            (CAST(ps.program_code AS CHAR) COLLATE utf8mb4_unicode_ci)
+                        AND (CAST(fw.year_level AS CHAR) COLLATE utf8mb4_unicode_ci) =
+                            (CAST(ps.year_level AS CHAR) COLLATE utf8mb4_unicode_ci)
+                        AND (CAST(fw.section_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
+                            (CAST(ps.section_code AS CHAR) COLLATE utf8mb4_unicode_ci)
                     )
                )
-            WHERE pc.faculty_id = :facultyId
+            WHERE (CAST(pc.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
+                  (CAST(:facultyId AS CHAR) COLLATE utf8mb4_unicode_ci)
               AND pc.school_year = :schoolYear
-              AND pc.semester = :semester
+              AND (LOWER(TRIM(CAST(pc.semester AS CHAR))) COLLATE utf8mb4_unicode_ci) =
+                  (LOWER(TRIM(CAST(:semester AS CHAR))) COLLATE utf8mb4_unicode_ci)
               AND pc.subject_code IS NOT NULL
               AND pc.section_id IS NOT NULL
               AND pc.class_code IS NOT NULL
@@ -268,7 +280,8 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
             FROM primary_class pc
             
             INNER JOIN primary_faculty pf
-                ON pc.faculty_id = pf.faculty_id
+                ON (CAST(pc.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
+                   (CAST(pf.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci)
             
             /* LOGGED-IN USER */
             INNER JOIN user_accounts ua
@@ -285,15 +298,16 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
                 GROUP BY pc2.faculty_id
             
             ) fl
-                ON fl.faculty_id = pf.faculty_id
+                ON (CAST(fl.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
+                   (CAST(pf.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci)
             
             WHERE pc.class_code IS NOT NULL
             
               AND LOWER(pf.status) = 'active'
             
               /* SAME DATASOURCE ONLY */
-              AND LOWER(ua.data_source) =
-                  LOWER(pf.legacy_database)
+              AND (LOWER(TRIM(CAST(ua.data_source AS CHAR))) COLLATE utf8mb4_unicode_ci) =
+                  (LOWER(TRIM(CAST(pf.legacy_database AS CHAR))) COLLATE utf8mb4_unicode_ci)
             
               /* EXCLUDE LOGGED-IN USER */
               AND LOWER(CONCAT(
@@ -354,7 +368,8 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
                     FROM primary_class pc
                     
                     INNER JOIN primary_faculty pf
-                        ON pc.faculty_id = pf.faculty_id
+                        ON (CAST(pc.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
+                           (CAST(pf.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci)
                     
                     INNER JOIN user_accounts ua
                         ON ua.user_id = :userId
@@ -364,8 +379,8 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
                       AND LOWER(pf.status) = 'active'
                     
                       /* SAME DATASOURCE ONLY */
-                      AND LOWER(ua.data_source) =
-                          LOWER(pf.legacy_database)
+                      AND (LOWER(TRIM(CAST(ua.data_source AS CHAR))) COLLATE utf8mb4_unicode_ci) =
+                          (LOWER(TRIM(CAST(pf.legacy_database AS CHAR))) COLLATE utf8mb4_unicode_ci)
                     
                       /* EXCLUDE LOGGED-IN USER */
                       AND LOWER(CONCAT(
@@ -428,15 +443,16 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
         FROM primary_faculty pf
 
         INNER JOIN primary_class pc
-            ON pf.faculty_id = pc.faculty_id
+            ON (CAST(pf.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
+               (CAST(pc.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci)
 
         INNER JOIN primary_section ps
             ON pc.section_id = ps.section_id
 
         INNER JOIN user_accounts ua
             ON ua.user_id = :userId
-           AND UPPER(TRIM(ua.data_source))
-               = UPPER(TRIM(pf.legacy_database))
+           AND (UPPER(TRIM(CAST(ua.data_source AS CHAR))) COLLATE utf8mb4_unicode_ci)
+               = (UPPER(TRIM(CAST(pf.legacy_database AS CHAR))) COLLATE utf8mb4_unicode_ci)
 
         WHERE (
 
@@ -459,8 +475,8 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
 
                 :campus IS NULL
                 OR :campus = ''
-                OR UPPER(pc.source_campus)
-                    = UPPER(TRIM(:campus))
+                OR (UPPER(TRIM(CAST(pc.source_campus AS CHAR))) COLLATE utf8mb4_unicode_ci)
+                    = (UPPER(TRIM(CAST(:campus AS CHAR))) COLLATE utf8mb4_unicode_ci)
 
         )
 
@@ -479,15 +495,16 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
         FROM primary_faculty pf
 
         INNER JOIN primary_class pc
-            ON pf.faculty_id = pc.faculty_id
+            ON (CAST(pf.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
+               (CAST(pc.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci)
 
         INNER JOIN primary_section ps
             ON pc.section_id = ps.section_id
 
         INNER JOIN user_accounts ua
             ON ua.user_id = :userId
-           AND UPPER(TRIM(ua.data_source))
-               = UPPER(TRIM(pf.legacy_database))
+           AND (UPPER(TRIM(CAST(ua.data_source AS CHAR))) COLLATE utf8mb4_unicode_ci)
+               = (UPPER(TRIM(CAST(pf.legacy_database AS CHAR))) COLLATE utf8mb4_unicode_ci)
 
         WHERE (
 
@@ -510,8 +527,8 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
 
                 :campus IS NULL
                 OR :campus = ''
-                OR UPPER(pc.source_campus)
-                    = UPPER(TRIM(:campus))
+                OR (UPPER(TRIM(CAST(pc.source_campus AS CHAR))) COLLATE utf8mb4_unicode_ci)
+                    = (UPPER(TRIM(CAST(:campus AS CHAR))) COLLATE utf8mb4_unicode_ci)
 
         )
 

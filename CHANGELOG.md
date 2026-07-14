@@ -8,6 +8,19 @@ This project follows a simple semantic versioning style:
 - `MINOR` for new backward-compatible endpoints or features.
 - `PATCH` for bug fixes, optimizations, and documentation.
 
+## [0.2.2] - 2026-07-14
+
+### Changed
+
+- Aligned the shared, development, and production JWT idle-timeout defaults to ten minutes.
+- Cached faculty workload coverage responses for the active school year and semester to reduce repeated dashboard aggregation work.
+- Added safer pagination defaults and maximum page-size handling for account, score, and student-faculty evaluation listings.
+- Restricted student-faculty evaluation sorting to selected query columns so invalid sort fields fall back to `created_at`.
+
+### Notes
+
+- No existing Flyway migration was edited. The changes are configuration and service-layer optimizations only.
+
 ## [0.2.1] - 2026-07-10
 
 ### Added

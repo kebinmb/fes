@@ -40,55 +40,99 @@ public interface PrimarySectionRepository extends JpaRepository<PrimarySection, 
             """)
     List<String> findLegacyIdsByDatabase(@Param("database") String database);
 
-    @Query("""
-    SELECT new com.faculty_evaluation_backend.fes.dto.student.StudentSectionDTO(
-
-        ps.programCode,
-
-        ps.yearLevel,
-
-        ps.sectionCode,
-
-        COUNT(DISTINCT psl.studentId),
-
-        COUNT(DISTINCT fes.evaluatorId),
-
-        (
-            COUNT(DISTINCT psl.studentId)
-            - COUNT(DISTINCT fes.evaluatorId)
-        )
+    @Query(
+            value = """
+                    SELECT
+                        ps.program_code AS programCode,
+                        ps.year_level AS yearLevel,
+                        ps.section_code AS sectionCode,
+                        COUNT(DISTINCT psl.student_id) AS totalStudents,
+                        COUNT(DISTINCT fes.evaluator_id) AS evaluatedStudents,
+                        (
+                            COUNT(DISTINCT psl.student_id)
+                            - COUNT(DISTINCT fes.evaluator_id)
+                        ) AS notYetEvaluated
+                    FROM primary_student_load psl
+                    INNER JOIN primary_class pc
+                        ON (CAST(psl.class_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
+                           (CAST(pc.class_code AS CHAR) COLLATE utf8mb4_unicode_ci)
+                    INNER JOIN primary_section ps
+                        ON pc.section_id = ps.section_id
+                    LEFT JOIN faculty_evaluation_score fes
+                        ON (CAST(psl.student_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
+                           (CAST(fes.evaluator_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+                       AND (CAST(psl.class_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
+                           (CAST(fes.class_code AS CHAR) COLLATE utf8mb4_unicode_ci)
+                       AND fes.school_year = pc.school_year
+                       AND (CAST(fes.semester AS CHAR) COLLATE utf8mb4_unicode_ci) =
+                           (CAST(pc.semester AS CHAR) COLLATE utf8mb4_unicode_ci)
+                    WHERE pc.school_year = :schoolYear
+                      AND (LOWER(TRIM(CAST(pc.semester AS CHAR))) COLLATE utf8mb4_unicode_ci) =
+                          (LOWER(TRIM(CAST(:semester AS CHAR))) COLLATE utf8mb4_unicode_ci)
+                      AND (
+                            :programCode IS NULL
+                            OR (CAST(ps.program_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
+                               (CAST(:programCode AS CHAR) COLLATE utf8mb4_unicode_ci)
+                      )
+                      AND (
+                            :yearLevel IS NULL
+                            OR (CAST(ps.year_level AS CHAR) COLLATE utf8mb4_unicode_ci) =
+                               (CAST(:yearLevel AS CHAR) COLLATE utf8mb4_unicode_ci)
+                      )
+                      AND (
+                            :sectionCode IS NULL
+                            OR (CAST(ps.section_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
+                               (CAST(:sectionCode AS CHAR) COLLATE utf8mb4_unicode_ci)
+                      )
+                    GROUP BY
+                        ps.program_code,
+                        ps.year_level,
+                        ps.section_code
+                    ORDER BY
+                        ps.program_code ASC,
+                        ps.year_level ASC,
+                        ps.section_code ASC
+                    """,
+            countQuery = """
+                    SELECT COUNT(*)
+                    FROM (
+                        SELECT
+                            ps.program_code,
+                            ps.year_level,
+                            ps.section_code
+                        FROM primary_student_load psl
+                        INNER JOIN primary_class pc
+                            ON (CAST(psl.class_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
+                               (CAST(pc.class_code AS CHAR) COLLATE utf8mb4_unicode_ci)
+                        INNER JOIN primary_section ps
+                            ON pc.section_id = ps.section_id
+                        WHERE pc.school_year = :schoolYear
+                          AND (LOWER(TRIM(CAST(pc.semester AS CHAR))) COLLATE utf8mb4_unicode_ci) =
+                              (LOWER(TRIM(CAST(:semester AS CHAR))) COLLATE utf8mb4_unicode_ci)
+                          AND (
+                                :programCode IS NULL
+                                OR (CAST(ps.program_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
+                                   (CAST(:programCode AS CHAR) COLLATE utf8mb4_unicode_ci)
+                          )
+                          AND (
+                                :yearLevel IS NULL
+                                OR (CAST(ps.year_level AS CHAR) COLLATE utf8mb4_unicode_ci) =
+                                   (CAST(:yearLevel AS CHAR) COLLATE utf8mb4_unicode_ci)
+                          )
+                          AND (
+                                :sectionCode IS NULL
+                                OR (CAST(ps.section_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
+                                   (CAST(:sectionCode AS CHAR) COLLATE utf8mb4_unicode_ci)
+                          )
+                        GROUP BY
+                            ps.program_code,
+                            ps.year_level,
+                            ps.section_code
+                    ) grouped_sections
+                    """,
+            nativeQuery = true
     )
-
-    FROM PrimaryStudentLoad psl
-
-    INNER JOIN psl.primaryClass pc
-
-    INNER JOIN pc.section ps
-
-    LEFT JOIN FacultyEvaluationScore fes
-        ON psl.studentId = fes.evaluatorId
-       AND psl.classCode = fes.classCode
-       AND fes.schoolYear = pc.schoolYear
-       AND fes.semester = pc.semester
-
-    WHERE
-        pc.schoolYear = :schoolYear
-    AND pc.semester = :semester
-    AND (:programCode IS NULL OR ps.programCode = :programCode)
-    AND (:yearLevel IS NULL OR ps.yearLevel = :yearLevel)
-    AND (:sectionCode IS NULL OR ps.sectionCode = :sectionCode)
-
-    GROUP BY
-        ps.programCode,
-        ps.yearLevel,
-        ps.sectionCode
-
-    ORDER BY
-        ps.programCode ASC,
-        ps.yearLevel ASC,
-        ps.sectionCode ASC
-""")
-    Page<StudentSectionDTO> getStudentSectionEvaluationData(
+    Page<Object[]> getStudentSectionEvaluationData(
             @Param("programCode") String programCode,
             @Param("yearLevel") String yearLevel,
             @Param("sectionCode") String sectionCode,

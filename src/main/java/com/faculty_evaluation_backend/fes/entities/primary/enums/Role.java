@@ -5,5 +5,6 @@ public enum Role {
     PROGRAM_CHAIR,
     DEAN,
     STUDENT,
-    ADMIN
+    ADMIN,
+    HR
 }

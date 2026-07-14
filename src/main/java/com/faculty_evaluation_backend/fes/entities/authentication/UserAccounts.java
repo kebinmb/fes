@@ -35,8 +35,14 @@ public class UserAccounts {
     @Column(name = "username", nullable = false, unique = true, length = 50)
     private String username;
 
+    @Column(name = "lastname", length = 100)
+    private String lastname;
+
     @Column(name = "email", nullable = false, unique = true, length = 100)
     private String email;
+
+    @Column(name = "firstname", length = 100)
+    private String firstname;
 
     @JsonIgnore
     @Column(name = "password", nullable = false)

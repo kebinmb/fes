@@ -121,7 +121,7 @@ public class AuthenticationController {
     public ResponseEntity<?> administratorLogin(@Valid @RequestBody LoginRequest loginRequest, HttpServletRequest request) {
         var response = administratorAccountsAuthenticationService.login(loginRequest, request);
 
-        return ResponseEntity.ok().header("Set-Cookie", buildAdministratorAccessTokenCookie(response.getAccessToken()).toString()).header("Set-Cookie", buildAdministratorRefreshTokenCookie(response.getRefreshToken()).toString()).body(Map.of("message", "Authentication successful", "administratorId", response.getEvaluatorId()));
+        return ResponseEntity.ok().header("Set-Cookie", buildAdministratorAccessTokenCookie(response.getAccessToken()).toString()).header("Set-Cookie", buildAdministratorRefreshTokenCookie(response.getRefreshToken()).toString()).body(Map.of("message", "Authentication successful", "administratorId", response.getEvaluatorId(), "role", response.getRole()));
     }
 
     @GetMapping("/me")

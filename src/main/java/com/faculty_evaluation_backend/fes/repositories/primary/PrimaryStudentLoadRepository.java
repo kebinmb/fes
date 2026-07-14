@@ -89,23 +89,31 @@ public interface PrimaryStudentLoadRepository extends JpaRepository<PrimaryStude
     FROM primary_student_load psl
 
     INNER JOIN primary_class pc
-        ON psl.class_code = pc.class_code
+        ON (CAST(psl.class_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
+           (CAST(pc.class_code AS CHAR) COLLATE utf8mb4_unicode_ci)
 
     INNER JOIN primary_section ps
         ON ps.section_id = pc.section_id
 
     LEFT JOIN faculty_evaluation_score fes
-        ON fes.evaluator_id = psl.student_id
-        AND fes.class_code = psl.class_code
+        ON (CAST(fes.evaluator_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
+           (CAST(psl.student_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+        AND (CAST(fes.class_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
+            (CAST(psl.class_code AS CHAR) COLLATE utf8mb4_unicode_ci)
         AND fes.school_year = pc.school_year
-        AND fes.semester = pc.semester
+        AND (CAST(fes.semester AS CHAR) COLLATE utf8mb4_unicode_ci) =
+            (CAST(pc.semester AS CHAR) COLLATE utf8mb4_unicode_ci)
 
     WHERE
-        ps.program_code = :programCode
-        AND ps.year_level = :yearLevel
-        AND ps.section_code = :sectionCode
+        (CAST(ps.program_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
+        (CAST(:programCode AS CHAR) COLLATE utf8mb4_unicode_ci)
+        AND (CAST(ps.year_level AS CHAR) COLLATE utf8mb4_unicode_ci) =
+            (CAST(:yearLevel AS CHAR) COLLATE utf8mb4_unicode_ci)
+        AND (CAST(ps.section_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
+            (CAST(:sectionCode AS CHAR) COLLATE utf8mb4_unicode_ci)
         AND pc.school_year = :schoolYear
-        AND pc.semester = :semester
+        AND (LOWER(TRIM(CAST(pc.semester AS CHAR))) COLLATE utf8mb4_unicode_ci) =
+            (LOWER(TRIM(CAST(:semester AS CHAR))) COLLATE utf8mb4_unicode_ci)
 
     ORDER BY
         psl.student_id,

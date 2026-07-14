@@ -22,6 +22,8 @@ public interface PrimaryFacultyRepository extends JpaRepository<PrimaryFaculty, 
 
     Optional<PrimaryFaculty> findByFacultyId(String facultyId);
 
+    List<PrimaryFaculty> findByFacultyIdIn(Set<String> facultyIds);
+
     boolean existsByFacultyId(String facultyId);
 
     @Query("SELECT CASE WHEN COUNT(f) > 0 THEN true ELSE false END FROM PrimaryFaculty f " +
@@ -74,11 +76,14 @@ public interface PrimaryFacultyRepository extends JpaRepository<PrimaryFaculty, 
                         MAX(fw.number_of_preparations) AS numberOfPreparations
                     FROM primary_faculty f
                     LEFT JOIN faculty_workload fw
-                        ON fw.faculty_id = f.faculty_id
+                        ON (CAST(fw.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
+                           (CAST(f.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci)
                        AND fw.school_year = :schoolYear
                        AND (
-                            LOWER(TRIM(fw.semester)) = LOWER(TRIM(:semester))
-                            OR UPPER(TRIM(fw.semester)) = UPPER(TRIM(:workloadSemester))
+                            (LOWER(TRIM(CAST(fw.semester AS CHAR))) COLLATE utf8mb4_unicode_ci) =
+                            (LOWER(TRIM(CAST(:semester AS CHAR))) COLLATE utf8mb4_unicode_ci)
+                            OR (UPPER(TRIM(CAST(fw.semester AS CHAR))) COLLATE utf8mb4_unicode_ci) =
+                               (UPPER(TRIM(CAST(:workloadSemester AS CHAR))) COLLATE utf8mb4_unicode_ci)
                        )
                     WHERE f.status = :status
                       AND (
@@ -159,6 +164,28 @@ public interface PrimaryFacultyRepository extends JpaRepository<PrimaryFaculty, 
             @Param("excludedCollege") College excludedCollege,
             @Param("legacyDatabase") String legacyDatabase,
             Pageable pageable
+    );
+
+    @Query("""
+                SELECT f.facultyId
+                FROM PrimaryFaculty f
+                WHERE f.facultyId IS NOT NULL
+                  AND (f.college IS NULL OR f.college <> :excludedCollege)
+                  AND (
+                        :legacyDatabase IS NULL
+                        OR :legacyDatabase = ''
+                        OR f.legacyDatabase = :legacyDatabase
+                  )
+                  AND (
+                        :college IS NULL
+                        OR f.college = :college
+                  )
+                ORDER BY f.lastname ASC, f.firstname ASC, f.facultyId ASC
+            """)
+    List<String> findPrintableFacultyIds(
+            @Param("excludedCollege") College excludedCollege,
+            @Param("legacyDatabase") String legacyDatabase,
+            @Param("college") College college
     );
 
     boolean existsByLegacyDatabaseAndLegacyId(

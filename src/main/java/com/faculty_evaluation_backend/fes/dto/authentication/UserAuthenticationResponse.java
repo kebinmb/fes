@@ -15,6 +15,7 @@ public class UserAuthenticationResponse {
     private String tokenType;
     private Long expiresIn; // in seconds
     private String evaluatorId;
+    private String role;
     private College college;
     private Programs programs;
     private Boolean requiresPasswordChange;

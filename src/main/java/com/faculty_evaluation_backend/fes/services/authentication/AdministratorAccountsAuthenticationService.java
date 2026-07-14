@@ -48,7 +48,7 @@ public class AdministratorAccountsAuthenticationService {
         );
         CustomUserDetails customUserDetails = (CustomUserDetails) authentication.getPrincipal();
         UserAccounts user = customUserDetails.getUser();
-        if(user.getRole() != Role.ADMIN){
+        if(user.getRole() != Role.ADMIN && user.getRole() != Role.HR){
             throw new UnauthorizedException("Access denied");
         }
         String accessToken = jwtService.generateAccessTokenForAdministrator(user.getUserId());
@@ -63,6 +63,7 @@ public class AdministratorAccountsAuthenticationService {
                 .tokenType("Bearer")
                 .expiresIn(jwtConfig.getExpiration())
                 .evaluatorId(user.getUserId().toString())
+                .role("ROLE_" + user.getRole().name())
                 .build();
     }
 }

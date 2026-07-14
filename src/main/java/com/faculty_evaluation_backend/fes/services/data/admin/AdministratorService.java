@@ -11,6 +11,9 @@ import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardSummaryPro
 import com.faculty_evaluation_backend.fes.dto.dashboard.FacultyWorkloadCoverageFacultyResponse;
 import com.faculty_evaluation_backend.fes.dto.dashboard.FacultyWorkloadCoverageProjection;
 import com.faculty_evaluation_backend.fes.dto.dashboard.FacultyWorkloadCoverageResponse;
+import com.faculty_evaluation_backend.fes.dto.dashboard.SupervisorEvaluationDashboardPageResponse;
+import com.faculty_evaluation_backend.fes.dto.dashboard.SupervisorEvaluationDashboardProjection;
+import com.faculty_evaluation_backend.fes.dto.dashboard.SupervisorEvaluationDashboardResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.StudentEvaluationStatusResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.StudentFacultyEvaluationDTO;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadClassOptionResponse;
@@ -81,6 +84,19 @@ public class AdministratorService {
     private static final String OVERLOAD_LOAD_STATUS = "Overload";
     private static final int DEFAULT_PAGE_SIZE = 10;
     private static final int MAX_PAGE_SIZE = 100;
+    private static final int MAX_EVALUATION_PAGE_SIZE = 50;
+    private static final Set<String> STUDENT_EVALUATION_SORT_COLUMNS = Set.of(
+            "student_id",
+            "student_firstname",
+            "student_lastname",
+            "class_code",
+            "program_code",
+            "section_code",
+            "faculty_id",
+            "firstname",
+            "lastname",
+            "created_at"
+    );
 
     private static final Set<String> ALLOWED_LEGACY_DATABASES = Set.of(
             "LEGACY_TALISAY",
@@ -88,6 +104,8 @@ public class AdministratorService {
             "LEGACY_FT",
             "LEGACY_BINALBAGAN"
     );
+    private static final Set<String> SUPERVISOR_EVALUATION_STATUS_FILTERS =
+            Set.of("EVALUATED", "PENDING");
 
     private final PrimaryFacultyRepository primaryFacultyRepository;
 
@@ -410,6 +428,99 @@ public class AdministratorService {
             transactionManager = "primaryTransactionManager",
             readOnly = true
     )
+    public SupervisorEvaluationDashboardPageResponse
+    getSupervisorEvaluationDashboard(
+            int page,
+            int size,
+            String search,
+            String evaluationStatus,
+            String legacyDatabase,
+            String campus,
+            Integer schoolYear,
+            String semester
+    ) {
+        DashboardTerm activeTerm = resolveDashboardTerm();
+        Integer resolvedSchoolYear =
+                schoolYear == null ? activeTerm.schoolYear() : schoolYear;
+        String resolvedSemester =
+                normalizeBlank(semester) == null
+                        ? activeTerm.semester()
+                        : normalizeAcademicSemester(semester);
+        String normalizedStatus =
+                normalizeSupervisorEvaluationStatus(evaluationStatus);
+        String normalizedSearch = normalizeBlank(search);
+        String normalizedLegacyDatabase = normalizeLegacyDatabase(legacyDatabase);
+        String normalizedCampus = normalizeBlank(campus);
+
+        Pageable pageable = PageRequest.of(
+                safePage(page),
+                safePageSize(size)
+        );
+
+        Page<SupervisorEvaluationDashboardResponse> dashboardPage =
+                facultyEvaluationScoreRepository
+                        .findSupervisorEvaluationDashboard(
+                                resolvedSchoolYear,
+                                resolvedSemester,
+                                normalizedSearch,
+                                normalizedStatus,
+                                normalizedLegacyDatabase,
+                                normalizedCampus,
+                                pageable
+                        )
+                        .map(projection ->
+                                toSupervisorEvaluationDashboardResponse(
+                                        projection,
+                                        resolvedSchoolYear,
+                                        resolvedSemester
+                                )
+                        );
+
+        long totalFacultyCount =
+                countSupervisorEvaluationDashboardRows(
+                        resolvedSchoolYear,
+                        resolvedSemester,
+                        normalizedSearch,
+                        null,
+                        normalizedLegacyDatabase,
+                        normalizedCampus
+                );
+        long evaluatedFacultyCount =
+                countSupervisorEvaluationDashboardRows(
+                        resolvedSchoolYear,
+                        resolvedSemester,
+                        normalizedSearch,
+                        "EVALUATED",
+                        normalizedLegacyDatabase,
+                        normalizedCampus
+                );
+        long pendingFacultyCount =
+                countSupervisorEvaluationDashboardRows(
+                        resolvedSchoolYear,
+                        resolvedSemester,
+                        normalizedSearch,
+                        "PENDING",
+                        normalizedLegacyDatabase,
+                        normalizedCampus
+                );
+
+        return SupervisorEvaluationDashboardPageResponse.builder()
+                .content(dashboardPage.getContent())
+                .totalElements(dashboardPage.getTotalElements())
+                .totalPages(dashboardPage.getTotalPages())
+                .page(dashboardPage.getNumber())
+                .size(dashboardPage.getSize())
+                .totalFacultyCount(totalFacultyCount)
+                .evaluatedFacultyCount(evaluatedFacultyCount)
+                .pendingFacultyCount(pendingFacultyCount)
+                .build();
+    }
+
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
+    @Cacheable(value = "facultyWorkloadCoverage", key = "'active'")
     public FacultyWorkloadCoverageResponse getFacultyWorkloadCoverage() {
         DashboardTerm term = resolveDashboardTerm();
         List<FacultyWorkloadCoverageFacultyResponse> rows =
@@ -508,7 +619,13 @@ public class AdministratorService {
     )
     public PageResponse<FetchUserAccountsResponse> accountList(int page, int size) {
 
-        Page<UserAccounts> userAccountsPage = userAccountsRepository.findAll(PageRequest.of(page, size));
+        Page<UserAccounts> userAccountsPage = userAccountsRepository.findAll(
+                PageRequest.of(
+                        safePage(page),
+                        safePageSize(size),
+                        Sort.by(Sort.Order.asc("username"), Sort.Order.asc("userId"))
+                )
+        );
 
         List<FetchUserAccountsResponse> responseList = userAccountsPage.getContent().stream().map(user -> FetchUserAccountsResponse.builder().userId(user.getUserId()).username(user.getUsername()).email(user.getEmail()).role(user.getRole()).status(user.getStatus()).college(user.getCollege()).programs(user.getPrograms()).majors(user.getMajors()).isEnabled(user.getIsEnabled()).isLocked(user.getIsLocked()).lastLoginAt(user.getLastLoginAt()).build()).toList();
 
@@ -522,7 +639,13 @@ public class AdministratorService {
     @Cacheable(value = "facultyEvaluationScores", key = "#page + ':' + #size")
     public PageResponse<FetchFacultyEvaluationScoreResponse> facultyEvaluationScore(int page, int size) {
 
-        Page<FacultyEvaluationScore> scorePage = facultyEvaluationScoreRepository.findAllWithFaculty(PageRequest.of(page, size));
+        Page<FacultyEvaluationScore> scorePage = facultyEvaluationScoreRepository.findAllWithFaculty(
+                PageRequest.of(
+                        safePage(page),
+                        safePageSize(size),
+                        Sort.by(Sort.Order.desc("createdAt"))
+                )
+        );
 
         List<FetchFacultyEvaluationScoreResponse> responseList = scorePage.getContent().stream().map(score -> {
 
@@ -577,11 +700,7 @@ public class AdministratorService {
     ) {
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), 50);
-        Pageable pageable = PageRequest.of(
-                safePage,
-                safeSize,
-                Sort.by(Sort.Direction.DESC, "updatedAt")
-        );
+        Pageable pageable = PageRequest.of(safePage, safeSize);
 
         Page<FacultyWorkload> workloadPage =
                 facultyWorkloadRepository.searchWorkloads(
@@ -887,11 +1006,15 @@ public class AdministratorService {
     )
     public Page<StudentFacultyEvaluationDTO> getStudentFacultyEvaluationDetails(String search, int page, int size, String sortBy, String sortDirection) {
 
-        Sort sort = sortDirection.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+        Sort sort = safeStudentEvaluationSort(sortBy, sortDirection);
 
-        Pageable pageable = PageRequest.of(page, size, sort);
+        Pageable pageable = PageRequest.of(
+                safePage(page),
+                Math.min(safePageSize(size), MAX_EVALUATION_PAGE_SIZE),
+                sort
+        );
 
-        Page<Object[]> rows = facultyEvaluationScoreRepository.findStudentFacultyEvaluationDetails(search, pageable);
+        Page<Object[]> rows = facultyEvaluationScoreRepository.findStudentFacultyEvaluationDetails(normalizeOptional(search), pageable);
 
         return rows.map(row -> new StudentFacultyEvaluationDTO(row[0] != null ? row[0].toString() : null, row[1] != null ? row[1].toString() : null, row[2] != null ? row[2].toString() : null, row[3] != null ? row[3].toString() : null, row[4] != null ? row[4].toString() : null, row[5] != null ? row[5].toString() : null, row[6] != null ? row[6].toString() : null, row[7] != null ? row[7].toString() : null, row[8] != null ? row[8].toString() : null, row[9] != null ? (LocalDateTime) row[9] : null));
     }
@@ -1005,16 +1128,20 @@ public class AdministratorService {
             int size) {
 
         DashboardTerm term = resolveDashboardTerm();
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = PageRequest.of(safePage(page), safePageSize(size));
 
-        return PageMapper.toPageResponse(primarySectionRepository.getStudentSectionEvaluationData(
-                programCode,
-                yearLevel,
-                sectionCode,
-                term.schoolYear(),
-                term.semester(),
-                pageable
-        ));
+        Page<StudentSectionDTO> sectionPage =
+                primarySectionRepository.getStudentSectionEvaluationData(
+                                normalizeOptional(programCode),
+                                normalizeOptional(yearLevel),
+                                normalizeOptional(sectionCode),
+                                term.schoolYear(),
+                                term.semester(),
+                                pageable
+                        )
+                        .map(this::toStudentSectionDTO);
+
+        return PageMapper.toPageResponse(sectionPage);
     }
 
     @Cacheable(
@@ -1283,6 +1410,56 @@ public class AdministratorService {
                 .build();
     }
 
+    private SupervisorEvaluationDashboardResponse
+    toSupervisorEvaluationDashboardResponse(
+            SupervisorEvaluationDashboardProjection projection,
+            Integer schoolYear,
+            String semester
+    ) {
+        Long supervisorEvaluationCount =
+                safeLong(projection.getSupervisorEvaluationCount());
+
+        return SupervisorEvaluationDashboardResponse.builder()
+                .facultyId(projection.getFacultyId())
+                .facultyName(projection.getFacultyName())
+                .position(projection.getPosition())
+                .college(projection.getCollege())
+                .legacyDatabase(projection.getLegacyDatabase())
+                .campus(projection.getCampus())
+                .assignedClassCount(safeLong(projection.getAssignedClassCount()))
+                .supervisorEvaluated(supervisorEvaluationCount > 0)
+                .supervisorEvaluationCount(supervisorEvaluationCount)
+                .supervisorIds(projection.getSupervisorIds())
+                .supervisorNames(projection.getSupervisorNames())
+                .supervisorPositions(projection.getSupervisorPositions())
+                .supervisorAverageScore(projection.getSupervisorAverageScore())
+                .lastEvaluatedAt(projection.getLastEvaluatedAt())
+                .schoolYear(schoolYear)
+                .semester(semester)
+                .build();
+    }
+
+    private long countSupervisorEvaluationDashboardRows(
+            Integer schoolYear,
+            String semester,
+            String search,
+            String evaluationStatus,
+            String legacyDatabase,
+            String campus
+    ) {
+        return facultyEvaluationScoreRepository
+                .findSupervisorEvaluationDashboard(
+                        schoolYear,
+                        semester,
+                        search,
+                        evaluationStatus,
+                        legacyDatabase,
+                        campus,
+                        PageRequest.of(0, 1)
+                )
+                .getTotalElements();
+    }
+
     private String fullFacultyName(
             String firstname,
             String middlename,
@@ -1303,6 +1480,29 @@ public class AdministratorService {
 
     private Long safeLong(Long value) {
         return value == null ? 0L : value;
+    }
+
+    private StudentSectionDTO toStudentSectionDTO(Object[] row) {
+        return new StudentSectionDTO(
+                row[0] == null ? null : row[0].toString(),
+                row[1] == null ? null : row[1].toString(),
+                row[2] == null ? null : row[2].toString(),
+                toLong(row[3]),
+                toLong(row[4]),
+                toLong(row[5])
+        );
+    }
+
+    private Long toLong(Object value) {
+        if (value == null) {
+            return 0L;
+        }
+
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+
+        return Long.parseLong(value.toString());
     }
 
     private Double safeDouble(Double value) {
@@ -1578,6 +1778,22 @@ public class AdministratorService {
         return value.trim();
     }
 
+    private Sort safeStudentEvaluationSort(String sortBy, String sortDirection) {
+        String normalizedSort = normalizeBlank(sortBy);
+
+        if (normalizedSort == null
+                || !STUDENT_EVALUATION_SORT_COLUMNS.contains(normalizedSort)) {
+            normalizedSort = "created_at";
+        }
+
+        Sort.Direction direction =
+                "asc".equalsIgnoreCase(normalizeBlank(sortDirection))
+                        ? Sort.Direction.ASC
+                        : Sort.Direction.DESC;
+
+        return Sort.by(direction, normalizedSort);
+    }
+
     private int safePage(int page) {
         return Math.max(page, 0);
     }
@@ -1609,6 +1825,22 @@ public class AdministratorService {
 
         if (!ALLOWED_LEGACY_DATABASES.contains(normalized)) {
             throw new BadRequestException("Invalid legacy database filter: " + legacyDatabase);
+        }
+
+        return normalized;
+    }
+
+    private String normalizeSupervisorEvaluationStatus(String status) {
+        String normalized = normalizeBlank(status);
+        if (normalized == null || normalized.equalsIgnoreCase("ALL")) {
+            return null;
+        }
+
+        normalized = normalized.toUpperCase();
+        if (!SUPERVISOR_EVALUATION_STATUS_FILTERS.contains(normalized)) {
+            throw new BadRequestException(
+                    "Invalid supervisor evaluation status filter: " + status
+            );
         }
 
         return normalized;

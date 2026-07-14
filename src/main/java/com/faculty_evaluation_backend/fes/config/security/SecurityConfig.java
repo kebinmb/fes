@@ -101,6 +101,13 @@ public class SecurityConfig {
 
                         .requestMatchers("/evaluation/**").hasAnyRole("DEAN", "STUDENT","PROGRAM_CHAIR","ADMIN")
 
+                        .requestMatchers(
+                                "/admin/dashboard/supervisor-evaluations",
+                                "/admin/faculties",
+                                "/admin/faculty-evaluation-score/**",
+                                "/admin/faculty-evaluation-reports/**"
+                        ).hasAnyRole("ADMIN", "HR")
+
                         .requestMatchers("/admin/**").hasRole("ADMIN")
 
                         .anyRequest().authenticated())

@@ -1,11 +1,13 @@
 package com.faculty_evaluation_backend.fes.services.data.evaluation;
 
 import com.faculty_evaluation_backend.fes.dto.evaluation.BaseEvaluationDTO;
+import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationBulkReportResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationPrintResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationGeneratedReportResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationReportVerificationResponse;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassDetailsDTO;
 import com.faculty_evaluation_backend.fes.entities.authentication.CustomUserDetails;
+import com.faculty_evaluation_backend.fes.entities.authentication.UserAccounts;
 import com.faculty_evaluation_backend.fes.entities.data.SchoolYearAndSemester;
 import com.faculty_evaluation_backend.fes.entities.evaluation.CommitmentAndTransparency;
 import com.faculty_evaluation_backend.fes.entities.evaluation.ContentKnowledgePedagogyAndTechnology;
@@ -15,7 +17,10 @@ import com.faculty_evaluation_backend.fes.entities.evaluation.ManagementOfTeachi
 import com.faculty_evaluation_backend.fes.entities.evaluation.enums.FacultyEvaluationReportStatus;
 import com.faculty_evaluation_backend.fes.entities.evaluation.enums.RatingScale;
 import com.faculty_evaluation_backend.fes.entities.primary.FacultyWorkload;
+import com.faculty_evaluation_backend.fes.entities.primary.PrimaryFaculty;
+import com.faculty_evaluation_backend.fes.entities.primary.enums.College;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.Status;
+import com.faculty_evaluation_backend.fes.repositories.authentication.UserAccountsRepository;
 import com.faculty_evaluation_backend.fes.repositories.data.SchoolYearAndSemesterRepository;
 import com.faculty_evaluation_backend.fes.repositories.evaluation.FacultyEvaluationReportRepository;
 import com.faculty_evaluation_backend.fes.repositories.evaluation.FacultyEvaluationScoreRepository;
@@ -39,6 +44,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -62,6 +69,13 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class EvaluationDataService {
+    private static final Set<String> ALLOWED_LEGACY_DATABASES = Set.of(
+            "LEGACY_TALISAY",
+            "LEGACY_ALIJIS",
+            "LEGACY_FT",
+            "LEGACY_BINALBAGAN"
+    );
+
     private final EvaluationStrategyFactory factory;
     private final FacultyEvaluationScoreRepository facultyEvaluationScoreRepository;
     private final PrimaryFacultyRepository primaryFacultyRepository;
@@ -71,6 +85,7 @@ public class EvaluationDataService {
     private final SchoolYearAndSemesterRepository schoolYearAndSemesterRepository;
     private final FacultyWorkloadRepository facultyWorkloadRepository;
     private final FacultyEvaluationReportRepository facultyEvaluationReportRepository;
+    private final UserAccountsRepository userAccountsRepository;
     private final ObjectMapper objectMapper;
 
     @Transactional(transactionManager = "primaryTransactionManager")
@@ -110,7 +125,16 @@ public class EvaluationDataService {
 
         SchoolYearAndSemester schoolYearAndSemester = schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE).orElseThrow(() -> new RuntimeException("No active school year and semester found."));
 
-        List<FacultyClassDetailsDTO> facultyClassDetails = facultyEvaluationScoreRepository.findDistinctClassDetailsByFacultyIdAndSchoolYearAndSemester(facultyId, schoolYearAndSemester.getSchoolYear(), schoolYearAndSemester.getSemester().getValue());
+        List<FacultyClassDetailsDTO> facultyClassDetails =
+                facultyEvaluationScoreRepository
+                        .findDistinctClassDetailsByFacultyIdAndSchoolYearAndSemester(
+                                facultyId,
+                                schoolYearAndSemester.getSchoolYear(),
+                                schoolYearAndSemester.getSemester().getValue()
+                        )
+                        .stream()
+                        .map(this::toFacultyClassDetailsDTO)
+                        .toList();
 
         if (facultyClassDetails.isEmpty()) {
             return List.of();
@@ -146,6 +170,25 @@ public class EvaluationDataService {
                         ? Set.of()
                         : primaryStudentRepository
                                 .findExistingStudentIds(evaluatorIds);
+
+        Set<String> supervisorEvaluatorIds =
+                evaluatorIds.stream()
+                        .filter(evaluatorId ->
+                                !studentEvaluatorIds.contains(evaluatorId)
+                        )
+                        .collect(Collectors.toSet());
+
+        Map<String, PrimaryFaculty> supervisorsByFacultyId =
+                supervisorEvaluatorIds.isEmpty()
+                        ? Map.of()
+                        : primaryFacultyRepository
+                                .findByFacultyIdIn(supervisorEvaluatorIds)
+                                .stream()
+                                .collect(Collectors.toMap(
+                                        PrimaryFaculty::getFacultyId,
+                                        supervisor -> supervisor,
+                                        (current, candidate) -> current
+                                ));
 
         List<FacultyEvaluationPrintResponse> responses = new ArrayList<>();
 
@@ -227,6 +270,14 @@ public class EvaluationDataService {
 
                 evaluatorType = "SEF";
             }
+
+            PrimaryFaculty supervisor =
+                    supervisorEvaluations.stream()
+                            .map(FacultyEvaluationScore::getEvaluatorId)
+                            .map(supervisorsByFacultyId::get)
+                            .filter(item -> item != null)
+                            .findFirst()
+                            .orElse(null);
             FacultyEvaluationPrintResponse response = FacultyEvaluationPrintResponse.builder()
 
                     .facultyEvaluationScoreId(first.getFacultyEvaluationScoreId())
@@ -254,6 +305,14 @@ public class EvaluationDataService {
                     .studentComments(studentComments)
 
                     .supervisorComments(supervisorComments)
+
+                    .supervisorName(supervisor == null
+                            ? null
+                            : facultyDisplayName(supervisor))
+
+                    .supervisorDesignation(supervisor == null
+                            ? null
+                            : supervisor.getPosition())
 
                     .overallAverageScore(setRating)
 
@@ -329,9 +388,9 @@ public class EvaluationDataService {
         Instant generatedAt = Instant.now();
         String facultyName = items.getFirst().getFacultyName();
         Long generatedByUserId =
-                generatedBy == null ? null : generatedBy.getUserId();
+                resolveGeneratedByUserId(generatedBy);
         String generatedByUsername =
-                generatedBy == null ? null : generatedBy.getUsername();
+                preparedByName(generatedByUserId, generatedBy);
         Map<String, Object> snapshot =
                 reportSnapshot(
                         reportId,
@@ -373,6 +432,60 @@ public class EvaluationDataService {
                 items,
                 qrCodeDataUri(verificationUrl)
         );
+    }
+
+    @Transactional(transactionManager = "primaryTransactionManager")
+    public FacultyEvaluationBulkReportResponse generateFacultyEvaluationReports(
+            String legacyDatabase,
+            College college,
+            String verificationBaseUrl,
+            CustomUserDetails generatedBy
+    ) {
+        String normalizedLegacyDatabase =
+                normalizeLegacyDatabase(legacyDatabase);
+        List<String> facultyIds =
+                primaryFacultyRepository.findPrintableFacultyIds(
+                        College.FOR_MIGRATION,
+                        normalizedLegacyDatabase,
+                        college
+                );
+
+        if (facultyIds.isEmpty()) {
+            throw new BadRequestException(
+                    "No faculty records found for the selected filters."
+            );
+        }
+
+        List<FacultyEvaluationGeneratedReportResponse> reports =
+                new ArrayList<>();
+        List<String> skippedFacultyIds = new ArrayList<>();
+
+        for (String facultyId : facultyIds) {
+            try {
+                reports.add(
+                        generateFacultyEvaluationReport(
+                                facultyId,
+                                verificationBaseUrl,
+                                generatedBy
+                        )
+                );
+            } catch (BadRequestException ex) {
+                skippedFacultyIds.add(facultyId);
+            }
+        }
+
+        if (reports.isEmpty()) {
+            throw new BadRequestException(
+                    "No printable evaluated faculty reports found for the selected filters."
+            );
+        }
+
+        return FacultyEvaluationBulkReportResponse.builder()
+                .requestedCount(facultyIds.size())
+                .generatedCount(reports.size())
+                .skippedFacultyIds(skippedFacultyIds)
+                .reports(reports)
+                .build();
     }
 
     @Transactional(
@@ -423,6 +536,15 @@ public class EvaluationDataService {
         double average = total / evaluations.size();
 
         return Math.round(average * 100.0) / 100.0;
+    }
+
+    private FacultyClassDetailsDTO toFacultyClassDetailsDTO(Object[] row) {
+        return new FacultyClassDetailsDTO(
+                row[0] == null ? null : row[0].toString(),
+                row[1] == null ? null : row[1].toString(),
+                row[2] == null ? null : row[2].toString(),
+                row[3] == null ? null : row[3].toString()
+        );
     }
 
     private String determineInterpretation(double rating) {
@@ -685,6 +807,109 @@ public class EvaluationDataService {
         return baseUrl.endsWith("/")
                 ? baseUrl.substring(0, baseUrl.length() - 1)
                 : baseUrl;
+    }
+
+    private String normalizeLegacyDatabase(String legacyDatabase) {
+        if (legacyDatabase == null || legacyDatabase.trim().isEmpty()) {
+            return null;
+        }
+
+        String normalized = legacyDatabase.trim().toUpperCase();
+
+        if (!ALLOWED_LEGACY_DATABASES.contains(normalized)) {
+            throw new BadRequestException(
+                    "Invalid campus filter selected."
+            );
+        }
+
+        return normalized;
+    }
+
+    private Long resolveGeneratedByUserId(CustomUserDetails generatedBy) {
+        if (generatedBy != null) {
+            return generatedBy.getUserId();
+        }
+
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null
+                || authentication.getPrincipal() == null) {
+            return null;
+        }
+
+        Object principal = authentication.getPrincipal();
+
+        if (principal instanceof CustomUserDetails details) {
+            return details.getUserId();
+        }
+
+        try {
+            return Long.valueOf(String.valueOf(principal));
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    private String preparedByName(
+            Long generatedByUserId,
+            CustomUserDetails generatedBy
+    ) {
+        if (generatedBy != null) {
+            return preparedByName(generatedBy.getUser());
+        }
+
+        if (generatedByUserId == null) {
+            return null;
+        }
+
+        return userAccountsRepository
+                .findById(generatedByUserId)
+                .map(this::preparedByName)
+                .orElse(null);
+    }
+
+    private String preparedByName(UserAccounts user) {
+        String username = normalizeNamePart(
+                user.getUsername()
+        );
+        String lastname = normalizeNamePart(
+                user.getLastname()
+        );
+
+        String displayName = java.util.stream.Stream
+                .of(username, lastname)
+                .filter(value -> value != null && !value.isBlank())
+                .collect(Collectors.joining(" "))
+                .trim();
+
+        return displayName.isBlank()
+                ? username
+                : displayName;
+    }
+
+    private String facultyDisplayName(PrimaryFaculty faculty) {
+        String displayName = java.util.stream.Stream
+                .of(
+                        normalizeNamePart(faculty.getFirstname()),
+                        normalizeNamePart(faculty.getMiddlename()),
+                        normalizeNamePart(faculty.getLastname())
+                )
+                .filter(value -> value != null && !value.isBlank())
+                .collect(Collectors.joining(" "))
+                .trim();
+
+        return displayName.isBlank()
+                ? normalizeNamePart(faculty.getFacultyId())
+                : displayName;
+    }
+
+    private String normalizeNamePart(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+
+        return value.trim().replaceAll("\\s+", " ");
     }
 
     private RatingScale map(Map<String, String> ratings, String key) {

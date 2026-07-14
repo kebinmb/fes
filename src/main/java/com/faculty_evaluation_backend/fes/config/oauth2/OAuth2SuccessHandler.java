@@ -35,7 +35,12 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException {
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
         String email = oAuth2User.getAttribute("email");
-        List<Role> allowedRoles = List.of(Role.DEAN, Role.PROGRAM_CHAIR, Role.ADMIN);
+        List<Role> allowedRoles = List.of(
+                Role.DEAN,
+                Role.PROGRAM_CHAIR,
+                Role.ADMIN,
+                Role.HR
+        );
         UserAccounts user = userAccountsRepository.findByEmailAndRoleInAndStatus(email, allowedRoles, Status.ACTIVE).orElseThrow(() -> new UnauthorizedException("Unauthorized Google Account"));
         if (!Boolean.TRUE.equals(user.getIsEnabled())) {
             throw new UnauthorizedException("Account disabled");
@@ -50,7 +55,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         String accessCookieName;
         String refreshCookieName;
 
-        if (user.getRole() == Role.ADMIN) {
+        if (user.getRole() == Role.ADMIN || user.getRole() == Role.HR) {
 
             accessToken = jwtService.generateAccessTokenForAdministrator(user.getUserId());
 

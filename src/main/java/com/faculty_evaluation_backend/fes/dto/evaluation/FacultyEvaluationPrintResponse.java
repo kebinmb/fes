@@ -27,4 +27,6 @@ public class FacultyEvaluationPrintResponse {
     private String evaluatorType;
     private String studentComments;
     private String supervisorComments;
+    private String supervisorName;
+    private String supervisorDesignation;
 }

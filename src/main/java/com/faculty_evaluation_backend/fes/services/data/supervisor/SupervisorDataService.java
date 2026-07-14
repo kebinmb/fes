@@ -25,7 +25,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataRetrievalFailureException;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -230,12 +232,19 @@ public class SupervisorDataService {
                 pageable.getPageSize()
         );
 
+        Pageable nativeQueryPageable = PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                Sort.unsorted()
+        );
+
         Page<EvaluatedStudentsDTO> result =
                 facultyEvaluationScoreRepository.findEvaluatedStudents(
-                        userId,
-                        searchTerm,
-                        pageable
-                );
+                                userId,
+                                normalizeSearch(searchTerm),
+                                nativeQueryPageable
+                        )
+                        .map(this::toEvaluatedStudentsDTO);
 
         log.info(
                 "Evaluated students fetched successfully | userId={} | searchTerm={} | totalElements={}",
@@ -245,6 +254,27 @@ public class SupervisorDataService {
         );
 
         return result;
+    }
+
+    private EvaluatedStudentsDTO toEvaluatedStudentsDTO(Object[] row) {
+        return new EvaluatedStudentsDTO(
+                row[0] == null ? null : row[0].toString(),
+                row[1] == null ? null : row[1].toString(),
+                row[2] == null ? null : row[2].toString(),
+                row[3] == null ? null : row[3].toString(),
+                row[4] == null ? null : row[4].toString(),
+                row[5] == null ? null : row[5].toString(),
+                row[6] == null ? null : row[6].toString(),
+                row[7] == null ? null : row[7].toString()
+        );
+    }
+
+    private String normalizeSearch(String searchTerm) {
+        if (searchTerm == null || searchTerm.trim().isEmpty()) {
+            return null;
+        }
+
+        return searchTerm.trim();
     }
 
     private College parseCollege(String college) {

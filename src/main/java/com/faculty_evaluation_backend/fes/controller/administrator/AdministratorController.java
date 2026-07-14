@@ -5,6 +5,7 @@ import com.faculty_evaluation_backend.fes.audit.AuditLogService;
 import com.faculty_evaluation_backend.fes.dto.audit.AuditLogSliceResponse;
 import com.faculty_evaluation_backend.fes.controller.evaluation.EvaluationController;
 import com.faculty_evaluation_backend.fes.dto.audit.AuditLogResponse;
+import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationBulkReportResponse;
 import com.faculty_evaluation_backend.fes.dto.data.SchoolYearAndSemesterDTO;
 import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationGeneratedReportResponse;
 import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardFacultyLoadResponse;
@@ -12,6 +13,8 @@ import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardProgramBre
 import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardResponse;
 import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardSummaryResponse;
 import com.faculty_evaluation_backend.fes.dto.dashboard.FacultyWorkloadCoverageResponse;
+import com.faculty_evaluation_backend.fes.dto.dashboard.SupervisorEvaluationDashboardPageResponse;
+import com.faculty_evaluation_backend.fes.dto.dashboard.SupervisorEvaluationDashboardResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationPrintResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.StudentEvaluationStatusResponse;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadClassOptionResponse;
@@ -102,6 +105,31 @@ public class AdministratorController {
     getFacultyWorkloadCoverage() {
         return ResponseEntity.ok(
                 administratorService.getFacultyWorkloadCoverage()
+        );
+    }
+
+    @GetMapping("/dashboard/supervisor-evaluations")
+    @AuditableAction(action = "FETCH", entity = "SUPERVISOR_EVALUATION_DASHBOARD")
+    public SupervisorEvaluationDashboardPageResponse
+    getSupervisorEvaluationDashboard(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String evaluationStatus,
+            @RequestParam(required = false) String legacyDatabase,
+            @RequestParam(required = false) String campus,
+            @RequestParam(required = false) Integer schoolYear,
+            @RequestParam(required = false) String semester
+    ) {
+        return administratorService.getSupervisorEvaluationDashboard(
+                page,
+                size,
+                search,
+                evaluationStatus,
+                legacyDatabase,
+                campus,
+                schoolYear,
+                semester
         );
     }
 
@@ -341,6 +369,34 @@ public class AdministratorController {
         return ResponseEntity.ok(
                 evaluationDataService.generateFacultyEvaluationReport(
                         facultyId,
+                        verificationBaseUrl,
+                        userDetails
+                )
+        );
+    }
+
+    @PostMapping("/faculty-evaluation-reports/bulk")
+    @AuditableAction(action = "GENERATE_BULK", entity = "FACULTY_EVALUATION_REPORT")
+    public ResponseEntity<FacultyEvaluationBulkReportResponse>
+    generateFacultyEvaluationReports(
+            @RequestParam(required = false) String legacyDatabase,
+            @RequestParam(required = false) College college,
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            HttpServletRequest request
+    ) {
+        String verificationBaseUrl =
+                request.getScheme()
+                        + "://"
+                        + request.getServerName()
+                        + (request.getServerPort() == 80
+                        || request.getServerPort() == 443
+                        ? ""
+                        : ":" + request.getServerPort());
+
+        return ResponseEntity.ok(
+                evaluationDataService.generateFacultyEvaluationReports(
+                        legacyDatabase,
+                        college,
                         verificationBaseUrl,
                         userDetails
                 )
