@@ -25,6 +25,7 @@ import org.springframework.util.unit.DataSize;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 
@@ -33,6 +34,29 @@ public class FacultyEvaluationEvidenceService {
 
     private static final long BYTES_PER_MEGABYTE = 1024L * 1024L;
     private static final int MAX_PAGE_SIZE = 50;
+    private static final Set<String> ALLOWED_FILE_EXTENSIONS = Set.of(
+            ".pdf",
+            ".doc",
+            ".docx",
+            ".xls",
+            ".xlsx",
+            ".jpg",
+            ".jpeg",
+            ".png"
+    );
+    private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
+            "application/pdf",
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.ms-excel",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "image/jpeg",
+            "image/png"
+    );
+    private static final Set<String> GENERIC_CONTENT_TYPES = Set.of(
+            "application/octet-stream",
+            "binary/octet-stream"
+    );
     private static final Sort DEFAULT_SORT =
             Sort.by(Sort.Direction.DESC, "createdAt");
     private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
@@ -246,6 +270,18 @@ public class FacultyEvaluationEvidenceService {
         storageService.delete(evidence.getFilePath());
     }
 
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
+    public String facultyIdForEvidence(Long evidenceId) {
+        return evidenceRepository.findById(evidenceId)
+                .map(FacultyEvaluationEvidence::getFacultyId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Evidence not found.")
+                );
+    }
+
     private void validateUpload(
             String facultyId,
             String uploadedBy,
@@ -268,6 +304,37 @@ public class FacultyEvaluationEvidenceService {
                     "Evidence file must not exceed "
                             + readableFileSize(maxFileSizeBytes)
                             + "."
+            );
+        }
+
+        validateFileType(file);
+    }
+
+    private void validateFileType(MultipartFile file) {
+        String originalFilename = cleanOriginalFilename(file.getOriginalFilename());
+        String extension = extensionOf(originalFilename)
+                .toLowerCase(Locale.ROOT);
+
+        if (!ALLOWED_FILE_EXTENSIONS.contains(extension)) {
+            throw new BadRequestException(
+                    "Unsupported evidence file type. Allowed types: PDF, Word, Excel, JPG, and PNG."
+            );
+        }
+
+        String contentType = file.getContentType();
+        if (contentType == null || contentType.isBlank()) {
+            return;
+        }
+
+        String normalizedContentType = contentType
+                .split(";", 2)[0]
+                .trim()
+                .toLowerCase(Locale.ROOT);
+
+        if (!ALLOWED_CONTENT_TYPES.contains(normalizedContentType)
+                && !GENERIC_CONTENT_TYPES.contains(normalizedContentType)) {
+            throw new BadRequestException(
+                    "Unsupported evidence content type: " + normalizedContentType
             );
         }
     }

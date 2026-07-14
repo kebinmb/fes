@@ -4,6 +4,8 @@ import com.faculty_evaluation_backend.fes.audit.AuditableAction;
 import com.faculty_evaluation_backend.fes.config.jwt.JwtConfig;
 import com.faculty_evaluation_backend.fes.dto.authentication.ChangePasswordRequest;
 import com.faculty_evaluation_backend.fes.dto.authentication.LoginRequest;
+import com.faculty_evaluation_backend.fes.dto.authentication.StudentAccessCodeRequest;
+import com.faculty_evaluation_backend.fes.dto.authentication.StudentLoginRequest;
 import com.faculty_evaluation_backend.fes.entities.authentication.CustomUserDetails;
 import com.faculty_evaluation_backend.fes.entities.authentication.StudentAccessCode;
 import com.faculty_evaluation_backend.fes.entities.authentication.UserAccounts;
@@ -23,6 +25,7 @@ import org.springframework.cache.CacheManager;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -41,52 +44,73 @@ public class AuthenticationController {
     private final CacheManager cacheManager;
 
     private ResponseCookie buildStudentAccessTokenCookie(String token) {
-        return ResponseCookie.from("student_access", token).httpOnly(true).secure(true).path("/").sameSite("None").maxAge(Math.max(1, jwtConfig.getExpiration() / 1000)).build();
+        return buildCookie("student_access", token, Math.max(1, jwtConfig.getExpiration() / 1000));
     }
 
     private ResponseCookie buildStudentRefreshTokenCookie(String token) {
-        return ResponseCookie.from("student_refresh", token).httpOnly(true).secure(true).path("/").sameSite("None").maxAge(jwtConfig.getRefreshExpiration() / 1000).build();
+        return buildCookie("student_refresh", token, jwtConfig.getRefreshExpiration() / 1000);
     }
 
     private ResponseCookie buildSupervisorAccessTokenCookie(String token) {
-        return ResponseCookie.from("supervisor_access", token).httpOnly(true).secure(true).path("/").sameSite("None").maxAge(Math.max(1, jwtConfig.getExpiration() / 1000)).build();
+        return buildCookie("supervisor_access", token, Math.max(1, jwtConfig.getExpiration() / 1000));
     }
 
     private ResponseCookie buildSupervisorRefreshTokenCookie(String token) {
-        return ResponseCookie.from("supervisor_refresh", token).httpOnly(true).secure(true).path("/").sameSite("None").maxAge(Math.max(1, jwtConfig.getRefreshExpiration() / 1000)).build();
+        return buildCookie("supervisor_refresh", token, Math.max(1, jwtConfig.getRefreshExpiration() / 1000));
     }
 
     private ResponseCookie buildAdministratorAccessTokenCookie(String token) {
-        return ResponseCookie.from("administrator_access", token).httpOnly(true).secure(true).path("/").sameSite("None").maxAge(Math.max(1, jwtConfig.getExpiration() / 1000)).build();
+        return buildCookie("administrator_access", token, Math.max(1, jwtConfig.getExpiration() / 1000));
     }
 
     private ResponseCookie buildAdministratorRefreshTokenCookie(String token) {
-        return ResponseCookie.from("administrator_refresh", token).httpOnly(true).secure(true).path("/").sameSite("None").maxAge(jwtConfig.getRefreshExpiration() / 1000).build();
+        return buildCookie("administrator_refresh", token, jwtConfig.getRefreshExpiration() / 1000);
     }
 
     private ResponseCookie deleteCookie(String name) {
-        return ResponseCookie.from(name, "").httpOnly(true).secure(true).path("/").sameSite("None").maxAge(0).build();
+        return buildCookie(name, "", 0);
+    }
+
+    private ResponseCookie buildCookie(String name, String value, long maxAgeSeconds) {
+        return ResponseCookie.from(name, value)
+                .httpOnly(true)
+                .secure(jwtConfig.isCookieSecure())
+                .path("/")
+                .sameSite(jwtConfig.getCookieSameSite())
+                .maxAge(maxAgeSeconds)
+                .build();
     }
 
     @PostMapping("/access-code/generate")
     @AuditableAction(action = "GENERATE_ACCESS_CODE", entity = "STUDENT_ACCESS_CODE")
-    public ResponseEntity<?> generateAccessCode(@RequestParam String studentId, @RequestParam String password) {
-        StudentAccessCode code = studentAuthenticationService.generateAccessCode(studentId, password);
-        return ResponseEntity.ok(Map.of("studentId", studentId, "accessCode", code.getAccessCode(), "expiresAt", code.getExpiresAt()));
+    public ResponseEntity<?> generateAccessCode(@Valid @RequestBody StudentAccessCodeRequest request) {
+        StudentAccessCode code = studentAuthenticationService.generateAccessCode(
+                request.getStudentId(),
+                request.getPassword()
+        );
+        return ResponseEntity.ok(Map.of(
+                "studentId", request.getStudentId(),
+                "expiresAt", code.getExpiresAt(),
+                "message", "Access code sent to your registered email."
+        ));
     }
 
     @PostMapping("/student/login")
     @AuditableAction(action = "AUTHENTICATE_STUDENT", entity = "STUDENT_AUTHENTICATION")
-    public ResponseEntity<?> studentLogin(@RequestParam String studentId, @RequestParam String accessCode, HttpServletRequest request) {
+    public ResponseEntity<?> studentLogin(@Valid @RequestBody StudentLoginRequest loginRequest, HttpServletRequest request) {
 
-        var response = studentAuthenticationService.authenticateWithAccessCode(studentId, accessCode, request);
+        var response = studentAuthenticationService.authenticateWithAccessCode(
+                loginRequest.getStudentId(),
+                loginRequest.getAccessCode(),
+                request
+        );
 
-        return ResponseEntity.ok().header("Set-Cookie", buildStudentAccessTokenCookie(response.getAccessToken()).toString()).header("Set-Cookie", buildStudentRefreshTokenCookie(response.getRefreshToken()).toString()).body(Map.of("message", "Authentication successful", "studentId", response.getStudentId(), "accessCode", response.getAccessCode()));
+        return ResponseEntity.ok().header("Set-Cookie", buildStudentAccessTokenCookie(response.getAccessToken()).toString()).header("Set-Cookie", buildStudentRefreshTokenCookie(response.getRefreshToken()).toString()).body(Map.of("message", "Authentication successful", "studentId", response.getStudentId()));
     }
 
     @PostMapping("/supervisor/login")
     @AuditableAction(action = "AUTHENTICATE_SUPERVISOR", entity = "SUPERVISOR_AUTHENTICATION")
-    public ResponseEntity<?> supervisorLogin(@RequestBody LoginRequest loginRequest, HttpServletRequest request) {
+    public ResponseEntity<?> supervisorLogin(@Valid @RequestBody LoginRequest loginRequest, HttpServletRequest request) {
         var response = supervisorAccountsAuthenticationService.login(loginRequest, request);
         return ResponseEntity.ok().header("Set-Cookie", buildSupervisorAccessTokenCookie(response.getAccessToken()).toString()).header("Set-Cookie", buildSupervisorRefreshTokenCookie(response.getRefreshToken()).toString()).body(Map.of("message", "Authentication successful", "evaluatorId", response.getEvaluatorId(), "college", response.getCollege(), "program", response.getPrograms(), "requiresPasswordChange",
                 response.getRequiresPasswordChange()));
@@ -94,7 +118,7 @@ public class AuthenticationController {
 
     @PostMapping("/administrator/login")
     @AuditableAction(action = "AUTHENTICATE_ADMINISTRATOR", entity = "ADMINISTRATOR_AUTHENTICATION")
-    public ResponseEntity<?> administratorLogin(@RequestBody LoginRequest loginRequest, HttpServletRequest request) {
+    public ResponseEntity<?> administratorLogin(@Valid @RequestBody LoginRequest loginRequest, HttpServletRequest request) {
         var response = administratorAccountsAuthenticationService.login(loginRequest, request);
 
         return ResponseEntity.ok().header("Set-Cookie", buildAdministratorAccessTokenCookie(response.getAccessToken()).toString()).header("Set-Cookie", buildAdministratorRefreshTokenCookie(response.getRefreshToken()).toString()).body(Map.of("message", "Authentication successful", "administratorId", response.getEvaluatorId()));
@@ -108,8 +132,18 @@ public class AuthenticationController {
         }
 
         String role = authentication.getAuthorities().stream().findFirst().map(Object::toString).orElse("ROLE_STUDENT");
+        String principal = authentication.getName();
 
-        Long userId = Long.parseLong(authentication.getName());
+        if (role.equals("ROLE_STUDENT")) {
+            return ResponseEntity.ok(Map.of(
+                    "authenticated", true,
+                    "studentId", principal,
+                    "userId", principal,
+                    "role", role
+            ));
+        }
+
+        Long userId = Long.parseLong(principal);
 
         if (role.equals("ROLE_DEAN") || role.equals("ROLE_PROGRAM_CHAIR")) {
 
@@ -120,6 +154,15 @@ public class AuthenticationController {
         }
 
         return ResponseEntity.ok(Map.of("authenticated", true, "userId", userId, "role", role));
+    }
+
+    @GetMapping("/csrf")
+    public ResponseEntity<?> csrf(CsrfToken csrfToken) {
+        return ResponseEntity.ok(Map.of(
+                "headerName", csrfToken.getHeaderName(),
+                "parameterName", csrfToken.getParameterName(),
+                "token", csrfToken.getToken()
+        ));
     }
     @PutMapping("/change-password")
     @AuditableAction(action = "CHANGE_PASSWORD", entity = "USER_ACCOUNTS")

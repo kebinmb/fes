@@ -125,46 +125,30 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
     Object[] findClassWithDetailsForStudentNative(@Param("classCode") String classCode, @Param("studentId") String studentId);
 
     @Query(value = """
-            
             SELECT
-            
                 pc.subject_code AS subjectCode,
-            
                 pc.faculty_id AS facultyId,
-            
                 pc.school_year AS schoolYear,
-            
                 pc.semester AS semester,
-            
-                MIN(pc.class_code) AS classCode,
-            
-                MIN(psl.year_level) AS yearLevel,
-            
-                MIN(ps.program_code) AS programCode,
-            
-                MIN(ps.section_code) AS sectionCode
-            
+                pc.class_code AS classCode,
+                ps.year_level AS yearLevel,
+                ps.program_code AS programCode,
+                ps.section_code AS sectionCode
             FROM primary_class pc
-            
             INNER JOIN primary_section ps
                 ON pc.section_id = ps.section_id
-            
-            LEFT JOIN primary_student_load psl
-                ON pc.class_code = psl.class_code
-            
             WHERE pc.faculty_id = :facultyId
               AND pc.school_year = :schoolYear
               AND pc.semester = :semester
-            
-            GROUP BY
-                pc.faculty_id,
-                pc.subject_code,
-                pc.school_year,
-                pc.semester
-            
+              AND pc.class_code IS NOT NULL
+              AND pc.subject_code IS NOT NULL
+              AND pc.section_id IS NOT NULL
             ORDER BY
-                pc.subject_code ASC
-            
+                pc.subject_code ASC,
+                ps.program_code ASC,
+                ps.year_level ASC,
+                ps.section_code ASC,
+                pc.class_code ASC
             """, nativeQuery = true)
     List<FacultyClassDTO> findFacultyClasses(
 
@@ -173,6 +157,26 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
             @Param("schoolYear") Integer schoolYear,
 
             @Param("semester") String semester);
+
+    @Query(value = """
+            SELECT CASE WHEN COUNT(*) > 0 THEN TRUE ELSE FALSE END
+            FROM primary_class pc
+            INNER JOIN primary_faculty pf
+                ON pf.faculty_id = pc.faculty_id
+            INNER JOIN user_accounts ua
+                ON ua.user_id = :userId
+               AND UPPER(TRIM(ua.data_source)) =
+                   UPPER(TRIM(pf.legacy_database))
+            WHERE pc.faculty_id = :facultyId
+              AND pc.school_year = :schoolYear
+              AND LOWER(TRIM(pc.semester)) = LOWER(TRIM(:semester))
+            """, nativeQuery = true)
+    boolean existsFacultyInSupervisorScope(
+            @Param("userId") Long userId,
+            @Param("facultyId") String facultyId,
+            @Param("schoolYear") Integer schoolYear,
+            @Param("semester") String semester
+    );
 
     @Query(value = """
             SELECT

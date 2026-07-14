@@ -77,9 +77,21 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                 request
         );
 
-        ResponseCookie accessCookie = ResponseCookie.from(accessCookieName, accessToken).httpOnly(true).secure(true).path("/").sameSite("None").maxAge(Math.max(1, jwtConfig.getExpiration() / 1000)).build();
+        ResponseCookie accessCookie = ResponseCookie.from(accessCookieName, accessToken)
+                .httpOnly(true)
+                .secure(jwtConfig.isCookieSecure())
+                .path("/")
+                .sameSite(jwtConfig.getCookieSameSite())
+                .maxAge(Math.max(1, jwtConfig.getExpiration() / 1000))
+                .build();
 
-        ResponseCookie refreshCookie = ResponseCookie.from(refreshCookieName, refreshToken).httpOnly(true).secure(true).path("/").sameSite("None").maxAge(jwtConfig.getRefreshExpiration() / 1000).build();
+        ResponseCookie refreshCookie = ResponseCookie.from(refreshCookieName, refreshToken)
+                .httpOnly(true)
+                .secure(jwtConfig.isCookieSecure())
+                .path("/")
+                .sameSite(jwtConfig.getCookieSameSite())
+                .maxAge(jwtConfig.getRefreshExpiration() / 1000)
+                .build();
 
         response.addHeader("Set-Cookie", accessCookie.toString());
 

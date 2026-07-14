@@ -16,4 +16,8 @@ public class JwtConfig {
     private Long refreshExpiration;
     @Value("${jwt.idle-timeout:600000}")
     private Long idleTimeout;
+    @Value("${jwt.cookie-secure:true}")
+    private boolean cookieSecure;
+    @Value("${jwt.cookie-same-site:None}")
+    private String cookieSameSite;
 }

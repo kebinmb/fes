@@ -26,6 +26,7 @@ import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryStudentRep
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimarySubjectRepository;
 import com.faculty_evaluation_backend.fes.services.data.evaluation.strategies.EvaluationStrategy;
 import com.faculty_evaluation_backend.fes.services.data.evaluation.strategies.EvaluationStrategyFactory;
+import com.faculty_evaluation_backend.fes.exceptions.BadRequestException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.zxing.BarcodeFormat;
@@ -301,7 +302,7 @@ public class EvaluationDataService {
                 getSumOfAllFacultyEvaluationPerSubject(facultyId);
 
         if (items.isEmpty()) {
-            throw new RuntimeException(
+            throw new BadRequestException(
                     "No printable evaluated workload subjects found for this faculty."
             );
         }
@@ -463,7 +464,7 @@ public class EvaluationDataService {
         }
 
         List<FacultyWorkload> workloads =
-                facultyWorkloadRepository.findAllByFacultyIdAndSchoolYearAndSemester(
+                facultyWorkloadRepository.findAllByFacultyIdAndSchoolYearAndEquivalentSemester(
                         facultyId,
                         schoolYear,
                         semester
@@ -473,8 +474,19 @@ public class EvaluationDataService {
             return responses;
         }
 
-        Map<String, FacultyWorkload> workloadsByClassCode =
+        List<FacultyWorkload> printableWorkloads =
                 workloads.stream()
+                        .filter(workload -> !isOverloadWorkload(workload))
+                        .toList();
+
+        if (printableWorkloads.isEmpty()) {
+            throw new BadRequestException(
+                    "Faculty only has overload subjects, not allowed for printing"
+            );
+        }
+
+        Map<String, FacultyWorkload> workloadsByClassCode =
+                printableWorkloads.stream()
                         .filter(workload -> normalizeKey(workload.getClassCode()) != null)
                         .collect(Collectors.toMap(
                                 workload -> normalizeKey(workload.getClassCode()),
@@ -483,7 +495,7 @@ public class EvaluationDataService {
                         ));
 
         Map<String, FacultyWorkload> workloadsByCourseSection =
-                workloads.stream()
+                printableWorkloads.stream()
                         .collect(Collectors.toMap(
                                 this::workloadCourseSectionKey,
                                 workload -> workload,
@@ -545,6 +557,13 @@ public class EvaluationDataService {
         }
 
         return selectedResponses;
+    }
+
+    private boolean isOverloadWorkload(FacultyWorkload workload) {
+        String loadStatus = normalizeKey(workload.getLoadStatus());
+
+        return "OVERLOAD".equals(loadStatus)
+                || "OVERLOAD_LOAD".equals(loadStatus);
     }
 
     private Optional<FacultyWorkload> findMatchingWorkload(

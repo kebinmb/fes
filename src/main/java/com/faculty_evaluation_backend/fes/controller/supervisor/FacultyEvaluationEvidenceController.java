@@ -5,6 +5,7 @@ import com.faculty_evaluation_backend.fes.dto.evidence.EvaluationEvidenceCriteri
 import com.faculty_evaluation_backend.fes.dto.evidence.FacultyEvaluationEvidenceResponse;
 import com.faculty_evaluation_backend.fes.dto.evidence.FacultyEvaluationEvidenceSliceResponse;
 import com.faculty_evaluation_backend.fes.services.data.evidence.FacultyEvaluationEvidenceService;
+import com.faculty_evaluation_backend.fes.services.data.supervisor.SupervisorDataService;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,7 @@ import java.util.List;
 public class FacultyEvaluationEvidenceController {
 
     private final FacultyEvaluationEvidenceService evidenceService;
+    private final SupervisorDataService supervisorDataService;
 
     @GetMapping("/criteria")
     @AuditableAction(action = "FETCH", entity = "EVIDENCE_CRITERIA")
@@ -51,6 +53,7 @@ public class FacultyEvaluationEvidenceController {
             @RequestParam("file") MultipartFile file,
             Authentication authentication
     ) {
+        assertFacultyScope(authentication, facultyId);
         return ResponseEntity.ok(
                 evidenceService.upload(
                         facultyId,
@@ -82,8 +85,10 @@ public class FacultyEvaluationEvidenceController {
                     sort = "createdAt",
                     direction = Sort.Direction.DESC
             )
-            Pageable pageable
+            Pageable pageable,
+            Authentication authentication
     ) {
+        assertFacultyScope(authentication, facultyId);
         return ResponseEntity.ok(
                 evidenceService.list(
                         facultyId,
@@ -112,8 +117,10 @@ public class FacultyEvaluationEvidenceController {
                     sort = "createdAt",
                     direction = Sort.Direction.DESC
             )
-            Pageable pageable
+            Pageable pageable,
+            Authentication authentication
     ) {
+        assertFacultyScope(authentication, facultyId);
         return ResponseEntity.ok(
                 evidenceService.listSlice(
                         facultyId,
@@ -130,8 +137,10 @@ public class FacultyEvaluationEvidenceController {
     @GetMapping("/{evidenceId}/download")
     @AuditableAction(action = "DOWNLOAD", entity = "FACULTY_EVALUATION_EVIDENCE")
     public ResponseEntity<Resource> download(
-            @PathVariable @NotNull Long evidenceId
+            @PathVariable @NotNull Long evidenceId,
+            Authentication authentication
     ) {
+        assertFacultyScope(authentication, evidenceService.facultyIdForEvidence(evidenceId));
         FacultyEvaluationEvidenceService.EvidenceDownload download =
                 evidenceService.download(evidenceId);
 
@@ -154,8 +163,10 @@ public class FacultyEvaluationEvidenceController {
     @DeleteMapping("/{evidenceId}")
     @AuditableAction(action = "DELETE", entity = "FACULTY_EVALUATION_EVIDENCE")
     public ResponseEntity<Void> delete(
-            @PathVariable @NotNull Long evidenceId
+            @PathVariable @NotNull Long evidenceId,
+            Authentication authentication
     ) {
+        assertFacultyScope(authentication, evidenceService.facultyIdForEvidence(evidenceId));
         evidenceService.delete(evidenceId);
         return ResponseEntity.noContent().build();
     }
@@ -166,5 +177,23 @@ public class FacultyEvaluationEvidenceController {
         }
 
         return authentication.getName();
+    }
+
+    private void assertFacultyScope(
+            Authentication authentication,
+            String facultyId
+    ) {
+        supervisorDataService.assertFacultyInSupervisorScope(
+                currentUserId(authentication),
+                facultyId
+        );
+    }
+
+    private Long currentUserId(Authentication authentication) {
+        if (authentication == null || authentication.getName() == null) {
+            throw new IllegalStateException("Authenticated user is required.");
+        }
+
+        return Long.parseLong(authentication.getName());
     }
 }

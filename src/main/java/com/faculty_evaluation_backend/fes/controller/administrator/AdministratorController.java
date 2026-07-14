@@ -511,7 +511,7 @@ public class AdministratorController {
     @PostMapping("/create-user")
     @AuditableAction(action = "CREATE", entity = "USER_ACCOUNTS")
     public ResponseEntity<String> createUser(
-            @RequestBody CreateUserAccountDTO dto
+            @Valid @RequestBody CreateUserAccountDTO dto
     ) {
 
         return ResponseEntity.ok(
@@ -522,7 +522,7 @@ public class AdministratorController {
     @PutMapping("/update-user")
     @AuditableAction(action = "UPDATE", entity = "USER_ACCOUNTS")
     public ResponseEntity<String> updateUser(
-            @RequestBody UpdateUserAccountDTO dto
+            @Valid @RequestBody UpdateUserAccountDTO dto
     ) {
 
         return ResponseEntity.ok(
@@ -533,7 +533,7 @@ public class AdministratorController {
     @PutMapping("/update-password")
     @AuditableAction(action = "UPDATE_PASSWORD", entity = "USER_ACCOUNTS")
     public ResponseEntity<String> updatePassword(
-            @RequestBody UpdateUserPasswordDTO dto
+            @Valid @RequestBody UpdateUserPasswordDTO dto
     ) {
 
         return ResponseEntity.ok(

@@ -213,4 +213,6 @@ management:
 
 jwt:
   secret: ${JWT_SECRET}
-  idle-timeout: 600000
+  idle-timeout: ${JWT_IDLE_TIMEOUT:300000}
+  cookie-secure: ${JWT_COOKIE_SECURE:true}
+  cookie-same-site: ${JWT_COOKIE_SAME_SITE:None}

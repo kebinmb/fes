@@ -363,9 +363,9 @@ public class JwtRefreshFilter extends OncePerRequestFilter {
 
         return ResponseCookie.from(name, token)
                 .httpOnly(true)
-                .secure(false)
+                .secure(jwtConfig.isCookieSecure())
                 .path("/")
-                .sameSite("Lax")
+                .sameSite(jwtConfig.getCookieSameSite())
                 .maxAge(
                         Math.max(
                                 1,
@@ -382,9 +382,9 @@ public class JwtRefreshFilter extends OncePerRequestFilter {
 
         return ResponseCookie.from(name, token)
                 .httpOnly(true)
-                .secure(false)
+                .secure(jwtConfig.isCookieSecure())
                 .path("/")
-                .sameSite("Lax")
+                .sameSite(jwtConfig.getCookieSameSite())
                 .maxAge(
                         jwtConfig.getRefreshExpiration() / 1000
                 )
@@ -395,9 +395,9 @@ public class JwtRefreshFilter extends OncePerRequestFilter {
 
         return ResponseCookie.from(name, "")
                 .httpOnly(true)
-                .secure(false)
+                .secure(jwtConfig.isCookieSecure())
                 .path("/")
-                .sameSite("Lax")
+                .sameSite(jwtConfig.getCookieSameSite())
                 .maxAge(0)
                 .build();
     }

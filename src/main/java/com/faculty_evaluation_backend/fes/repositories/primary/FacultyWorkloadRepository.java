@@ -31,6 +31,65 @@ public interface FacultyWorkloadRepository
     );
 
     @EntityGraph(attributePaths = "faculty")
+    @Query(
+            value = """
+                    SELECT fw
+                    FROM FacultyWorkload fw
+                    WHERE fw.facultyId = :facultyId
+                      AND fw.schoolYear = :schoolYear
+                      AND (
+                            LOWER(TRIM(fw.semester)) = LOWER(TRIM(:semester))
+                            OR (
+                                UPPER(TRIM(:semester)) IN ('1ST', 'FIRST_SEMESTER')
+                                AND UPPER(TRIM(fw.semester)) IN ('1ST', 'FIRST_SEMESTER')
+                            )
+                            OR (
+                                UPPER(TRIM(:semester)) IN ('2ND', 'SECOND_SEMESTER')
+                                AND UPPER(TRIM(fw.semester)) IN ('2ND', 'SECOND_SEMESTER')
+                            )
+                      )
+                    """
+    )
+    List<FacultyWorkload> findAllByFacultyIdAndSchoolYearAndEquivalentSemester(
+            @Param("facultyId") String facultyId,
+            @Param("schoolYear") Integer schoolYear,
+            @Param("semester") String semester
+    );
+
+    @Query(
+            value = """
+                    SELECT CASE WHEN COUNT(*) > 0 THEN TRUE ELSE FALSE END
+                    FROM faculty_workload fw
+                    INNER JOIN primary_faculty pf
+                        ON pf.faculty_id = fw.faculty_id
+                    INNER JOIN user_accounts ua
+                        ON ua.user_id = :userId
+                       AND UPPER(TRIM(ua.data_source)) =
+                           UPPER(TRIM(pf.legacy_database))
+                    WHERE fw.faculty_id = :facultyId
+                      AND fw.school_year = :schoolYear
+                      AND (
+                            LOWER(TRIM(fw.semester)) = LOWER(TRIM(:semester))
+                            OR (
+                                UPPER(TRIM(:semester)) IN ('1ST', 'FIRST_SEMESTER')
+                                AND UPPER(TRIM(fw.semester)) IN ('1ST', 'FIRST_SEMESTER')
+                            )
+                            OR (
+                                UPPER(TRIM(:semester)) IN ('2ND', 'SECOND_SEMESTER')
+                                AND UPPER(TRIM(fw.semester)) IN ('2ND', 'SECOND_SEMESTER')
+                            )
+                      )
+                    """,
+            nativeQuery = true
+    )
+    boolean existsFacultyWorkloadInSupervisorScope(
+            @Param("userId") Long userId,
+            @Param("facultyId") String facultyId,
+            @Param("schoolYear") Integer schoolYear,
+            @Param("semester") String semester
+    );
+
+    @EntityGraph(attributePaths = "faculty")
     Optional<FacultyWorkload>
     findByFacultyIdAndSchoolYearAndSemesterAndClassCodeAndCourseCodeAndProgramCodeAndYearLevelAndSectionCode(
             String facultyId,

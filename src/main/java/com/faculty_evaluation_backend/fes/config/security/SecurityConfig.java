@@ -1,6 +1,7 @@
 package com.faculty_evaluation_backend.fes.config.security;
 
 import com.faculty_evaluation_backend.fes.config.jwt.JwtAuthenticationFilter;
+import com.faculty_evaluation_backend.fes.config.jwt.JwtConfig;
 import com.faculty_evaluation_backend.fes.config.jwt.JwtRefreshFilter;
 import com.faculty_evaluation_backend.fes.config.oauth2.OAuth2FailureHandler;
 import com.faculty_evaluation_backend.fes.config.oauth2.OAuth2SuccessHandler;
@@ -21,6 +22,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -40,6 +43,7 @@ public class SecurityConfig {
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
     private final OAuth2FailureHandler oAuth2FailureHandler;
     private final CorsProperties corsProperties;
+    private final JwtConfig jwtConfig;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -65,7 +69,21 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
-        http.cors(cors -> cors.configurationSource(corsConfigurationSource())).csrf(csrf -> csrf.disable()).sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)).authorizeHttpRequests(auth -> auth.requestMatchers("/auth/**", "/oauth2/**", "/login/**", "/verify-report/**").permitAll()
+        CsrfTokenRequestAttributeHandler csrfRequestHandler = new CsrfTokenRequestAttributeHandler();
+        csrfRequestHandler.setCsrfRequestAttributeName(null);
+
+        CookieCsrfTokenRepository csrfTokenRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
+        csrfTokenRepository.setCookiePath("/");
+        csrfTokenRepository.setCookieCustomizer(cookie -> cookie
+                .secure(jwtConfig.isCookieSecure())
+                .sameSite(jwtConfig.getCookieSameSite())
+        );
+
+        http.cors(cors -> cors.configurationSource(corsConfigurationSource())).csrf(csrf -> csrf
+                        .csrfTokenRepository(csrfTokenRepository)
+                        .csrfTokenRequestHandler(csrfRequestHandler)
+                        .ignoringRequestMatchers("/oauth2/**", "/login/**", "/verify-report/**")
+                ).sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)).authorizeHttpRequests(auth -> auth.requestMatchers("/auth/**", "/oauth2/**", "/login/**", "/verify-report/**").permitAll()
 
                         .requestMatchers("/migration/**").hasRole("ADMIN")
 
@@ -132,12 +150,21 @@ public class SecurityConfig {
 
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
 
-        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowedHeaders(List.of(
+                "Authorization",
+                "Content-Type",
+                "Accept",
+                "Origin",
+                "X-Requested-With",
+                "X-XSRF-TOKEN",
+                "X-FES-User-Activity"
+        ));
 
         configuration.setAllowCredentials(true);
 
         configuration.setExposedHeaders(List.of(
                 "Authorization",
+                "X-XSRF-TOKEN",
                 "X-FES-Session-Activity-Synced"
         ));
 

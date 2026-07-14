@@ -16,6 +16,7 @@ import com.faculty_evaluation_backend.fes.exceptions.BadRequestException;
 import com.faculty_evaluation_backend.fes.repositories.authentication.UserAccountsRepository;
 import com.faculty_evaluation_backend.fes.repositories.data.SchoolYearAndSemesterRepository;
 import com.faculty_evaluation_backend.fes.repositories.evaluation.FacultyEvaluationScoreRepository;
+import com.faculty_evaluation_backend.fes.repositories.primary.FacultyWorkloadRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryClassRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryFacultyRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -25,6 +26,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataRetrievalFailureException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,6 +41,7 @@ public class SupervisorDataService {
     private final FacultyEvaluationScoreRepository facultyEvaluationScoreRepository;
     private final SchoolYearAndSemesterRepository schoolYearAndSemesterRepository;
     private final UserAccountsRepository userAccountsRepository;
+    private final FacultyWorkloadRepository facultyWorkloadRepository;
 
     @Transactional(transactionManager = "primaryTransactionManager", readOnly = true)
     @Cacheable(
@@ -95,18 +98,58 @@ public class SupervisorDataService {
     }
 
     @Transactional(transactionManager = "primaryTransactionManager", readOnly = true)
-    @Cacheable(value = "facultyClasses", key = "#facultyId")
-    public List<FacultyClassDTO> findFacultyClasses(String facultyId) {
+    @Cacheable(value = "facultyClasses", key = "#userId + ':' + #facultyId")
+    public List<FacultyClassDTO> findFacultyClassesForSupervisor(
+            Long userId,
+            String facultyId
+    ) {
 
         SchoolYearAndSemester data = schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE).orElseThrow(() -> new RuntimeException("No active school year and semester found."));
 
         log.debug("Fetching classes | facultyId={} | schoolYear={} | semester={}", facultyId, data.getSchoolYear(), data.getSemester());
+
+        assertFacultyInSupervisorScope(userId, facultyId, data);
 
         List<FacultyClassDTO> result = primaryClassRepository.findFacultyClasses(facultyId, data.getSchoolYear(), data.getSemester().getValue());
 
         log.info("Classes fetched | facultyId={} | count={}", facultyId, result.size());
 
         return result;
+    }
+
+    @Transactional(transactionManager = "primaryTransactionManager", readOnly = true)
+    public void assertFacultyInSupervisorScope(Long userId, String facultyId) {
+        SchoolYearAndSemester data = schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE).orElseThrow(() -> new RuntimeException("No active school year and semester found."));
+        assertFacultyInSupervisorScope(userId, facultyId, data);
+    }
+
+    private void assertFacultyInSupervisorScope(
+            Long userId,
+            String facultyId,
+            SchoolYearAndSemester data
+    ) {
+        boolean hasScopedClass = primaryClassRepository.existsFacultyInSupervisorScope(
+                userId,
+                facultyId,
+                data.getSchoolYear(),
+                data.getSemester().getValue()
+        );
+
+        if (hasScopedClass) {
+            return;
+        }
+
+        boolean hasScopedWorkload =
+                facultyWorkloadRepository.existsFacultyWorkloadInSupervisorScope(
+                        userId,
+                        facultyId,
+                        data.getSchoolYear(),
+                        data.getSemester().getValue()
+                );
+
+        if (!hasScopedWorkload) {
+            throw new AccessDeniedException("Faculty is outside your assigned scope.");
+        }
     }
 
     @Transactional(transactionManager = "primaryTransactionManager", readOnly = true)

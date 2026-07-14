@@ -9,6 +9,7 @@ import com.faculty_evaluation_backend.fes.entities.primary.enums.Role;
 import com.faculty_evaluation_backend.fes.exceptions.UnauthorizedException;
 import com.faculty_evaluation_backend.fes.repositories.authentication.UserAccountsRepository;
 import com.faculty_evaluation_backend.fes.services.jwt.JwtService;
+import com.faculty_evaluation_backend.fes.services.rateLimiting.RateLimitingService;
 import com.faculty_evaluation_backend.fes.services.token.RefreshTokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -28,12 +29,17 @@ public class AdministratorAccountsAuthenticationService {
     private final JwtConfig jwtConfig;
     private final UserAccountsRepository userAccountsRepository;
     private final RefreshTokenService refreshTokenService;
+    private final RateLimitingService rateLimitingService;
 
     @Transactional(transactionManager = "primaryTransactionManager")
     public UserAuthenticationResponse login(
             LoginRequest loginRequest,
             HttpServletRequest request
     ){
+        rateLimitingService.consumeFacultyRequest(
+                loginRequest.getUsernameOrEmail(),
+                "AUTHENTICATE_ADMINISTRATOR"
+        );
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         loginRequest.getUsernameOrEmail(),

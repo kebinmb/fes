@@ -65,8 +65,6 @@ public class JwtService {
         claims.put("type", "supervisor_access");
         claims.put("role", "ROLE_" + user.getRole().name());
         claims.put("college", user.getCollege().name());
-        claims.put("semester", "1st");
-        claims.put("schoolYear", 2023);
         return createToken(claims, userId.toString(), jwtConfig.getExpiration());
     }
 
