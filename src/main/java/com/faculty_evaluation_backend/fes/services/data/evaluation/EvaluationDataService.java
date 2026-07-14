@@ -50,7 +50,6 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -63,12 +62,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class EvaluationDataService {
-    private static final BigDecimal STANDARD_PREPARATION_LOAD_LIMIT =
-            BigDecimal.valueOf(21);
-    private static final BigDecimal HIGH_PREPARATION_LOAD_LIMIT =
-            BigDecimal.valueOf(18);
-    private static final int HIGH_PREPARATION_THRESHOLD = 3;
-
     private final EvaluationStrategyFactory factory;
     private final FacultyEvaluationScoreRepository facultyEvaluationScoreRepository;
     private final PrimaryFacultyRepository primaryFacultyRepository;
@@ -474,19 +467,19 @@ public class EvaluationDataService {
             return responses;
         }
 
-        List<FacultyWorkload> printableWorkloads =
+        List<FacultyWorkload> regularWorkloads =
                 workloads.stream()
-                        .filter(workload -> !isOverloadWorkload(workload))
+                        .filter(this::isRegularWorkload)
                         .toList();
 
-        if (printableWorkloads.isEmpty()) {
+        if (regularWorkloads.isEmpty()) {
             throw new BadRequestException(
                     "Faculty only has overload subjects, not allowed for printing"
             );
         }
 
         Map<String, FacultyWorkload> workloadsByClassCode =
-                printableWorkloads.stream()
+                regularWorkloads.stream()
                         .filter(workload -> normalizeKey(workload.getClassCode()) != null)
                         .collect(Collectors.toMap(
                                 workload -> normalizeKey(workload.getClassCode()),
@@ -495,75 +488,29 @@ public class EvaluationDataService {
                         ));
 
         Map<String, FacultyWorkload> workloadsByCourseSection =
-                printableWorkloads.stream()
+                regularWorkloads.stream()
                         .collect(Collectors.toMap(
                                 this::workloadCourseSectionKey,
                                 workload -> workload,
                                 this::preferWorkloadWithHours
                         ));
 
-        BigDecimal loadLimit =
-                effectiveLoadLimit(resolveNumberOfPreparations(workloads));
-        BigDecimal selectedLoad = BigDecimal.ZERO;
-        List<FacultyEvaluationPrintResponse> selectedResponses =
-                new ArrayList<>();
-
-        List<FacultyEvaluationPrintResponse> rankedResponses =
-                responses.stream()
-                        .filter(response ->
-                                findMatchingWorkload(
-                                        response,
-                                        workloadsByClassCode,
-                                        workloadsByCourseSection
-                                ).isPresent()
-                        )
-                        .sorted(
-                                Comparator
-                                        .comparingDouble(
-                                                this::printSelectionScore
-                                        )
-                                        .reversed()
-                                        .thenComparing(
-                                                FacultyEvaluationPrintResponse::getSubjectCode,
-                                                Comparator.nullsLast(String::compareTo)
-                                        )
-                                        .thenComparing(
-                                                FacultyEvaluationPrintResponse::getClassCode,
-                                                Comparator.nullsLast(String::compareTo)
-                                        )
-                        )
-                        .toList();
-
-        for (FacultyEvaluationPrintResponse response : rankedResponses) {
-            FacultyWorkload workload =
-                    findMatchingWorkload(
-                            response,
-                            workloadsByClassCode,
-                            workloadsByCourseSection
-                    ).orElse(null);
-
-            if (workload == null) {
-                continue;
-            }
-
-            BigDecimal subjectLoad =
-                    safeBigDecimal(workload.getTotalHoursPerWeek());
-            BigDecimal proposedLoad = selectedLoad.add(subjectLoad);
-
-            if (proposedLoad.compareTo(loadLimit) <= 0) {
-                selectedLoad = proposedLoad;
-                selectedResponses.add(response);
-            }
-        }
-
-        return selectedResponses;
+        return responses.stream()
+                .filter(response ->
+                        findMatchingWorkload(
+                                response,
+                                workloadsByClassCode,
+                                workloadsByCourseSection
+                        ).isPresent()
+                )
+                .toList();
     }
 
-    private boolean isOverloadWorkload(FacultyWorkload workload) {
+    private boolean isRegularWorkload(FacultyWorkload workload) {
         String loadStatus = normalizeKey(workload.getLoadStatus());
 
-        return "OVERLOAD".equals(loadStatus)
-                || "OVERLOAD_LOAD".equals(loadStatus);
+        return "REGULAR".equals(loadStatus)
+                || "REGULAR_LOAD".equals(loadStatus);
     }
 
     private Optional<FacultyWorkload> findMatchingWorkload(
@@ -591,44 +538,6 @@ public class EvaluationDataService {
                 .compareTo(safeBigDecimal(current.getTotalHoursPerWeek())) > 0
                 ? candidate
                 : current;
-    }
-
-    private Integer resolveNumberOfPreparations(List<FacultyWorkload> workloads) {
-        return workloads.stream()
-                .map(FacultyWorkload::getNumberOfPreparations)
-                .filter(value -> value != null && value >= 0)
-                .findFirst()
-                .orElse(0);
-    }
-
-    private BigDecimal effectiveLoadLimit(Integer numberOfPreparations) {
-        if (numberOfPreparations != null
-                && numberOfPreparations >= HIGH_PREPARATION_THRESHOLD) {
-            return HIGH_PREPARATION_LOAD_LIMIT;
-        }
-
-        return STANDARD_PREPARATION_LOAD_LIMIT;
-    }
-
-    private double printSelectionScore(FacultyEvaluationPrintResponse response) {
-        double setRating = safeDouble(response.getSetRating());
-        double sefRating = safeDouble(response.getSefRating());
-        int availableRatings = 0;
-        double total = 0.0;
-
-        if (setRating > 0) {
-            total += setRating;
-            availableRatings++;
-        }
-
-        if (sefRating > 0) {
-            total += sefRating;
-            availableRatings++;
-        }
-
-        return availableRatings == 0
-                ? safeDouble(response.getOverallAverageScore())
-                : total / availableRatings;
     }
 
     private String workloadCourseSectionKey(FacultyWorkload workload) {
@@ -668,10 +577,6 @@ public class EvaluationDataService {
 
     private BigDecimal safeBigDecimal(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
-    }
-
-    private double safeDouble(Double value) {
-        return value == null ? 0.0 : value;
     }
 
     private FacultyEvaluationGeneratedReportResponse toGeneratedReportResponse(
