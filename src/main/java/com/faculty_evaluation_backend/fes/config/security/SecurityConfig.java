@@ -82,7 +82,15 @@ public class SecurityConfig {
         http.cors(cors -> cors.configurationSource(corsConfigurationSource())).csrf(csrf -> csrf
                         .csrfTokenRepository(csrfTokenRepository)
                         .csrfTokenRequestHandler(csrfRequestHandler)
-                        .ignoringRequestMatchers("/oauth2/**", "/login/**", "/verify-report/**")
+                        .ignoringRequestMatchers(
+                                "/oauth2/**",
+                                "/login/**",
+                                "/verify-report/**",
+                                "/auth/access-code/generate",
+                                "/auth/student/login",
+                                "/auth/supervisor/login",
+                                "/auth/administrator/login"
+                        )
                 ).sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)).authorizeHttpRequests(auth -> auth.requestMatchers("/auth/**", "/oauth2/**", "/login/**", "/verify-report/**").permitAll()
 
                         .requestMatchers("/migration/**").hasRole("ADMIN")
