@@ -6,9 +6,11 @@ import com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassDTO;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyDTO;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyLoadDTO;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyProgramLoadsDTO;
+import com.faculty_evaluation_backend.fes.entities.authentication.UserAccounts;
 import com.faculty_evaluation_backend.fes.entities.data.SchoolYearAndSemester;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryFaculty;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.College;
+import com.faculty_evaluation_backend.fes.entities.primary.enums.EvaluationType;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.Majors;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.Programs;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.Status;
@@ -100,7 +102,6 @@ public class SupervisorDataService {
     }
 
     @Transactional(transactionManager = "primaryTransactionManager", readOnly = true)
-    @Cacheable(value = "facultyClasses", key = "#userId + ':' + #facultyId")
     public List<FacultyClassDTO> findFacultyClassesForSupervisor(
             Long userId,
             String facultyId
@@ -110,9 +111,26 @@ public class SupervisorDataService {
 
         log.debug("Fetching classes | facultyId={} | schoolYear={} | semester={}", facultyId, data.getSchoolYear(), data.getSemester());
 
+        UserAccounts supervisor =
+                userAccountsRepository
+                        .findById(userId)
+                        .orElseThrow(() ->
+                                new EntityNotFoundException(
+                                        "User not found with id: " + userId
+                                )
+                        );
+
+        String programCode = resolveProgramCode(supervisor);
+
         assertFacultyInSupervisorScope(userId, facultyId, data);
 
-        List<FacultyClassDTO> result = primaryClassRepository.findFacultyClasses(facultyId, data.getSchoolYear(), data.getSemester().getValue());
+        List<FacultyClassDTO> result =
+                primaryClassRepository.findFacultyClasses(
+                        facultyId,
+                        data.getSchoolYear(),
+                        data.getSemester().getValue(),
+                        programCode
+                );
 
         log.info("Classes fetched | facultyId={} | count={}", facultyId, result.size());
 
@@ -130,24 +148,24 @@ public class SupervisorDataService {
             String facultyId,
             SchoolYearAndSemester data
     ) {
-        boolean hasScopedClass = primaryClassRepository.existsFacultyInSupervisorScope(
+        boolean hasScopedClass = primaryClassRepository.countFacultyInSupervisorScope(
                 userId,
                 facultyId,
                 data.getSchoolYear(),
                 data.getSemester().getValue()
-        );
+        ) > 0;
 
         if (hasScopedClass) {
             return;
         }
 
         boolean hasScopedWorkload =
-                facultyWorkloadRepository.existsFacultyWorkloadInSupervisorScope(
+                facultyWorkloadRepository.countFacultyWorkloadInSupervisorScope(
                         userId,
                         facultyId,
                         data.getSchoolYear(),
                         data.getSemester().getValue()
-                );
+                ) > 0;
 
         if (!hasScopedWorkload) {
             throw new AccessDeniedException("Faculty is outside your assigned scope.");
@@ -156,7 +174,14 @@ public class SupervisorDataService {
 
     @Transactional(transactionManager = "primaryTransactionManager", readOnly = true)
     public boolean hasEvaluated(String facultyId, String evaluatorId, String classCode, String subjectCode, String yearLevel, String semester, Integer schoolYear) {
-        return facultyEvaluationScoreRepository.existsByFacultyIdAndEvaluatorIdAndClassCodeAndSubjectCodeAndYearLevelAndSemesterAndSchoolYear(facultyId, evaluatorId, classCode, subjectCode, yearLevel, semester, schoolYear);
+        return facultyEvaluationScoreRepository.existsByFacultyIdAndEvaluatorIdAndSubjectCodeAndSemesterAndSchoolYearAndEvaluationType(
+                facultyId,
+                evaluatorId,
+                subjectCode,
+                semester,
+                schoolYear,
+                EvaluationType.ROLE_PROGRAM_CHAIR
+        );
     }
 
     @Transactional(
@@ -187,18 +212,20 @@ public class SupervisorDataService {
                 pageable.getPageSize()
         );
 
-        userAccountsRepository.findById(userId)
+        UserAccounts supervisor = userAccountsRepository.findById(userId)
                 .orElseThrow(() ->
                         new EntityNotFoundException(
                                 "User not found with id: " + userId
                         )
                 );
+        String programCode = resolveProgramCode(supervisor);
 
         Page<FacultyProgramLoadsDTO> result =
                 primaryClassRepository.findFacultyPerProgram(
                         userId,
                         search,
                         campus,
+                        programCode,
                         pageable
                 );
 
@@ -275,6 +302,20 @@ public class SupervisorDataService {
         }
 
         return searchTerm.trim();
+    }
+
+    private String resolveProgramCode(UserAccounts userAccount) {
+        if (userAccount == null || userAccount.getPrograms() == null) {
+            return null;
+        }
+
+        String value = userAccount.getPrograms().getValue();
+
+        if (value == null || value.isBlank() || value.equalsIgnoreCase("NULL")) {
+            return null;
+        }
+
+        return value.trim();
     }
 
     private College parseCollege(String college) {

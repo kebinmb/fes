@@ -130,25 +130,34 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
                 pc.faculty_id AS facultyId,
                 pc.school_year AS schoolYear,
                 pc.semester AS semester,
-                pc.class_code AS classCode,
-                ps.year_level AS yearLevel,
-                ps.program_code AS programCode,
-                ps.section_code AS sectionCode
+                MIN(pc.class_code) AS classCode,
+                GROUP_CONCAT(DISTINCT ps.year_level ORDER BY ps.year_level SEPARATOR ', ') AS yearLevel,
+                GROUP_CONCAT(DISTINCT ps.program_code ORDER BY ps.program_code SEPARATOR ', ') AS programCode,
+                GROUP_CONCAT(DISTINCT ps.section_code ORDER BY ps.section_code SEPARATOR ', ') AS sectionCode
             FROM primary_class pc
             INNER JOIN primary_section ps
                 ON pc.section_id = ps.section_id
             WHERE pc.faculty_id = :facultyId
               AND pc.school_year = :schoolYear
               AND pc.semester = :semester
+              AND (
+                    :programCode IS NULL
+                    OR :programCode = ''
+                    OR (UPPER(TRIM(CAST(ps.program_code AS CHAR))) COLLATE utf8mb4_unicode_ci) =
+                       (UPPER(TRIM(CAST(:programCode AS CHAR))) COLLATE utf8mb4_unicode_ci)
+              )
               AND pc.class_code IS NOT NULL
               AND pc.subject_code IS NOT NULL
               AND pc.section_id IS NOT NULL
+            GROUP BY
+                pc.subject_code,
+                pc.faculty_id,
+                pc.school_year,
+                pc.semester
             ORDER BY
                 pc.subject_code ASC,
-                ps.program_code ASC,
-                ps.year_level ASC,
-                ps.section_code ASC,
-                pc.class_code ASC
+                sectionCode ASC,
+                classCode ASC
             """, nativeQuery = true)
     List<FacultyClassDTO> findFacultyClasses(
 
@@ -156,10 +165,12 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
 
             @Param("schoolYear") Integer schoolYear,
 
-            @Param("semester") String semester);
+            @Param("semester") String semester,
+
+            @Param("programCode") String programCode);
 
     @Query(value = """
-            SELECT CASE WHEN COUNT(*) > 0 THEN TRUE ELSE FALSE END
+            SELECT COUNT(*)
             FROM primary_class pc
             INNER JOIN primary_faculty pf
                 ON (CAST(pf.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
@@ -174,7 +185,7 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
               AND (LOWER(TRIM(CAST(pc.semester AS CHAR))) COLLATE utf8mb4_unicode_ci) =
                   (LOWER(TRIM(CAST(:semester AS CHAR))) COLLATE utf8mb4_unicode_ci)
             """, nativeQuery = true)
-    boolean existsFacultyInSupervisorScope(
+    long countFacultyInSupervisorScope(
             @Param("userId") Long userId,
             @Param("facultyId") String facultyId,
             @Param("schoolYear") Integer schoolYear,
@@ -480,6 +491,15 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
 
         )
 
+        AND (
+
+                :programCode IS NULL
+                OR :programCode = ''
+                OR (UPPER(TRIM(CAST(ps.program_code AS CHAR))) COLLATE utf8mb4_unicode_ci)
+                    = (UPPER(TRIM(CAST(:programCode AS CHAR))) COLLATE utf8mb4_unicode_ci)
+
+        )
+
         AND UPPER(pf.status) = 'ACTIVE'
 
         ORDER BY
@@ -532,6 +552,15 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
 
         )
 
+        AND (
+
+                :programCode IS NULL
+                OR :programCode = ''
+                OR (UPPER(TRIM(CAST(ps.program_code AS CHAR))) COLLATE utf8mb4_unicode_ci)
+                    = (UPPER(TRIM(CAST(:programCode AS CHAR))) COLLATE utf8mb4_unicode_ci)
+
+        )
+
         AND UPPER(pf.status) = 'ACTIVE'
 
         """,
@@ -544,6 +573,8 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
             @Param("search") String search,
 
             @Param("campus") String campus,
+
+            @Param("programCode") String programCode,
 
             Pageable pageable
     );

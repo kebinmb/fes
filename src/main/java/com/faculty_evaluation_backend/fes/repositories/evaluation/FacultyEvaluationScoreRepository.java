@@ -7,6 +7,7 @@ import com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassDetailsDTO;
 import com.faculty_evaluation_backend.fes.dto.dashboard.SupervisorEvaluationDashboardProjection;
 import com.faculty_evaluation_backend.fes.dto.dashboard.SupervisorEvaluationDashboardMetricsProjection;
 import com.faculty_evaluation_backend.fes.entities.evaluation.FacultyEvaluationScore;
+import com.faculty_evaluation_backend.fes.entities.primary.enums.EvaluationType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -26,6 +27,8 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
     Page<FacultyEvaluationScore> findAllWithFaculty(Pageable pageable);
 
     boolean existsByFacultyIdAndEvaluatorIdAndClassCodeAndSubjectCodeAndYearLevelAndSemesterAndSchoolYear(String facultyId, String evaluatorId, String classCode, String subjectCode, String yearLevel, String semester, Integer schoolYear);
+
+    boolean existsByFacultyIdAndEvaluatorIdAndSubjectCodeAndSemesterAndSchoolYearAndEvaluationType(String facultyId, String evaluatorId, String subjectCode, String semester, Integer schoolYear, EvaluationType evaluationType);
 
     Integer countDistinctEvaluatedSubjectsByEvaluatorId(String evaluatorId);
 
