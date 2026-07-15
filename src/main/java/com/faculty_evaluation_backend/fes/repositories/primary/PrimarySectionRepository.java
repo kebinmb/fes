@@ -2,7 +2,7 @@ package com.faculty_evaluation_backend.fes.repositories.primary;
 
 
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadSectionOptionResponse;
-import com.faculty_evaluation_backend.fes.dto.student.StudentSectionDTO;
+import com.faculty_evaluation_backend.fes.dto.student.StudentSectionEvaluationProjection;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimarySection;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -192,7 +192,7 @@ public interface PrimarySectionRepository extends JpaRepository<PrimarySection, 
                     """,
             nativeQuery = true
     )
-    Page<Object[]> getStudentSectionEvaluationData(
+    Page<StudentSectionEvaluationProjection> getStudentSectionEvaluationData(
             @Param("programCode") String programCode,
             @Param("yearLevel") String yearLevel,
             @Param("sectionCode") String sectionCode,

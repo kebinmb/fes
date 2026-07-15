@@ -1,6 +1,7 @@
 package com.faculty_evaluation_backend.fes.entities.data;
 
 import com.faculty_evaluation_backend.fes.entities.data.enums.Semester;
+import com.faculty_evaluation_backend.fes.utilities.normalization.SemesterNormalizer;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 
@@ -18,7 +19,7 @@ public class SemesterConverter
             return null;
         }
 
-        return semester.getValue();
+        return SemesterNormalizer.toCanonicalValue(semester.getValue());
     }
 
     @Override
@@ -31,6 +32,6 @@ public class SemesterConverter
             return null;
         }
 
-        return Semester.fromValue(dbValue);
+        return Semester.fromValue(SemesterNormalizer.toCanonicalValue(dbValue));
     }
 }

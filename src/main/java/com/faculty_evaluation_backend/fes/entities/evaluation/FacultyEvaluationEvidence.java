@@ -3,6 +3,7 @@ package com.faculty_evaluation_backend.fes.entities.evaluation;
 import com.faculty_evaluation_backend.fes.audit.Auditable;
 import com.faculty_evaluation_backend.fes.entities.evaluation.enums.EvaluationEvidenceCriterion;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryFaculty;
+import com.faculty_evaluation_backend.fes.utilities.normalization.SemesterNormalizer;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -103,4 +104,10 @@ public class FacultyEvaluationEvidence extends Auditable {
 
     @Column(name = "file_path", nullable = false)
     private String filePath;
+
+    @PrePersist
+    @PreUpdate
+    void prepareForSave() {
+        semester = SemesterNormalizer.toCanonicalValue(semester);
+    }
 }

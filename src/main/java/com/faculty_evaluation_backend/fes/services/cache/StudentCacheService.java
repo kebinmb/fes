@@ -38,7 +38,7 @@ public class StudentCacheService {
     }
     @Cacheable(value = "activeAccessCode", key = "#studentId")
     public Optional<StudentAccessCode> getActiveAccessCode(String studentId){
-        return studentAccessCodeRepository.findLatestValidAccessCodeForUpdate(studentId, Instant.now());
+        return studentAccessCodeRepository.findLatestValidAccessCode(studentId, Instant.now());
     }
     @CacheEvict(value = {"activeAccessCode", "evaluatedCount"}, key = "#studentId")
     public void evictStudent(String studentId){

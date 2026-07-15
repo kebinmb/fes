@@ -4,9 +4,13 @@ package com.faculty_evaluation_backend.fes.repositories.primary;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassDTO;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyLoadDTO;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyProgramLoadsDTO;
+import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadClassOptionProjection;
+import com.faculty_evaluation_backend.fes.dto.dashboard.ClassStudentEvaluationStatProjection;
+import com.faculty_evaluation_backend.fes.dto.dashboard.ClassStudentEvaluationTotalsProjection;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryClass;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -18,13 +22,14 @@ import java.util.Set;
 
 @Repository
 public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long> {
+    @EntityGraph(attributePaths = {"faculty", "section", "subject"})
     @Query(
             value = """
                     SELECT pc
                     FROM PrimaryClass pc
-                    LEFT JOIN FETCH pc.faculty faculty
-                    LEFT JOIN FETCH pc.section section
-                    LEFT JOIN FETCH pc.subject subject
+                    LEFT JOIN pc.faculty faculty
+                    LEFT JOIN pc.section section
+                    LEFT JOIN pc.subject subject
                     WHERE pc.schoolYear = :schoolYear
                       AND LOWER(TRIM(pc.semester)) = LOWER(TRIM(:semester))
                       AND (
@@ -254,7 +259,7 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
                 ps.section_code ASC,
                 pc.class_code ASC
             """, nativeQuery = true)
-    List<Object[]> findFacultyWorkloadClassOptionRows(
+    List<FacultyWorkloadClassOptionProjection> findFacultyWorkloadClassOptionRows(
             @Param("facultyId") String facultyId,
             @Param("schoolYear") Integer schoolYear,
             @Param("semester") String semester
@@ -741,7 +746,7 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
           )
         """,
             nativeQuery = true)
-    Page<Object[]> findClassStudentEvaluationStatClassPage(
+    Page<ClassStudentEvaluationStatProjection> findClassStudentEvaluationStatClassPage(
             @Param("schoolYear") Integer schoolYear,
             @Param("semester") String semester,
             @Param("legacyDatabase") String legacyDatabase,
@@ -810,7 +815,7 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
           AND LOWER(TRIM(pc.semester)) = LOWER(TRIM(:semester))
         GROUP BY pc.class_code
         """, nativeQuery = true)
-    List<Object[]> findClassStudentEvaluationTotalsForClasses(
+    List<ClassStudentEvaluationTotalsProjection> findClassStudentEvaluationTotalsForClasses(
             @Param("classCodes") List<String> classCodes,
             @Param("schoolYear") Integer schoolYear,
             @Param("semester") String semester

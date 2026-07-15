@@ -1,8 +1,11 @@
 package com.faculty_evaluation_backend.fes.services.data.supervisor;
 
 import com.faculty_evaluation_backend.fes.dto.dashboard.ClassStudentEvaluationStatsResponse;
+import com.faculty_evaluation_backend.fes.dto.dashboard.ClassStudentEvaluationStatProjection;
+import com.faculty_evaluation_backend.fes.dto.dashboard.ClassStudentEvaluationTotalsProjection;
 import com.faculty_evaluation_backend.fes.dto.data.SchoolYearAndSemesterDTO;
 import com.faculty_evaluation_backend.fes.dto.evaluation.EvaluatedStudentsDTO;
+import com.faculty_evaluation_backend.fes.dto.evaluation.EvaluatedStudentsProjection;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassDTO;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyDTO;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyLoadDTO;
@@ -358,7 +361,7 @@ public class SupervisorDataService {
                 Sort.unsorted()
         );
 
-        Page<Object[]> classPage =
+        Page<ClassStudentEvaluationStatProjection> classPage =
                 primaryClassRepository.findClassStudentEvaluationStatClassPage(
                         activeTerm.getSchoolYear(),
                         activeTerm.getSemester().getValue(),
@@ -380,8 +383,8 @@ public class SupervisorDataService {
         List<String> classCodes = classPage
                 .getContent()
                 .stream()
-                .map(row -> safeString(row, 0))
-                .filter(value -> !value.isBlank())
+                .map(ClassStudentEvaluationStatProjection::getClassCode)
+                .filter(value -> value != null && !value.isBlank())
                 .distinct()
                 .toList();
 
@@ -400,7 +403,7 @@ public class SupervisorDataService {
                                 toClassStudentEvaluationStatsResponse(
                                         row,
                                         totalsByClassCode.getOrDefault(
-                                                safeString(row, 0),
+                                                emptyIfNull(row.getClassCode()),
                                                 StudentEvaluationTotals.empty()
                                         )
                                 )
@@ -414,16 +417,18 @@ public class SupervisorDataService {
         );
     }
 
-    private EvaluatedStudentsDTO toEvaluatedStudentsDTO(Object[] row) {
+    private EvaluatedStudentsDTO toEvaluatedStudentsDTO(
+            EvaluatedStudentsProjection row
+    ) {
         return new EvaluatedStudentsDTO(
-                row[0] == null ? null : row[0].toString(),
-                row[1] == null ? null : row[1].toString(),
-                row[2] == null ? null : row[2].toString(),
-                row[3] == null ? null : row[3].toString(),
-                row[4] == null ? null : row[4].toString(),
-                row[5] == null ? null : row[5].toString(),
-                row[6] == null ? null : row[6].toString(),
-                row[7] == null ? null : row[7].toString()
+                row.getEvaluationSubmissionDate(),
+                row.getEvaluatorId(),
+                row.getSubjectCode(),
+                row.getFacultyId(),
+                row.getStudentLastname(),
+                row.getStudentFirstname(),
+                row.getFirstname(),
+                row.getLastname()
         );
     }
 
@@ -444,7 +449,7 @@ public class SupervisorDataService {
     }
 
     private ClassStudentEvaluationStatsResponse toClassStudentEvaluationStatsResponse(
-            Object[] row,
+            ClassStudentEvaluationStatProjection row,
             StudentEvaluationTotals totals
     ) {
         Long totalStudents = totals.totalStudents();
@@ -455,13 +460,13 @@ public class SupervisorDataService {
                 : Math.round((evaluatedStudents * 10000.0) / totalStudents) / 100.0;
 
         return new ClassStudentEvaluationStatsResponse(
-                safeString(row, 0),
-                safeString(row, 1),
-                safeString(row, 2),
-                safeString(row, 3),
-                safeString(row, 4),
-                safeString(row, 5),
-                safeString(row, 6),
+                emptyIfNull(row.getClassCode()),
+                emptyIfNull(row.getFacultyId()),
+                emptyIfNull(row.getFacultyName()),
+                emptyIfNull(row.getSubjectCode()),
+                emptyIfNull(row.getProgramCode()),
+                emptyIfNull(row.getYearLevel()),
+                emptyIfNull(row.getSectionCode()),
                 totalStudents,
                 evaluatedStudents,
                 pendingStudents,
@@ -478,7 +483,7 @@ public class SupervisorDataService {
             return Map.of();
         }
 
-        List<Object[]> totalRows =
+        List<ClassStudentEvaluationTotalsProjection> totalRows =
                 primaryClassRepository.findClassStudentEvaluationTotalsForClasses(
                         classCodes,
                         schoolYear,
@@ -487,12 +492,12 @@ public class SupervisorDataService {
 
         Map<String, StudentEvaluationTotals> totals = new HashMap<>();
 
-        for (Object[] row : totalRows) {
+        for (ClassStudentEvaluationTotalsProjection row : totalRows) {
             totals.put(
-                    safeString(row, 0),
+                    emptyIfNull(row.getClassCode()),
                     new StudentEvaluationTotals(
-                            safeLong(row, 1),
-                            safeLong(row, 2)
+                            safeLong(row.getTotalStudents()),
+                            safeLong(row.getEvaluatedStudents())
                     )
             );
         }
@@ -509,23 +514,12 @@ public class SupervisorDataService {
         }
     }
 
-    private String safeString(Object[] row, int index) {
-        Object value = row[index];
-        return value == null ? "" : value.toString();
+    private String emptyIfNull(String value) {
+        return value == null ? "" : value;
     }
 
-    private Long safeLong(Object[] row, int index) {
-        Object value = row[index];
-
-        if (value == null) {
-            return 0L;
-        }
-
-        if (value instanceof Number number) {
-            return number.longValue();
-        }
-
-        return Long.parseLong(value.toString());
+    private Long safeLong(Long value) {
+        return value == null ? 0L : value;
     }
 
     private String resolveProgramCode(UserAccounts userAccount) {

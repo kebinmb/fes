@@ -2,6 +2,7 @@ package com.faculty_evaluation_backend.fes.entities.primary;
 
 import com.faculty_evaluation_backend.fes.audit.Auditable;
 import com.faculty_evaluation_backend.fes.migration.entity.MigratableEntity;
+import com.faculty_evaluation_backend.fes.utilities.normalization.SemesterNormalizer;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -50,4 +51,10 @@ public class PrimaryClass extends MigratableEntity {
     private String scheduleTime;
     @Column(name = "room")
     private String room;
+
+    @PrePersist
+    @PreUpdate
+    void prepareForSave() {
+        semester = SemesterNormalizer.toCanonicalValue(semester);
+    }
 }

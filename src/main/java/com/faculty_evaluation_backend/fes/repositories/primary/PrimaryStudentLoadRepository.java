@@ -130,9 +130,16 @@ public interface PrimaryStudentLoadRepository extends JpaRepository<PrimaryStude
            (psl.student_id)
         AND (fes.class_code) =
             (psl.class_code)
+        AND fes.faculty_id = pc.faculty_id
+        AND fes.subject_code = pc.subject_code
+        AND fes.year_level = ps.year_level
         AND fes.school_year = pc.school_year
         AND (fes.semester) =
             (pc.semester)
+        AND (
+            fes.evaluation_type = 'ROLE_STUDENT'
+            OR fes.evaluation_type IS NULL
+        )
 
     WHERE
         (ps.program_code) =

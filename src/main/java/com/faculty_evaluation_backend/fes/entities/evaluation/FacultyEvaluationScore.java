@@ -4,6 +4,7 @@ import com.faculty_evaluation_backend.fes.audit.Auditable;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryFaculty;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryStudent;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.EvaluationType;
+import com.faculty_evaluation_backend.fes.utilities.normalization.SemesterNormalizer;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -305,6 +306,7 @@ public class FacultyEvaluationScore extends Auditable {
     @PrePersist
     @PreUpdate
     public void prePersist() {
+        semester = SemesterNormalizer.toCanonicalValue(semester);
 
         calculateOverallScore();
     }

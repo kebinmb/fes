@@ -46,6 +46,10 @@ public interface FacultyWorkloadRepository
                                 UPPER(TRIM(:semester)) IN ('2ND', 'SECOND_SEMESTER')
                                 AND UPPER(TRIM(fw.semester)) IN ('2ND', 'SECOND_SEMESTER')
                             )
+                            OR (
+                                UPPER(TRIM(:semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
+                                AND UPPER(TRIM(fw.semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
+                            )
                       )
                     """
     )
@@ -73,6 +77,10 @@ public interface FacultyWorkloadRepository
                     OR (
                         UPPER(TRIM(:semester)) IN ('2ND', 'SECOND_SEMESTER')
                         AND UPPER(TRIM(fw.semester)) IN ('2ND', 'SECOND_SEMESTER')
+                    )
+                    OR (
+                        UPPER(TRIM(:semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
+                        AND UPPER(TRIM(fw.semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
                     )
               )
             """)

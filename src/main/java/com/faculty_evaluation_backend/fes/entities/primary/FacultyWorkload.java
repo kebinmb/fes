@@ -2,6 +2,7 @@ package com.faculty_evaluation_backend.fes.entities.primary;
 
 import com.faculty_evaluation_backend.fes.audit.Auditable;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.FacultyWorkloadSource;
+import com.faculty_evaluation_backend.fes.utilities.normalization.SemesterNormalizer;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -142,6 +143,8 @@ public class FacultyWorkload extends Auditable {
     @PrePersist
     @PreUpdate
     void prepareForSave() {
+        semester = SemesterNormalizer.toCanonicalValue(semester);
+
         if (totalHoursPerWeek == null) {
             totalHoursPerWeek = BigDecimal.ZERO;
         }

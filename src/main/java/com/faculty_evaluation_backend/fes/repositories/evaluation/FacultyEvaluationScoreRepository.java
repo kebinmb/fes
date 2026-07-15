@@ -1,13 +1,14 @@
 package com.faculty_evaluation_backend.fes.repositories.evaluation;
 
 
-import com.faculty_evaluation_backend.fes.dto.evaluation.EvaluatedStudentsDTO;
-import com.faculty_evaluation_backend.fes.dto.evaluation.StudentFacultyEvaluationDTO;
-import com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassDetailsDTO;
+import com.faculty_evaluation_backend.fes.dto.evaluation.EvaluatedStudentsProjection;
+import com.faculty_evaluation_backend.fes.dto.evaluation.StudentFacultyEvaluationProjection;
+import com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassDetailsProjection;
 import com.faculty_evaluation_backend.fes.dto.dashboard.SupervisorEvaluationDashboardProjection;
 import com.faculty_evaluation_backend.fes.dto.dashboard.SupervisorEvaluationDashboardMetricsProjection;
 import com.faculty_evaluation_backend.fes.entities.evaluation.FacultyEvaluationScore;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.EvaluationType;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -20,10 +21,17 @@ import java.util.List;
 @Repository
 public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyEvaluationScore, Long> {
 
-    @Query("""
-                SELECT f FROM FacultyEvaluationScore f
-                JOIN FETCH f.faculty
-            """)
+    @EntityGraph(attributePaths = "faculty")
+    @Query(
+            value = """
+                    SELECT f
+                    FROM FacultyEvaluationScore f
+                    """,
+            countQuery = """
+                    SELECT COUNT(f)
+                    FROM FacultyEvaluationScore f
+                    """
+    )
     Page<FacultyEvaluationScore> findAllWithFaculty(Pageable pageable);
 
     boolean existsByFacultyIdAndEvaluatorIdAndClassCodeAndSubjectCodeAndYearLevelAndSemesterAndSchoolYear(String facultyId, String evaluatorId, String classCode, String subjectCode, String yearLevel, String semester, Integer schoolYear);
@@ -53,10 +61,10 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
     @Query(
             value = """
                     SELECT DISTINCT
-                        fes.class_code,
-                        ps.section_code,
-                        ps.program_code,
-                        ps.year_level
+                        fes.class_code AS classCode,
+                        ps.section_code AS sectionCode,
+                        ps.program_code AS programCode,
+                        ps.year_level AS yearLevel
                     FROM faculty_evaluation_score fes
                     INNER JOIN primary_class pc
                         ON fes.class_code = pc.class_code
@@ -68,10 +76,10 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
                     WHERE fes.faculty_id = :facultyId
                       AND fes.school_year = :schoolYear
                       AND fes.semester = :semester
-                    """,
+            """,
             nativeQuery = true
     )
-    List<Object[]> findDistinctClassDetailsByFacultyIdAndSchoolYearAndSemester(
+    List<FacultyClassDetailsProjection> findDistinctClassDetailsByFacultyIdAndSchoolYearAndSemester(
             @Param("facultyId") String facultyId,
             @Param("schoolYear") Integer schoolYear,
             @Param("semester") String semester
@@ -81,16 +89,16 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
 
     @Query(value = """
             SELECT
-                ps.student_id,
-                ps.student_firstname,
-                ps.student_lastname,
-                pc.class_code,
-                pse.program_code,
-                pse.section_code,
-                pc.faculty_id,
-                pf.firstname,
-                pf.lastname,
-                fes.created_at
+                ps.student_id AS studentId,
+                ps.student_firstname AS studentFirstname,
+                ps.student_lastname AS studentLastname,
+                pc.class_code AS classCode,
+                pse.program_code AS programCode,
+                pse.section_code AS sectionCode,
+                pc.faculty_id AS facultyId,
+                pf.firstname AS facultyFirstname,
+                pf.lastname AS facultyLastname,
+                fes.created_at AS createdAt
             FROM faculty_evaluation_score fes
             INNER JOIN primary_student ps
                 ON (fes.evaluator_id) =
@@ -222,7 +230,7 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
                     OR LOWER(pf.lastname) LIKE LOWER(CONCAT('%', :search, '%'))
                 )
             """, nativeQuery = true)
-    Page<Object[]> findStudentFacultyEvaluationDetails(@Param("search") String search, Pageable pageable);
+    Page<StudentFacultyEvaluationProjection> findStudentFacultyEvaluationDetails(@Param("search") String search, Pageable pageable);
 
     @Query(
             value = """
@@ -278,7 +286,7 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
                     """,
             nativeQuery = true
     )
-    Page<Object[]> findEvaluatedStudents(
+    Page<EvaluatedStudentsProjection> findEvaluatedStudents(
             @Param("legacyDatabase") String legacyDatabase,
             @Param("schoolYear") Integer schoolYear,
             @Param("semester") String semester,

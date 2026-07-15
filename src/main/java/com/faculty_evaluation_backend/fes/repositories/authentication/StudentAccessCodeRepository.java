@@ -47,6 +47,20 @@ public interface StudentAccessCodeRepository
             @Param("now") Instant now
     );
 
+    @Query(value = """
+        SELECT *
+        FROM student_access_codes
+        WHERE student_id = :studentId
+          AND is_used = false
+          AND expires_at > :now
+        ORDER BY created_at DESC
+        LIMIT 1
+        """, nativeQuery = true)
+    Optional<StudentAccessCode> findLatestValidAccessCode(
+            @Param("studentId") String studentId,
+            @Param("now") Instant now
+    );
+
     // =========================================================
     // MARIA DB SAFE PESSIMISTIC LOCK
     // =========================================================

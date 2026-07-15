@@ -2,6 +2,7 @@ package com.faculty_evaluation_backend.fes.entities.evaluation;
 
 import com.faculty_evaluation_backend.fes.audit.Auditable;
 import com.faculty_evaluation_backend.fes.entities.evaluation.enums.FacultyEvaluationReportStatus;
+import com.faculty_evaluation_backend.fes.utilities.normalization.SemesterNormalizer;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -9,6 +10,8 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Lob;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -80,4 +83,10 @@ public class FacultyEvaluationReport extends Auditable {
 
     @Column(name = "generated_at", nullable = false)
     private Instant generatedAt;
+
+    @PrePersist
+    @PreUpdate
+    void prepareForSave() {
+        semester = SemesterNormalizer.toCanonicalValue(semester);
+    }
 }

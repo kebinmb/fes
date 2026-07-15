@@ -109,7 +109,7 @@ public interface PrimaryFacultyRepository extends JpaRepository<PrimaryFaculty, 
     );
 
     @Transactional
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
                 UPDATE PrimaryFaculty f
                 SET

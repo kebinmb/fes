@@ -6,6 +6,7 @@ import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationPrintR
 import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationGeneratedReportResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationReportVerificationResponse;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassDetailsDTO;
+import com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassDetailsProjection;
 import com.faculty_evaluation_backend.fes.entities.authentication.CustomUserDetails;
 import com.faculty_evaluation_backend.fes.entities.authentication.UserAccounts;
 import com.faculty_evaluation_backend.fes.entities.data.SchoolYearAndSemester;
@@ -32,6 +33,7 @@ import com.faculty_evaluation_backend.fes.repositories.primary.PrimarySubjectRep
 import com.faculty_evaluation_backend.fes.services.data.evaluation.strategies.EvaluationStrategy;
 import com.faculty_evaluation_backend.fes.services.data.evaluation.strategies.EvaluationStrategyFactory;
 import com.faculty_evaluation_backend.fes.exceptions.BadRequestException;
+import com.faculty_evaluation_backend.fes.utilities.normalization.SemesterNormalizer;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.zxing.BarcodeFormat;
@@ -105,6 +107,7 @@ public class EvaluationDataService {
             @CacheEvict(value = "supervisorEvaluatedStudents", allEntries = true)
     })
     public FacultyEvaluationScore submit(BaseEvaluationDTO baseEvaluationDTO) {
+        normalizeEvaluationTerm(baseEvaluationDTO);
         log.info("Submitting {} evaluation", baseEvaluationDTO.getEvaluationType());
         primaryFacultyRepository.findByFacultyId(baseEvaluationDTO.getFacultyId()).orElseThrow(() -> new RuntimeException("Faculty not found"));
         primarySubjectRepository.findBySubjectCode(baseEvaluationDTO.getSubjectCode()).orElseThrow(() -> new RuntimeException("Subject not found"));
@@ -118,6 +121,16 @@ public class EvaluationDataService {
             throw new RuntimeException("Incomplete Evaluation");
         }
         return facultyEvaluationScoreRepository.save(evaluationScore);
+    }
+
+    private void normalizeEvaluationTerm(BaseEvaluationDTO baseEvaluationDTO) {
+        if (baseEvaluationDTO == null) {
+            return;
+        }
+
+        baseEvaluationDTO.setSemester(
+                SemesterNormalizer.toCanonicalValue(baseEvaluationDTO.getSemester())
+        );
     }
 
     @Cacheable(value = "facultyEvaluationReports", key = "#facultyId")
@@ -538,12 +551,14 @@ public class EvaluationDataService {
         return Math.round(average * 100.0) / 100.0;
     }
 
-    private FacultyClassDetailsDTO toFacultyClassDetailsDTO(Object[] row) {
+    private FacultyClassDetailsDTO toFacultyClassDetailsDTO(
+            FacultyClassDetailsProjection row
+    ) {
         return new FacultyClassDetailsDTO(
-                row[0] == null ? null : row[0].toString(),
-                row[1] == null ? null : row[1].toString(),
-                row[2] == null ? null : row[2].toString(),
-                row[3] == null ? null : row[3].toString()
+                row.getClassCode(),
+                row.getSectionCode(),
+                row.getProgramCode(),
+                row.getYearLevel()
         );
     }
 

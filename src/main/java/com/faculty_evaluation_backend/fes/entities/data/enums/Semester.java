@@ -1,5 +1,7 @@
 package com.faculty_evaluation_backend.fes.entities.data.enums;
 
+import com.faculty_evaluation_backend.fes.utilities.normalization.SemesterNormalizer;
+
 public enum Semester {
 
     FIRST_SEMESTER("1st"),
@@ -23,11 +25,12 @@ public enum Semester {
     public static Semester fromValue(
             String value
     ) {
+        String canonicalValue = SemesterNormalizer.toCanonicalValue(value);
 
         for (Semester semester : values()) {
 
             if (
-                    semester.value.equalsIgnoreCase(value)
+                    semester.value.equalsIgnoreCase(canonicalValue)
             ) {
 
                 return semester;

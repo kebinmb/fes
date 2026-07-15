@@ -10,6 +10,7 @@ import com.faculty_evaluation_backend.fes.exceptions.ResourceNotFoundException;
 import com.faculty_evaluation_backend.fes.repositories.evaluation.FacultyEvaluationEvidenceRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryFacultyRepository;
 import com.faculty_evaluation_backend.fes.services.data.evidence.storage.EvidenceStorageService;
+import com.faculty_evaluation_backend.fes.utilities.normalization.SemesterNormalizer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.io.Resource;
@@ -139,7 +140,7 @@ public class FacultyEvaluationEvidenceService {
                         .classCode(blankToNull(classCode))
                         .subjectCode(blankToNull(subjectCode))
                         .yearLevel(blankToNull(yearLevel))
-                        .semester(blankToNull(semester))
+                        .semester(normalizeSemester(semester))
                         .schoolYear(schoolYear)
                         .criterion(criterion)
                         .description(blankToNull(description))
@@ -184,7 +185,7 @@ public class FacultyEvaluationEvidenceService {
                         facultyId.trim(),
                         blankToNull(classCode),
                         blankToNull(subjectCode),
-                        blankToNull(semester),
+                        normalizeSemester(semester),
                         schoolYear,
                         criterion,
                         optimizedPageable
@@ -219,7 +220,7 @@ public class FacultyEvaluationEvidenceService {
                                 facultyId.trim(),
                                 blankToNull(classCode),
                                 blankToNull(subjectCode),
-                                blankToNull(semester),
+                                normalizeSemester(semester),
                                 schoolYear,
                                 criterion,
                                 optimizedPageable(pageable)
@@ -373,6 +374,10 @@ public class FacultyEvaluationEvidenceService {
         return value == null || value.isBlank()
                 ? null
                 : value.trim();
+    }
+
+    private String normalizeSemester(String value) {
+        return SemesterNormalizer.toCanonicalValue(value);
     }
 
     private Pageable optimizedPageable(Pageable pageable) {

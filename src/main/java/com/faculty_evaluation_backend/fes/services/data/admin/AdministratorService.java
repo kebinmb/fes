@@ -17,7 +17,9 @@ import com.faculty_evaluation_backend.fes.dto.dashboard.SupervisorEvaluationDash
 import com.faculty_evaluation_backend.fes.dto.dashboard.SupervisorEvaluationDashboardResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.StudentEvaluationStatusResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.StudentFacultyEvaluationDTO;
+import com.faculty_evaluation_backend.fes.dto.evaluation.StudentFacultyEvaluationProjection;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadClassOptionResponse;
+import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadClassOptionProjection;
 import com.faculty_evaluation_backend.fes.dto.faculty.ClassFacultyAssignmentResponse;
 import com.faculty_evaluation_backend.fes.dto.faculty.ClassFacultyReassignmentRequest;
 import com.faculty_evaluation_backend.fes.dto.faculty.ClassFacultyReassignmentResponse;
@@ -29,6 +31,7 @@ import com.faculty_evaluation_backend.fes.dto.response.FetchFacultyEvaluationSco
 import com.faculty_evaluation_backend.fes.dto.response.FetchFacultyResponse;
 import com.faculty_evaluation_backend.fes.dto.response.FetchUserAccountsResponse;
 import com.faculty_evaluation_backend.fes.dto.student.PageResponse;
+import com.faculty_evaluation_backend.fes.dto.student.StudentSectionEvaluationProjection;
 import com.faculty_evaluation_backend.fes.dto.student.StudentSectionDTO;
 import com.faculty_evaluation_backend.fes.dto.user_accounts.CreateUserAccountDTO;
 import com.faculty_evaluation_backend.fes.dto.user_accounts.UpdateUserAccountDTO;
@@ -55,6 +58,7 @@ import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryFacultyRep
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimarySectionRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryStudentLoadRepository;
 import com.faculty_evaluation_backend.fes.utilities.mapper.PageMapper;
+import com.faculty_evaluation_backend.fes.utilities.normalization.SemesterNormalizer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -65,7 +69,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -446,7 +449,7 @@ public class AdministratorService {
         String resolvedSemester =
                 normalizeBlank(semester) == null
                         ? activeTerm.semester()
-                        : normalizeAcademicSemester(semester);
+                        : normalizeSemester(semester);
         String normalizedStatus =
                 normalizeSupervisorEvaluationStatus(evaluationStatus);
         String normalizedSearch = normalizeBlank(search);
@@ -692,7 +695,7 @@ public class AdministratorService {
                 facultyWorkloadRepository.searchWorkloads(
                         normalizeBlank(search),
                         schoolYear,
-                        normalizeBlank(semester),
+                        normalizeSemester(semester),
                         pageable
                 );
 
@@ -734,7 +737,7 @@ public class AdministratorService {
         validateFacultyWorkloadRequest(request);
 
         String facultyId = request.getFacultyId().trim();
-        String semester = request.getSemester().trim();
+        String semester = normalizeSemester(request.getSemester());
 
         primaryFacultyRepository.findByFacultyId(facultyId)
                 .orElseThrow(() ->
@@ -958,7 +961,7 @@ public class AdministratorService {
 
         return primarySectionRepository.findAvailableFacultyWorkloadSections(
                 schoolYear,
-                normalizeAcademicSemester(semester)
+                normalizeSemester(semester)
         );
     }
 
@@ -996,38 +999,28 @@ public class AdministratorService {
         return primaryClassRepository.findFacultyWorkloadClassOptionRows(
                         facultyId.trim(),
                         schoolYear,
-                        normalizeAcademicSemester(semester)
+                        normalizeSemester(semester)
                 )
                 .stream()
                 .map(this::toFacultyWorkloadClassOptionResponse)
                 .toList();
     }
 
-    private FacultyWorkloadClassOptionResponse toFacultyWorkloadClassOptionResponse(Object[] row) {
+    private FacultyWorkloadClassOptionResponse toFacultyWorkloadClassOptionResponse(
+            FacultyWorkloadClassOptionProjection row
+    ) {
         return new FacultyWorkloadClassOptionResponse(
-                toStringValue(row[0]),
-                toStringValue(row[1]),
-                toIntegerValue(row[2]),
-                toStringValue(row[3]),
-                toStringValue(row[4]),
-                toStringValue(row[5])
+                emptyIfNull(row.getClassCode()),
+                emptyIfNull(row.getCourseCode()),
+                row.getSectionId(),
+                emptyIfNull(row.getProgramCode()),
+                emptyIfNull(row.getYearLevel()),
+                emptyIfNull(row.getSectionCode())
         );
     }
 
-    private String toStringValue(Object value) {
-        return value == null ? "" : value.toString();
-    }
-
-    private Integer toIntegerValue(Object value) {
-        if (value == null) {
-            return null;
-        }
-
-        if (value instanceof Number number) {
-            return number.intValue();
-        }
-
-        return Integer.valueOf(value.toString());
+    private String emptyIfNull(String value) {
+        return value == null ? "" : value;
     }
 
     @Cacheable(
@@ -1048,9 +1041,14 @@ public class AdministratorService {
                 sort
         );
 
-        Page<Object[]> rows = facultyEvaluationScoreRepository.findStudentFacultyEvaluationDetails(normalizeOptional(search), pageable);
+        Page<StudentFacultyEvaluationProjection> rows =
+                facultyEvaluationScoreRepository
+                        .findStudentFacultyEvaluationDetails(
+                                normalizeOptional(search),
+                                pageable
+                        );
 
-        return rows.map(row -> new StudentFacultyEvaluationDTO(row[0] != null ? row[0].toString() : null, row[1] != null ? row[1].toString() : null, row[2] != null ? row[2].toString() : null, row[3] != null ? row[3].toString() : null, row[4] != null ? row[4].toString() : null, row[5] != null ? row[5].toString() : null, row[6] != null ? row[6].toString() : null, row[7] != null ? row[7].toString() : null, row[8] != null ? row[8].toString() : null, row[9] != null ? (LocalDateTime) row[9] : null));
+        return rows.map(this::toStudentFacultyEvaluationDTO);
     }
 
     @Transactional
@@ -1489,27 +1487,34 @@ public class AdministratorService {
         return value == null ? 0L : value;
     }
 
-    private StudentSectionDTO toStudentSectionDTO(Object[] row) {
-        return new StudentSectionDTO(
-                row[0] == null ? null : row[0].toString(),
-                row[1] == null ? null : row[1].toString(),
-                row[2] == null ? null : row[2].toString(),
-                toLong(row[3]),
-                toLong(row[4]),
-                toLong(row[5])
+    private StudentFacultyEvaluationDTO toStudentFacultyEvaluationDTO(
+            StudentFacultyEvaluationProjection row
+    ) {
+        return new StudentFacultyEvaluationDTO(
+                row.getStudentId(),
+                row.getStudentFirstname(),
+                row.getStudentLastname(),
+                row.getClassCode(),
+                row.getProgramCode(),
+                row.getSectionCode(),
+                row.getFacultyId(),
+                row.getFacultyFirstname(),
+                row.getFacultyLastname(),
+                row.getCreatedAt()
         );
     }
 
-    private Long toLong(Object value) {
-        if (value == null) {
-            return 0L;
-        }
-
-        if (value instanceof Number number) {
-            return number.longValue();
-        }
-
-        return Long.parseLong(value.toString());
+    private StudentSectionDTO toStudentSectionDTO(
+            StudentSectionEvaluationProjection row
+    ) {
+        return new StudentSectionDTO(
+                row.getProgramCode(),
+                row.getYearLevel(),
+                row.getSectionCode(),
+                safeLong(row.getTotalStudents()),
+                safeLong(row.getEvaluatedStudents()),
+                safeLong(row.getNotYetEvaluated())
+        );
     }
 
     private Double safeDouble(Double value) {
@@ -1813,14 +1818,8 @@ public class AdministratorService {
         return Math.min(size, MAX_PAGE_SIZE);
     }
 
-    private String normalizeAcademicSemester(String value) {
-        String normalized = value.trim();
-
-        try {
-            return Semester.valueOf(normalized).getValue();
-        } catch (IllegalArgumentException ignored) {
-            return normalized;
-        }
+    private String normalizeSemester(String value) {
+        return SemesterNormalizer.toCanonicalValue(value);
     }
 
     private String normalizeLegacyDatabase(String legacyDatabase) {
