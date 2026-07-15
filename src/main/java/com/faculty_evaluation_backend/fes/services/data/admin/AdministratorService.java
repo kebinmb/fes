@@ -12,6 +12,7 @@ import com.faculty_evaluation_backend.fes.dto.dashboard.FacultyWorkloadCoverageF
 import com.faculty_evaluation_backend.fes.dto.dashboard.FacultyWorkloadCoverageProjection;
 import com.faculty_evaluation_backend.fes.dto.dashboard.FacultyWorkloadCoverageResponse;
 import com.faculty_evaluation_backend.fes.dto.dashboard.SupervisorEvaluationDashboardPageResponse;
+import com.faculty_evaluation_backend.fes.dto.dashboard.SupervisorEvaluationDashboardMetricsProjection;
 import com.faculty_evaluation_backend.fes.dto.dashboard.SupervisorEvaluationDashboardProjection;
 import com.faculty_evaluation_backend.fes.dto.dashboard.SupervisorEvaluationDashboardResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.StudentEvaluationStatusResponse;
@@ -476,33 +477,18 @@ public class AdministratorService {
                                 )
                         );
 
-        long totalFacultyCount =
-                countSupervisorEvaluationDashboardRows(
-                        resolvedSchoolYear,
-                        resolvedSemester,
-                        normalizedSearch,
-                        null,
-                        normalizedLegacyDatabase,
-                        normalizedCampus
-                );
-        long evaluatedFacultyCount =
-                countSupervisorEvaluationDashboardRows(
-                        resolvedSchoolYear,
-                        resolvedSemester,
-                        normalizedSearch,
-                        "EVALUATED",
-                        normalizedLegacyDatabase,
-                        normalizedCampus
-                );
-        long pendingFacultyCount =
-                countSupervisorEvaluationDashboardRows(
-                        resolvedSchoolYear,
-                        resolvedSemester,
-                        normalizedSearch,
-                        "PENDING",
-                        normalizedLegacyDatabase,
-                        normalizedCampus
-                );
+        SupervisorEvaluationDashboardMetricsProjection metrics =
+                facultyEvaluationScoreRepository
+                        .findSupervisorEvaluationDashboardMetrics(
+                                resolvedSchoolYear,
+                                resolvedSemester,
+                                normalizedSearch,
+                                normalizedLegacyDatabase,
+                                normalizedCampus
+                        );
+        long totalFacultyCount = metrics == null ? 0L : safeLong(metrics.getTotalFacultyCount());
+        long evaluatedFacultyCount = metrics == null ? 0L : safeLong(metrics.getEvaluatedFacultyCount());
+        long pendingFacultyCount = metrics == null ? 0L : safeLong(metrics.getPendingFacultyCount());
 
         return SupervisorEvaluationDashboardPageResponse.builder()
                 .content(dashboardPage.getContent())
@@ -1437,27 +1423,6 @@ public class AdministratorService {
                 .schoolYear(schoolYear)
                 .semester(semester)
                 .build();
-    }
-
-    private long countSupervisorEvaluationDashboardRows(
-            Integer schoolYear,
-            String semester,
-            String search,
-            String evaluationStatus,
-            String legacyDatabase,
-            String campus
-    ) {
-        return facultyEvaluationScoreRepository
-                .findSupervisorEvaluationDashboard(
-                        schoolYear,
-                        semester,
-                        search,
-                        evaluationStatus,
-                        legacyDatabase,
-                        campus,
-                        PageRequest.of(0, 1)
-                )
-                .getTotalElements();
     }
 
     private String fullFacultyName(

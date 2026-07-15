@@ -4,37 +4,37 @@ spring:
 
   datasource:
     primary:
-      jdbc-url: jdbc:mysql://localhost:3306/syndicateadmin_faculty_evaluation_db_prod?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      jdbc-url: jdbc:mysql://localhost:3306/syndicateadmin_faculty_evaluation_db_prod?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&connectionCollation=utf8mb4_unicode_ci
       username: ${DEV_DB_USERNAME:root}
       password: ${DEV_DB_PASSWORD:root}
       driver-class-name: com.mysql.cj.jdbc.Driver
 
     legacy-talisay:
-      jdbc-url: jdbc:mysql://localhost:3306/sisdatabase?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      jdbc-url: jdbc:mysql://localhost:3306/sisdatabase?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8
       username: ${DEV_LEGACY_DB_USERNAME:root}
       password: ${DEV_LEGACY_DB_PASSWORD:root}
       driver-class-name: com.mysql.cj.jdbc.Driver
 
     legacy-alijis:
-      jdbc-url: jdbc:mysql://localhost:3306/sisdatabase_alijis?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      jdbc-url: jdbc:mysql://localhost:3306/sisdatabase_alijis?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8
       username: ${DEV_LEGACY_DB_USERNAME:root}
       password: ${DEV_LEGACY_DB_PASSWORD:root}
       driver-class-name: com.mysql.cj.jdbc.Driver
 
     legacy-binalbagan:
-      jdbc-url: jdbc:mysql://localhost:3306/sisdatabase_binalbagan?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      jdbc-url: jdbc:mysql://localhost:3306/sisdatabase_binalbagan?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8
       username: ${DEV_LEGACY_DB_USERNAME:root}
       password: ${DEV_LEGACY_DB_PASSWORD:root}
       driver-class-name: com.mysql.cj.jdbc.Driver
 
     legacy-ft:
-      jdbc-url: jdbc:mysql://localhost:3306/sisdatabase_ft?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      jdbc-url: jdbc:mysql://localhost:3306/sisdatabase_ft?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8
       username: ${DEV_LEGACY_DB_USERNAME:root}
       password: ${DEV_LEGACY_DB_PASSWORD:root}
       driver-class-name: com.mysql.cj.jdbc.Driver
 
     authentication:
-      jdbc-url: jdbc:mysql://localhost:3306/syndicateadmin_sis?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      jdbc-url: jdbc:mysql://localhost:3306/syndicateadmin_sis?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&connectionCollation=utf8mb4_unicode_ci
       username: ${DEV_AUTHENTICATION_DB_USERNAME:root}
       password: ${DEV_AUTHENTICATION_DB_PASSWORD:root}
       driver-class-name: com.mysql.cj.jdbc.Driver

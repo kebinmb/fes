@@ -76,10 +76,12 @@ public interface PrimaryFacultyRepository extends JpaRepository<PrimaryFaculty, 
                         MAX(fw.number_of_preparations) AS numberOfPreparations
                     FROM primary_faculty f
                     LEFT JOIN faculty_workload fw
-                        ON (CAST(fw.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                           (CAST(f.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+                        ON fw.faculty_id = f.faculty_id
                        AND fw.school_year = :schoolYear
                        AND (
+                            fw.semester = :semester
+                            OR fw.semester = :workloadSemester
+                            OR
                             (LOWER(TRIM(CAST(fw.semester AS CHAR))) COLLATE utf8mb4_unicode_ci) =
                             (LOWER(TRIM(CAST(:semester AS CHAR))) COLLATE utf8mb4_unicode_ci)
                             OR (UPPER(TRIM(CAST(fw.semester AS CHAR))) COLLATE utf8mb4_unicode_ci) =

@@ -20,11 +20,9 @@ public interface AdminDashboardRepository
                     SELECT COUNT(DISTINCT ps.student_id)
                     FROM primary_student ps
                     INNER JOIN primary_student_load psl
-                        ON (CAST(ps.student_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                           (CAST(psl.student_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+                        ON ps.student_id = psl.student_id
                     INNER JOIN primary_class pc
-                        ON (CAST(psl.class_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                           (CAST(pc.class_code AS CHAR) COLLATE utf8mb4_unicode_ci)
+                        ON psl.class_code = pc.class_code
                     WHERE pc.school_year = :schoolYear
                       AND pc.semester = :semester
                 ) AS totalStudents,
@@ -68,11 +66,9 @@ public interface AdminDashboardRepository
                     SELECT COUNT(DISTINCT psl.primary_student_load_id)
                     FROM primary_student ps
                     INNER JOIN primary_student_load psl
-                        ON (CAST(ps.student_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                           (CAST(psl.student_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+                        ON ps.student_id = psl.student_id
                     INNER JOIN primary_class pc
-                        ON (CAST(psl.class_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                           (CAST(pc.class_code AS CHAR) COLLATE utf8mb4_unicode_ci)
+                        ON psl.class_code = pc.class_code
                     WHERE pc.school_year = :schoolYear
                       AND pc.semester = :semester
                 ) AS expectedEvaluations,
@@ -80,8 +76,7 @@ public interface AdminDashboardRepository
                     SELECT COUNT(DISTINCT fes.faculty_evaluation_score_id)
                     FROM faculty_evaluation_score fes
                     INNER JOIN primary_student ps
-                        ON (CAST(fes.evaluator_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                           (CAST(ps.student_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+                        ON fes.evaluator_id = ps.student_id
                     WHERE fes.school_year = :schoolYear
                       AND fes.semester = :semester
                 ) AS completedEvaluations,
@@ -89,8 +84,7 @@ public interface AdminDashboardRepository
                     SELECT COUNT(DISTINCT fes.evaluator_id)
                     FROM faculty_evaluation_score fes
                     INNER JOIN primary_student ps
-                        ON (CAST(fes.evaluator_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                           (CAST(ps.student_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+                        ON fes.evaluator_id = ps.student_id
                     WHERE fes.school_year = :schoolYear
                       AND fes.semester = :semester
                 ) AS evaluatedStudents,
@@ -98,8 +92,7 @@ public interface AdminDashboardRepository
                     SELECT COALESCE(ROUND(AVG(fes.overall_average_score), 2), 0)
                     FROM faculty_evaluation_score fes
                     INNER JOIN primary_student ps
-                        ON (CAST(fes.evaluator_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                           (CAST(ps.student_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+                        ON fes.evaluator_id = ps.student_id
                     WHERE fes.school_year = :schoolYear
                       AND fes.semester = :semester
                       AND fes.overall_average_score IS NOT NULL
@@ -114,11 +107,9 @@ public interface AdminDashboardRepository
             SELECT COUNT(DISTINCT ps.student_id)
             FROM primary_student ps
             INNER JOIN primary_student_load psl
-                ON (CAST(ps.student_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                   (CAST(psl.student_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+                ON ps.student_id = psl.student_id
             INNER JOIN primary_class pc
-                ON (CAST(psl.class_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                   (CAST(pc.class_code AS CHAR) COLLATE utf8mb4_unicode_ci)
+                ON psl.class_code = pc.class_code
             WHERE pc.school_year = :schoolYear
               AND pc.semester = :semester
             """, nativeQuery = true)
@@ -192,11 +183,9 @@ public interface AdminDashboardRepository
             SELECT COUNT(DISTINCT psl.primary_student_load_id)
             FROM primary_student ps
             INNER JOIN primary_student_load psl
-                ON (CAST(ps.student_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                   (CAST(psl.student_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+                ON ps.student_id = psl.student_id
             INNER JOIN primary_class pc
-                ON (CAST(psl.class_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                   (CAST(pc.class_code AS CHAR) COLLATE utf8mb4_unicode_ci)
+                ON psl.class_code = pc.class_code
             WHERE pc.school_year = :schoolYear
               AND pc.semester = :semester
             """, nativeQuery = true)
@@ -209,8 +198,7 @@ public interface AdminDashboardRepository
             SELECT COUNT(DISTINCT fes.faculty_evaluation_score_id)
             FROM faculty_evaluation_score fes
             INNER JOIN primary_student ps
-                ON (CAST(fes.evaluator_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                   (CAST(ps.student_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+                ON fes.evaluator_id = ps.student_id
             WHERE fes.school_year = :schoolYear
               AND fes.semester = :semester
             """, nativeQuery = true)
@@ -223,8 +211,7 @@ public interface AdminDashboardRepository
             SELECT COUNT(DISTINCT fes.evaluator_id)
             FROM faculty_evaluation_score fes
             INNER JOIN primary_student ps
-                ON (CAST(fes.evaluator_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                   (CAST(ps.student_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+                ON fes.evaluator_id = ps.student_id
             WHERE fes.school_year = :schoolYear
               AND fes.semester = :semester
             """, nativeQuery = true)
@@ -237,8 +224,7 @@ public interface AdminDashboardRepository
             SELECT COALESCE(ROUND(AVG(fes.overall_average_score), 2), 0)
             FROM faculty_evaluation_score fes
             INNER JOIN primary_student ps
-                ON (CAST(fes.evaluator_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                   (CAST(ps.student_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+                ON fes.evaluator_id = ps.student_id
             WHERE fes.school_year = :schoolYear
               AND fes.semester = :semester
               AND fes.overall_average_score IS NOT NULL
@@ -259,21 +245,16 @@ public interface AdminDashboardRepository
                 COALESCE(ROUND(AVG(fes.overall_average_score), 2), 0) AS averageOverallScore
             FROM primary_student ps
             INNER JOIN primary_student_load psl
-                ON (CAST(ps.student_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                   (CAST(psl.student_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+                ON ps.student_id = psl.student_id
             INNER JOIN primary_class pc
-                ON (CAST(psl.class_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                   (CAST(pc.class_code AS CHAR) COLLATE utf8mb4_unicode_ci)
+                ON psl.class_code = pc.class_code
             INNER JOIN primary_section pse
                 ON pc.section_id = pse.section_id
             LEFT JOIN faculty_evaluation_score fes
-                ON (CAST(fes.evaluator_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                   (CAST(ps.student_id AS CHAR) COLLATE utf8mb4_unicode_ci)
-               AND (CAST(fes.class_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                   (CAST(pc.class_code AS CHAR) COLLATE utf8mb4_unicode_ci)
+                ON fes.evaluator_id = ps.student_id
+               AND fes.class_code = pc.class_code
                AND fes.school_year = pc.school_year
-               AND (CAST(fes.semester AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                   (CAST(pc.semester AS CHAR) COLLATE utf8mb4_unicode_ci)
+               AND fes.semester = pc.semester
             WHERE pc.school_year = :schoolYear
               AND pc.semester = :semester
             GROUP BY pse.program_code
@@ -299,24 +280,17 @@ public interface AdminDashboardRepository
                 COALESCE(ROUND(AVG(fes.overall_average_score), 2), 0) AS averageOverallScore
             FROM primary_class pc
             LEFT JOIN primary_faculty pf
-                ON (CAST(pc.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                   (CAST(pf.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+                ON pc.faculty_id = pf.faculty_id
             LEFT JOIN primary_student_load psl
-                ON (CAST(pc.class_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                   (CAST(psl.class_code AS CHAR) COLLATE utf8mb4_unicode_ci)
+                ON pc.class_code = psl.class_code
             LEFT JOIN primary_student ps
-                ON (CAST(psl.student_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                   (CAST(ps.student_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+                ON psl.student_id = ps.student_id
             LEFT JOIN faculty_evaluation_score fes
-                ON (CAST(fes.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                   (CAST(pc.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci)
-               AND (CAST(fes.class_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                   (CAST(pc.class_code AS CHAR) COLLATE utf8mb4_unicode_ci)
-               AND (CAST(fes.evaluator_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                   (CAST(ps.student_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+                ON fes.faculty_id = pc.faculty_id
+               AND fes.class_code = pc.class_code
+               AND fes.evaluator_id = ps.student_id
                AND fes.school_year = pc.school_year
-               AND (CAST(fes.semester AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                   (CAST(pc.semester AS CHAR) COLLATE utf8mb4_unicode_ci)
+               AND fes.semester = pc.semester
             WHERE pc.school_year = :schoolYear
               AND pc.semester = :semester
               AND pc.faculty_id IS NOT NULL

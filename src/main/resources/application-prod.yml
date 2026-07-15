@@ -1,7 +1,7 @@
 spring:
   datasource:
     primary:
-      jdbc-url: jdbc:mysql://68.178.161.177:3306/syndicateadmin_faculty_evaluation_db_prod?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=true&tcpKeepAlive=true&connectTimeout=3000&socketTimeout=600000
+      jdbc-url: jdbc:mysql://68.178.161.177:3306/syndicateadmin_faculty_evaluation_db_prod?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&connectionCollation=utf8mb4_unicode_ci&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=true&tcpKeepAlive=true&connectTimeout=3000&socketTimeout=600000
       username: syndicateadmin_faculty_evaluation_db_prod
       password: ${DB_PASSWORD}
       driver-class-name: com.mysql.cj.jdbc.Driver
@@ -71,7 +71,7 @@ spring:
         keepalive-time: 15000
 
     authentication:
-      jdbc-url: jdbc:mysql://localhost:3306/syndicateadmin_sis?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true
+      jdbc-url: jdbc:mysql://localhost:3306/syndicateadmin_sis?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&connectionCollation=utf8mb4_unicode_ci&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true
       username: syndicateadmin_sis
       password: ${AUTHENTICATION_DB_PASSWORD}
       driver-class-name: com.mysql.cj.jdbc.Driver
