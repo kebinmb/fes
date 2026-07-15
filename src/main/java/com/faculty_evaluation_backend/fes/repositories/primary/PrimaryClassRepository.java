@@ -607,9 +607,39 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
             ON pf.faculty_id = pc.faculty_id
         INNER JOIN primary_section ps
             ON pc.section_id = ps.section_id
+        LEFT JOIN faculty_workload fw_overload
+            ON fw_overload.faculty_id = pc.faculty_id
+           AND fw_overload.school_year = pc.school_year
+           AND (
+                LOWER(TRIM(fw_overload.semester)) = LOWER(TRIM(pc.semester))
+                OR (
+                    UPPER(TRIM(fw_overload.semester)) = 'FIRST_SEMESTER'
+                    AND LOWER(TRIM(pc.semester)) = '1st'
+                )
+                OR (
+                    UPPER(TRIM(fw_overload.semester)) = 'SECOND_SEMESTER'
+                    AND LOWER(TRIM(pc.semester)) = '2nd'
+                )
+                OR (
+                    UPPER(TRIM(fw_overload.semester)) = 'SUMMER_SEMESTER'
+                    AND LOWER(TRIM(pc.semester)) = 'summer'
+                )
+           )
+           AND (
+                fw_overload.class_code = pc.class_code
+                OR (
+                    (fw_overload.class_code IS NULL OR fw_overload.class_code = '')
+                    AND fw_overload.course_code = pc.subject_code
+                    AND fw_overload.program_code = ps.program_code
+                    AND fw_overload.year_level = ps.year_level
+                    AND fw_overload.section_code = ps.section_code
+                )
+           )
+           AND LOWER(TRIM(fw_overload.load_status)) = 'overload'
         WHERE pc.class_code IS NOT NULL
           AND pc.faculty_id IS NOT NULL
           AND pc.subject_code IS NOT NULL
+          AND fw_overload.faculty_workload_id IS NULL
           AND pc.school_year = :schoolYear
           AND LOWER(TRIM(pc.semester)) = LOWER(TRIM(:semester))
           AND pf.legacy_database = :legacyDatabase
@@ -650,9 +680,39 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
             ON pf.faculty_id = pc.faculty_id
         INNER JOIN primary_section ps
             ON pc.section_id = ps.section_id
+        LEFT JOIN faculty_workload fw_overload
+            ON fw_overload.faculty_id = pc.faculty_id
+           AND fw_overload.school_year = pc.school_year
+           AND (
+                LOWER(TRIM(fw_overload.semester)) = LOWER(TRIM(pc.semester))
+                OR (
+                    UPPER(TRIM(fw_overload.semester)) = 'FIRST_SEMESTER'
+                    AND LOWER(TRIM(pc.semester)) = '1st'
+                )
+                OR (
+                    UPPER(TRIM(fw_overload.semester)) = 'SECOND_SEMESTER'
+                    AND LOWER(TRIM(pc.semester)) = '2nd'
+                )
+                OR (
+                    UPPER(TRIM(fw_overload.semester)) = 'SUMMER_SEMESTER'
+                    AND LOWER(TRIM(pc.semester)) = 'summer'
+                )
+           )
+           AND (
+                fw_overload.class_code = pc.class_code
+                OR (
+                    (fw_overload.class_code IS NULL OR fw_overload.class_code = '')
+                    AND fw_overload.course_code = pc.subject_code
+                    AND fw_overload.program_code = ps.program_code
+                    AND fw_overload.year_level = ps.year_level
+                    AND fw_overload.section_code = ps.section_code
+                )
+           )
+           AND LOWER(TRIM(fw_overload.load_status)) = 'overload'
         WHERE pc.class_code IS NOT NULL
           AND pc.faculty_id IS NOT NULL
           AND pc.subject_code IS NOT NULL
+          AND fw_overload.faculty_workload_id IS NULL
           AND pc.school_year = :schoolYear
           AND LOWER(TRIM(pc.semester)) = LOWER(TRIM(:semester))
           AND pf.legacy_database = :legacyDatabase
@@ -700,6 +760,37 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
                 ELSE NULL
             END) AS evaluatedStudents
         FROM primary_class pc
+        INNER JOIN primary_section ps
+            ON pc.section_id = ps.section_id
+        LEFT JOIN faculty_workload fw_overload
+            ON fw_overload.faculty_id = pc.faculty_id
+           AND fw_overload.school_year = pc.school_year
+           AND (
+                LOWER(TRIM(fw_overload.semester)) = LOWER(TRIM(pc.semester))
+                OR (
+                    UPPER(TRIM(fw_overload.semester)) = 'FIRST_SEMESTER'
+                    AND LOWER(TRIM(pc.semester)) = '1st'
+                )
+                OR (
+                    UPPER(TRIM(fw_overload.semester)) = 'SECOND_SEMESTER'
+                    AND LOWER(TRIM(pc.semester)) = '2nd'
+                )
+                OR (
+                    UPPER(TRIM(fw_overload.semester)) = 'SUMMER_SEMESTER'
+                    AND LOWER(TRIM(pc.semester)) = 'summer'
+                )
+           )
+           AND (
+                fw_overload.class_code = pc.class_code
+                OR (
+                    (fw_overload.class_code IS NULL OR fw_overload.class_code = '')
+                    AND fw_overload.course_code = pc.subject_code
+                    AND fw_overload.program_code = ps.program_code
+                    AND fw_overload.year_level = ps.year_level
+                    AND fw_overload.section_code = ps.section_code
+                )
+           )
+           AND LOWER(TRIM(fw_overload.load_status)) = 'overload'
         LEFT JOIN primary_student_load psl
             ON psl.class_code = pc.class_code
         LEFT JOIN faculty_evaluation_score fes
@@ -714,6 +805,7 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
                 OR fes.evaluation_type IS NULL
            )
         WHERE pc.class_code IN (:classCodes)
+          AND fw_overload.faculty_workload_id IS NULL
           AND pc.school_year = :schoolYear
           AND LOWER(TRIM(pc.semester)) = LOWER(TRIM(:semester))
         GROUP BY pc.class_code

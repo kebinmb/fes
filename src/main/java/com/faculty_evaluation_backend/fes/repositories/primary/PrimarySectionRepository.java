@@ -58,6 +58,35 @@ public interface PrimarySectionRepository extends JpaRepository<PrimarySection, 
                            (CAST(pc.class_code AS CHAR) COLLATE utf8mb4_unicode_ci)
                     INNER JOIN primary_section ps
                         ON pc.section_id = ps.section_id
+                    LEFT JOIN faculty_workload fw_overload
+                        ON fw_overload.faculty_id = pc.faculty_id
+                       AND fw_overload.school_year = pc.school_year
+                       AND (
+                            LOWER(TRIM(fw_overload.semester)) = LOWER(TRIM(pc.semester))
+                            OR (
+                                UPPER(TRIM(fw_overload.semester)) = 'FIRST_SEMESTER'
+                                AND LOWER(TRIM(pc.semester)) = '1st'
+                            )
+                            OR (
+                                UPPER(TRIM(fw_overload.semester)) = 'SECOND_SEMESTER'
+                                AND LOWER(TRIM(pc.semester)) = '2nd'
+                            )
+                            OR (
+                                UPPER(TRIM(fw_overload.semester)) = 'SUMMER_SEMESTER'
+                                AND LOWER(TRIM(pc.semester)) = 'summer'
+                            )
+                       )
+                       AND (
+                            fw_overload.class_code = pc.class_code
+                            OR (
+                                (fw_overload.class_code IS NULL OR fw_overload.class_code = '')
+                                AND fw_overload.course_code = pc.subject_code
+                                AND fw_overload.program_code = ps.program_code
+                                AND fw_overload.year_level = ps.year_level
+                                AND fw_overload.section_code = ps.section_code
+                            )
+                       )
+                       AND LOWER(TRIM(fw_overload.load_status)) = 'overload'
                     LEFT JOIN faculty_evaluation_score fes
                         ON (CAST(psl.student_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
                            (CAST(fes.evaluator_id AS CHAR) COLLATE utf8mb4_unicode_ci)
@@ -69,6 +98,7 @@ public interface PrimarySectionRepository extends JpaRepository<PrimarySection, 
                     WHERE pc.school_year = :schoolYear
                       AND (LOWER(TRIM(CAST(pc.semester AS CHAR))) COLLATE utf8mb4_unicode_ci) =
                           (LOWER(TRIM(CAST(:semester AS CHAR))) COLLATE utf8mb4_unicode_ci)
+                      AND fw_overload.faculty_workload_id IS NULL
                       AND (
                             :programCode IS NULL
                             OR (CAST(ps.program_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
@@ -106,9 +136,39 @@ public interface PrimarySectionRepository extends JpaRepository<PrimarySection, 
                                (CAST(pc.class_code AS CHAR) COLLATE utf8mb4_unicode_ci)
                         INNER JOIN primary_section ps
                             ON pc.section_id = ps.section_id
+                        LEFT JOIN faculty_workload fw_overload
+                            ON fw_overload.faculty_id = pc.faculty_id
+                           AND fw_overload.school_year = pc.school_year
+                           AND (
+                                LOWER(TRIM(fw_overload.semester)) = LOWER(TRIM(pc.semester))
+                                OR (
+                                    UPPER(TRIM(fw_overload.semester)) = 'FIRST_SEMESTER'
+                                    AND LOWER(TRIM(pc.semester)) = '1st'
+                                )
+                                OR (
+                                    UPPER(TRIM(fw_overload.semester)) = 'SECOND_SEMESTER'
+                                    AND LOWER(TRIM(pc.semester)) = '2nd'
+                                )
+                                OR (
+                                    UPPER(TRIM(fw_overload.semester)) = 'SUMMER_SEMESTER'
+                                    AND LOWER(TRIM(pc.semester)) = 'summer'
+                                )
+                           )
+                           AND (
+                                fw_overload.class_code = pc.class_code
+                                OR (
+                                    (fw_overload.class_code IS NULL OR fw_overload.class_code = '')
+                                    AND fw_overload.course_code = pc.subject_code
+                                    AND fw_overload.program_code = ps.program_code
+                                    AND fw_overload.year_level = ps.year_level
+                                    AND fw_overload.section_code = ps.section_code
+                                )
+                           )
+                           AND LOWER(TRIM(fw_overload.load_status)) = 'overload'
                         WHERE pc.school_year = :schoolYear
                           AND (LOWER(TRIM(CAST(pc.semester AS CHAR))) COLLATE utf8mb4_unicode_ci) =
                               (LOWER(TRIM(CAST(:semester AS CHAR))) COLLATE utf8mb4_unicode_ci)
+                          AND fw_overload.faculty_workload_id IS NULL
                           AND (
                                 :programCode IS NULL
                                 OR (CAST(ps.program_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
