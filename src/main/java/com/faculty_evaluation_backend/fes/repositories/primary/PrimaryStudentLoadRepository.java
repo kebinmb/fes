@@ -95,6 +95,36 @@ public interface PrimaryStudentLoadRepository extends JpaRepository<PrimaryStude
     INNER JOIN primary_section ps
         ON ps.section_id = pc.section_id
 
+    LEFT JOIN faculty_workload fw_overload
+        ON fw_overload.faculty_id = pc.faculty_id
+       AND fw_overload.school_year = pc.school_year
+       AND (
+            LOWER(TRIM(fw_overload.semester)) = LOWER(TRIM(pc.semester))
+            OR (
+                UPPER(TRIM(fw_overload.semester)) = 'FIRST_SEMESTER'
+                AND LOWER(TRIM(pc.semester)) = '1st'
+            )
+            OR (
+                UPPER(TRIM(fw_overload.semester)) = 'SECOND_SEMESTER'
+                AND LOWER(TRIM(pc.semester)) = '2nd'
+            )
+            OR (
+                UPPER(TRIM(fw_overload.semester)) = 'SUMMER_SEMESTER'
+                AND LOWER(TRIM(pc.semester)) = 'summer'
+            )
+       )
+       AND (
+            fw_overload.class_code = pc.class_code
+            OR (
+                (fw_overload.class_code IS NULL OR fw_overload.class_code = '')
+                AND fw_overload.course_code = pc.subject_code
+                AND fw_overload.program_code = ps.program_code
+                AND fw_overload.year_level = ps.year_level
+                AND fw_overload.section_code = ps.section_code
+            )
+       )
+       AND LOWER(TRIM(fw_overload.load_status)) = 'overload'
+
     LEFT JOIN faculty_evaluation_score fes
         ON (CAST(fes.evaluator_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
            (CAST(psl.student_id AS CHAR) COLLATE utf8mb4_unicode_ci)
@@ -114,6 +144,7 @@ public interface PrimaryStudentLoadRepository extends JpaRepository<PrimaryStude
         AND pc.school_year = :schoolYear
         AND (LOWER(TRIM(CAST(pc.semester AS CHAR))) COLLATE utf8mb4_unicode_ci) =
             (LOWER(TRIM(CAST(:semester AS CHAR))) COLLATE utf8mb4_unicode_ci)
+        AND fw_overload.faculty_workload_id IS NULL
 
     ORDER BY
         psl.student_id,

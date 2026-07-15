@@ -130,25 +130,34 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
                 pc.faculty_id AS facultyId,
                 pc.school_year AS schoolYear,
                 pc.semester AS semester,
-                pc.class_code AS classCode,
-                ps.year_level AS yearLevel,
-                ps.program_code AS programCode,
-                ps.section_code AS sectionCode
+                MIN(pc.class_code) AS classCode,
+                GROUP_CONCAT(DISTINCT ps.year_level ORDER BY ps.year_level SEPARATOR ', ') AS yearLevel,
+                GROUP_CONCAT(DISTINCT ps.program_code ORDER BY ps.program_code SEPARATOR ', ') AS programCode,
+                GROUP_CONCAT(DISTINCT ps.section_code ORDER BY ps.section_code SEPARATOR ', ') AS sectionCode
             FROM primary_class pc
             INNER JOIN primary_section ps
                 ON pc.section_id = ps.section_id
             WHERE pc.faculty_id = :facultyId
               AND pc.school_year = :schoolYear
               AND pc.semester = :semester
+              AND (
+                    :programCode IS NULL
+                    OR :programCode = ''
+                    OR (UPPER(TRIM(CAST(ps.program_code AS CHAR))) COLLATE utf8mb4_unicode_ci) =
+                       (UPPER(TRIM(CAST(:programCode AS CHAR))) COLLATE utf8mb4_unicode_ci)
+              )
               AND pc.class_code IS NOT NULL
               AND pc.subject_code IS NOT NULL
               AND pc.section_id IS NOT NULL
+            GROUP BY
+                pc.subject_code,
+                pc.faculty_id,
+                pc.school_year,
+                pc.semester
             ORDER BY
                 pc.subject_code ASC,
-                ps.program_code ASC,
-                ps.year_level ASC,
-                ps.section_code ASC,
-                pc.class_code ASC
+                sectionCode ASC,
+                classCode ASC
             """, nativeQuery = true)
     List<FacultyClassDTO> findFacultyClasses(
 
@@ -156,10 +165,12 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
 
             @Param("schoolYear") Integer schoolYear,
 
-            @Param("semester") String semester);
+            @Param("semester") String semester,
+
+            @Param("programCode") String programCode);
 
     @Query(value = """
-            SELECT CASE WHEN COUNT(*) > 0 THEN TRUE ELSE FALSE END
+            SELECT COUNT(*)
             FROM primary_class pc
             INNER JOIN primary_faculty pf
                 ON (CAST(pf.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
@@ -174,7 +185,7 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
               AND (LOWER(TRIM(CAST(pc.semester AS CHAR))) COLLATE utf8mb4_unicode_ci) =
                   (LOWER(TRIM(CAST(:semester AS CHAR))) COLLATE utf8mb4_unicode_ci)
             """, nativeQuery = true)
-    boolean existsFacultyInSupervisorScope(
+    long countFacultyInSupervisorScope(
             @Param("userId") Long userId,
             @Param("facultyId") String facultyId,
             @Param("schoolYear") Integer schoolYear,
@@ -431,30 +442,28 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
 
     @Query(value = """
 
-        SELECT DISTINCT
+        SELECT
             pf.faculty_id AS facultyId,
             pf.firstname AS firstname,
             pf.lastname AS lastname,
             pf.status AS status,
             pf.position AS position,
             pf.college AS college,
-            pc.source_campus AS campus
+            MAX(pc.source_campus) AS campus
 
-        FROM primary_faculty pf
+        FROM primary_class pc
 
-        INNER JOIN primary_class pc
-            ON (CAST(pf.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-               (CAST(pc.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+        INNER JOIN primary_faculty pf
+            ON pf.faculty_id = pc.faculty_id
 
         INNER JOIN primary_section ps
             ON pc.section_id = ps.section_id
 
-        INNER JOIN user_accounts ua
-            ON ua.user_id = :userId
-           AND (UPPER(TRIM(CAST(ua.data_source AS CHAR))) COLLATE utf8mb4_unicode_ci)
-               = (UPPER(TRIM(CAST(pf.legacy_database AS CHAR))) COLLATE utf8mb4_unicode_ci)
+        WHERE pc.school_year = :schoolYear
+        AND pc.semester = :semester
+        AND pf.legacy_database = :legacyDatabase
 
-        WHERE (
+        AND (
 
                 :search IS NULL
                 OR :search = ''
@@ -475,12 +484,27 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
 
                 :campus IS NULL
                 OR :campus = ''
-                OR (UPPER(TRIM(CAST(pc.source_campus AS CHAR))) COLLATE utf8mb4_unicode_ci)
-                    = (UPPER(TRIM(CAST(:campus AS CHAR))) COLLATE utf8mb4_unicode_ci)
+                OR pc.source_campus = :campus
 
         )
 
-        AND UPPER(pf.status) = 'ACTIVE'
+        AND (
+
+                :programCode IS NULL
+                OR :programCode = ''
+                OR ps.program_code = :programCode
+
+        )
+
+        AND pf.status = 'ACTIVE'
+
+        GROUP BY
+            pf.faculty_id,
+            pf.firstname,
+            pf.lastname,
+            pf.status,
+            pf.position,
+            pf.college
 
         ORDER BY
             pf.lastname ASC,
@@ -490,61 +514,305 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
 
             countQuery = """
 
-        SELECT COUNT(DISTINCT pf.faculty_id)
+        SELECT COUNT(*)
 
-        FROM primary_faculty pf
+        FROM (
+            SELECT pf.faculty_id
 
-        INNER JOIN primary_class pc
-            ON (CAST(pf.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-               (CAST(pc.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+            FROM primary_class pc
 
-        INNER JOIN primary_section ps
-            ON pc.section_id = ps.section_id
+            INNER JOIN primary_faculty pf
+                ON pf.faculty_id = pc.faculty_id
 
-        INNER JOIN user_accounts ua
-            ON ua.user_id = :userId
-           AND (UPPER(TRIM(CAST(ua.data_source AS CHAR))) COLLATE utf8mb4_unicode_ci)
-               = (UPPER(TRIM(CAST(pf.legacy_database AS CHAR))) COLLATE utf8mb4_unicode_ci)
+            INNER JOIN primary_section ps
+                ON pc.section_id = ps.section_id
 
-        WHERE (
+            WHERE pc.school_year = :schoolYear
+            AND pc.semester = :semester
+            AND pf.legacy_database = :legacyDatabase
 
-                :search IS NULL
-                OR :search = ''
-                OR LOWER(pf.firstname)
-                    LIKE LOWER(CONCAT('%', :search, '%'))
-                OR LOWER(pf.lastname)
-                    LIKE LOWER(CONCAT('%', :search, '%'))
-                OR LOWER(CONCAT(
-                        pf.firstname,
-                        ' ',
-                        pf.lastname
-                ))
-                    LIKE LOWER(CONCAT('%', :search, '%'))
+            AND (
 
-        )
+                    :search IS NULL
+                    OR :search = ''
+                    OR LOWER(pf.firstname)
+                        LIKE LOWER(CONCAT('%', :search, '%'))
+                    OR LOWER(pf.lastname)
+                        LIKE LOWER(CONCAT('%', :search, '%'))
+                    OR LOWER(CONCAT(
+                            pf.firstname,
+                            ' ',
+                            pf.lastname
+                    ))
+                        LIKE LOWER(CONCAT('%', :search, '%'))
 
-        AND (
+            )
 
-                :campus IS NULL
-                OR :campus = ''
-                OR (UPPER(TRIM(CAST(pc.source_campus AS CHAR))) COLLATE utf8mb4_unicode_ci)
-                    = (UPPER(TRIM(CAST(:campus AS CHAR))) COLLATE utf8mb4_unicode_ci)
+            AND (
 
-        )
+                    :campus IS NULL
+                    OR :campus = ''
+                    OR pc.source_campus = :campus
 
-        AND UPPER(pf.status) = 'ACTIVE'
+            )
+
+            AND (
+
+                    :programCode IS NULL
+                    OR :programCode = ''
+                    OR ps.program_code = :programCode
+
+            )
+
+            AND pf.status = 'ACTIVE'
+
+            GROUP BY pf.faculty_id
+        ) grouped_faculty
 
         """,
 
             nativeQuery = true)
     Page<FacultyProgramLoadsDTO> findFacultyPerProgram(
 
-            @Param("userId") Long userId,
+            @Param("schoolYear") Integer schoolYear,
+
+            @Param("semester") String semester,
+
+            @Param("legacyDatabase") String legacyDatabase,
 
             @Param("search") String search,
 
             @Param("campus") String campus,
 
+            @Param("programCode") String programCode,
+
             Pageable pageable
+    );
+
+    @Query(value = """
+        SELECT
+            pc.class_code AS classCode,
+            pc.faculty_id AS facultyId,
+            TRIM(CONCAT(
+                COALESCE(pf.firstname, ''),
+                ' ',
+                COALESCE(pf.lastname, '')
+            )) AS facultyName,
+            pc.subject_code AS subjectCode,
+            ps.program_code AS programCode,
+            ps.year_level AS yearLevel,
+            ps.section_code AS sectionCode
+        FROM primary_class pc
+        INNER JOIN primary_faculty pf
+            ON pf.faculty_id = pc.faculty_id
+        INNER JOIN primary_section ps
+            ON pc.section_id = ps.section_id
+        LEFT JOIN faculty_workload fw_overload
+            ON fw_overload.faculty_id = pc.faculty_id
+           AND fw_overload.school_year = pc.school_year
+           AND (
+                LOWER(TRIM(fw_overload.semester)) = LOWER(TRIM(pc.semester))
+                OR (
+                    UPPER(TRIM(fw_overload.semester)) = 'FIRST_SEMESTER'
+                    AND LOWER(TRIM(pc.semester)) = '1st'
+                )
+                OR (
+                    UPPER(TRIM(fw_overload.semester)) = 'SECOND_SEMESTER'
+                    AND LOWER(TRIM(pc.semester)) = '2nd'
+                )
+                OR (
+                    UPPER(TRIM(fw_overload.semester)) = 'SUMMER_SEMESTER'
+                    AND LOWER(TRIM(pc.semester)) = 'summer'
+                )
+           )
+           AND (
+                fw_overload.class_code = pc.class_code
+                OR (
+                    (fw_overload.class_code IS NULL OR fw_overload.class_code = '')
+                    AND fw_overload.course_code = pc.subject_code
+                    AND fw_overload.program_code = ps.program_code
+                    AND fw_overload.year_level = ps.year_level
+                    AND fw_overload.section_code = ps.section_code
+                )
+           )
+           AND LOWER(TRIM(fw_overload.load_status)) = 'overload'
+        WHERE pc.class_code IS NOT NULL
+          AND pc.faculty_id IS NOT NULL
+          AND pc.subject_code IS NOT NULL
+          AND fw_overload.faculty_workload_id IS NULL
+          AND pc.school_year = :schoolYear
+          AND LOWER(TRIM(pc.semester)) = LOWER(TRIM(:semester))
+          AND pf.legacy_database = :legacyDatabase
+          AND (
+                :campus IS NULL
+                OR :campus = ''
+                OR pc.source_campus = :campus
+          )
+          AND (
+                :programCode IS NULL
+                OR :programCode = ''
+                OR ps.program_code = :programCode
+          )
+          AND (
+                :search IS NULL
+                OR :search = ''
+                OR LOWER(pc.class_code) LIKE LOWER(CONCAT('%', :search, '%'))
+                OR LOWER(pc.subject_code) LIKE LOWER(CONCAT('%', :search, '%'))
+                OR LOWER(pc.faculty_id) LIKE LOWER(CONCAT('%', :search, '%'))
+                OR LOWER(pf.firstname) LIKE LOWER(CONCAT('%', :search, '%'))
+                OR LOWER(pf.lastname) LIKE LOWER(CONCAT('%', :search, '%'))
+                OR LOWER(CONCAT(COALESCE(pf.firstname, ''), ' ', COALESCE(pf.lastname, '')))
+                    LIKE LOWER(CONCAT('%', :search, '%'))
+                OR LOWER(ps.program_code) LIKE LOWER(CONCAT('%', :search, '%'))
+                OR LOWER(ps.section_code) LIKE LOWER(CONCAT('%', :search, '%'))
+          )
+        ORDER BY
+            ps.program_code ASC,
+            ps.year_level ASC,
+            ps.section_code ASC,
+            pc.subject_code ASC,
+            pc.class_code ASC
+        """,
+            countQuery = """
+        SELECT COUNT(*)
+        FROM primary_class pc
+        INNER JOIN primary_faculty pf
+            ON pf.faculty_id = pc.faculty_id
+        INNER JOIN primary_section ps
+            ON pc.section_id = ps.section_id
+        LEFT JOIN faculty_workload fw_overload
+            ON fw_overload.faculty_id = pc.faculty_id
+           AND fw_overload.school_year = pc.school_year
+           AND (
+                LOWER(TRIM(fw_overload.semester)) = LOWER(TRIM(pc.semester))
+                OR (
+                    UPPER(TRIM(fw_overload.semester)) = 'FIRST_SEMESTER'
+                    AND LOWER(TRIM(pc.semester)) = '1st'
+                )
+                OR (
+                    UPPER(TRIM(fw_overload.semester)) = 'SECOND_SEMESTER'
+                    AND LOWER(TRIM(pc.semester)) = '2nd'
+                )
+                OR (
+                    UPPER(TRIM(fw_overload.semester)) = 'SUMMER_SEMESTER'
+                    AND LOWER(TRIM(pc.semester)) = 'summer'
+                )
+           )
+           AND (
+                fw_overload.class_code = pc.class_code
+                OR (
+                    (fw_overload.class_code IS NULL OR fw_overload.class_code = '')
+                    AND fw_overload.course_code = pc.subject_code
+                    AND fw_overload.program_code = ps.program_code
+                    AND fw_overload.year_level = ps.year_level
+                    AND fw_overload.section_code = ps.section_code
+                )
+           )
+           AND LOWER(TRIM(fw_overload.load_status)) = 'overload'
+        WHERE pc.class_code IS NOT NULL
+          AND pc.faculty_id IS NOT NULL
+          AND pc.subject_code IS NOT NULL
+          AND fw_overload.faculty_workload_id IS NULL
+          AND pc.school_year = :schoolYear
+          AND LOWER(TRIM(pc.semester)) = LOWER(TRIM(:semester))
+          AND pf.legacy_database = :legacyDatabase
+          AND (
+                :campus IS NULL
+                OR :campus = ''
+                OR pc.source_campus = :campus
+          )
+          AND (
+                :programCode IS NULL
+                OR :programCode = ''
+                OR ps.program_code = :programCode
+          )
+          AND (
+                :search IS NULL
+                OR :search = ''
+                OR LOWER(pc.class_code) LIKE LOWER(CONCAT('%', :search, '%'))
+                OR LOWER(pc.subject_code) LIKE LOWER(CONCAT('%', :search, '%'))
+                OR LOWER(pc.faculty_id) LIKE LOWER(CONCAT('%', :search, '%'))
+                OR LOWER(pf.firstname) LIKE LOWER(CONCAT('%', :search, '%'))
+                OR LOWER(pf.lastname) LIKE LOWER(CONCAT('%', :search, '%'))
+                OR LOWER(CONCAT(COALESCE(pf.firstname, ''), ' ', COALESCE(pf.lastname, '')))
+                    LIKE LOWER(CONCAT('%', :search, '%'))
+                OR LOWER(ps.program_code) LIKE LOWER(CONCAT('%', :search, '%'))
+                OR LOWER(ps.section_code) LIKE LOWER(CONCAT('%', :search, '%'))
+          )
+        """,
+            nativeQuery = true)
+    Page<Object[]> findClassStudentEvaluationStatClassPage(
+            @Param("schoolYear") Integer schoolYear,
+            @Param("semester") String semester,
+            @Param("legacyDatabase") String legacyDatabase,
+            @Param("search") String search,
+            @Param("campus") String campus,
+            @Param("programCode") String programCode,
+            Pageable pageable
+    );
+
+    @Query(value = """
+        SELECT
+            pc.class_code AS classCode,
+            COUNT(DISTINCT psl.student_id) AS totalStudents,
+            COUNT(DISTINCT CASE
+                WHEN fes.faculty_evaluation_score_id IS NOT NULL THEN psl.student_id
+                ELSE NULL
+            END) AS evaluatedStudents
+        FROM primary_class pc
+        INNER JOIN primary_section ps
+            ON pc.section_id = ps.section_id
+        LEFT JOIN faculty_workload fw_overload
+            ON fw_overload.faculty_id = pc.faculty_id
+           AND fw_overload.school_year = pc.school_year
+           AND (
+                LOWER(TRIM(fw_overload.semester)) = LOWER(TRIM(pc.semester))
+                OR (
+                    UPPER(TRIM(fw_overload.semester)) = 'FIRST_SEMESTER'
+                    AND LOWER(TRIM(pc.semester)) = '1st'
+                )
+                OR (
+                    UPPER(TRIM(fw_overload.semester)) = 'SECOND_SEMESTER'
+                    AND LOWER(TRIM(pc.semester)) = '2nd'
+                )
+                OR (
+                    UPPER(TRIM(fw_overload.semester)) = 'SUMMER_SEMESTER'
+                    AND LOWER(TRIM(pc.semester)) = 'summer'
+                )
+           )
+           AND (
+                fw_overload.class_code = pc.class_code
+                OR (
+                    (fw_overload.class_code IS NULL OR fw_overload.class_code = '')
+                    AND fw_overload.course_code = pc.subject_code
+                    AND fw_overload.program_code = ps.program_code
+                    AND fw_overload.year_level = ps.year_level
+                    AND fw_overload.section_code = ps.section_code
+                )
+           )
+           AND LOWER(TRIM(fw_overload.load_status)) = 'overload'
+        LEFT JOIN primary_student_load psl
+            ON psl.class_code = pc.class_code
+        LEFT JOIN faculty_evaluation_score fes
+            ON fes.evaluator_id = psl.student_id
+           AND fes.class_code = pc.class_code
+           AND fes.faculty_id = pc.faculty_id
+           AND fes.subject_code = pc.subject_code
+           AND fes.school_year = pc.school_year
+           AND LOWER(TRIM(fes.semester)) = LOWER(TRIM(pc.semester))
+           AND (
+                fes.evaluation_type = 'ROLE_STUDENT'
+                OR fes.evaluation_type IS NULL
+           )
+        WHERE pc.class_code IN (:classCodes)
+          AND fw_overload.faculty_workload_id IS NULL
+          AND pc.school_year = :schoolYear
+          AND LOWER(TRIM(pc.semester)) = LOWER(TRIM(:semester))
+        GROUP BY pc.class_code
+        """, nativeQuery = true)
+    List<Object[]> findClassStudentEvaluationTotalsForClasses(
+            @Param("classCodes") List<String> classCodes,
+            @Param("schoolYear") Integer schoolYear,
+            @Param("semester") String semester
     );
 }

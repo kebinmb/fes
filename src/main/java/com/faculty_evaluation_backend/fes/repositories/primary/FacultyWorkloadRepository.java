@@ -57,7 +57,7 @@ public interface FacultyWorkloadRepository
 
     @Query(
             value = """
-                    SELECT CASE WHEN COUNT(*) > 0 THEN TRUE ELSE FALSE END
+                    SELECT COUNT(*)
                     FROM faculty_workload fw
                     INNER JOIN primary_faculty pf
                         ON (CAST(pf.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
@@ -84,7 +84,7 @@ public interface FacultyWorkloadRepository
                     """,
             nativeQuery = true
     )
-    boolean existsFacultyWorkloadInSupervisorScope(
+    long countFacultyWorkloadInSupervisorScope(
             @Param("userId") Long userId,
             @Param("facultyId") String facultyId,
             @Param("schoolYear") Integer schoolYear,
