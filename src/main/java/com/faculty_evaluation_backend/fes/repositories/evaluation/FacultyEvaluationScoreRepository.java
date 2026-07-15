@@ -93,18 +93,18 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
                 fes.created_at
             FROM faculty_evaluation_score fes
             INNER JOIN primary_student ps
-                ON (CAST(fes.evaluator_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                   (CAST(ps.student_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+                ON (fes.evaluator_id) =
+                   (ps.student_id)
             INNER JOIN primary_student_load psl
-                ON (CAST(ps.student_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                   (CAST(psl.student_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+                ON (ps.student_id) =
+                   (psl.student_id)
             INNER JOIN primary_class pc
-                ON (CAST(psl.class_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                   (CAST(pc.class_code AS CHAR) COLLATE utf8mb4_unicode_ci)
-               AND (CAST(fes.class_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                   (CAST(pc.class_code AS CHAR) COLLATE utf8mb4_unicode_ci)
-               AND (CAST(fes.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                   (CAST(pc.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+                ON (psl.class_code) =
+                   (pc.class_code)
+               AND (fes.class_code) =
+                   (pc.class_code)
+               AND (fes.faculty_id) =
+                   (pc.faculty_id)
             INNER JOIN primary_section pse
                 ON pc.section_id = pse.section_id
             LEFT JOIN faculty_workload fw_overload
@@ -137,8 +137,8 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
                )
                AND LOWER(TRIM(fw_overload.load_status)) = 'overload'
             INNER JOIN primary_faculty pf
-                ON (CAST(pc.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                   (CAST(pf.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+                ON (pc.faculty_id) =
+                   (pf.faculty_id)
             WHERE
                 fw_overload.faculty_workload_id IS NULL
                 AND
@@ -159,18 +159,18 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
             SELECT COUNT(*)
             FROM faculty_evaluation_score fes
             INNER JOIN primary_student ps
-                ON (CAST(fes.evaluator_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                   (CAST(ps.student_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+                ON (fes.evaluator_id) =
+                   (ps.student_id)
             INNER JOIN primary_student_load psl
-                ON (CAST(ps.student_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                   (CAST(psl.student_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+                ON (ps.student_id) =
+                   (psl.student_id)
             INNER JOIN primary_class pc
-                ON (CAST(psl.class_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                   (CAST(pc.class_code AS CHAR) COLLATE utf8mb4_unicode_ci)
-               AND (CAST(fes.class_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                   (CAST(pc.class_code AS CHAR) COLLATE utf8mb4_unicode_ci)
-               AND (CAST(fes.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                   (CAST(pc.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+                ON (psl.class_code) =
+                   (pc.class_code)
+               AND (fes.class_code) =
+                   (pc.class_code)
+               AND (fes.faculty_id) =
+                   (pc.faculty_id)
             INNER JOIN primary_section pse
                 ON pc.section_id = pse.section_id
             LEFT JOIN faculty_workload fw_overload
@@ -203,8 +203,8 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
                )
                AND LOWER(TRIM(fw_overload.load_status)) = 'overload'
             INNER JOIN primary_faculty pf
-                ON (CAST(pc.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                   (CAST(pf.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+                ON (pc.faculty_id) =
+                   (pf.faculty_id)
             WHERE
                 fw_overload.faculty_workload_id IS NULL
                 AND
@@ -318,25 +318,25 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
                         WHERE pc.class_code IS NOT NULL
                           AND pc.school_year = :schoolYear
                           AND (
-                                (LOWER(TRIM(CAST(pc.semester AS CHAR))) COLLATE utf8mb4_unicode_ci) =
-                                (LOWER(TRIM(CAST(:semester AS CHAR))) COLLATE utf8mb4_unicode_ci)
+                                (LOWER(TRIM(pc.semester))) =
+                                (LOWER(TRIM(:semester)))
                                 OR (
-                                    UPPER(TRIM(CAST(:semester AS CHAR))) IN ('1ST', 'FIRST_SEMESTER')
-                                    AND UPPER(TRIM(CAST(pc.semester AS CHAR))) IN ('1ST', 'FIRST_SEMESTER')
+                                    UPPER(TRIM(:semester)) IN ('1ST', 'FIRST_SEMESTER')
+                                    AND UPPER(TRIM(pc.semester)) IN ('1ST', 'FIRST_SEMESTER')
                                 )
                                 OR (
-                                    UPPER(TRIM(CAST(:semester AS CHAR))) IN ('2ND', 'SECOND_SEMESTER')
-                                    AND UPPER(TRIM(CAST(pc.semester AS CHAR))) IN ('2ND', 'SECOND_SEMESTER')
+                                    UPPER(TRIM(:semester)) IN ('2ND', 'SECOND_SEMESTER')
+                                    AND UPPER(TRIM(pc.semester)) IN ('2ND', 'SECOND_SEMESTER')
                                 )
                                 OR (
-                                    UPPER(TRIM(CAST(:semester AS CHAR))) IN ('SUMMER', 'SUMMER_SEMESTER')
-                                    AND UPPER(TRIM(CAST(pc.semester AS CHAR))) IN ('SUMMER', 'SUMMER_SEMESTER')
+                                    UPPER(TRIM(:semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
+                                    AND UPPER(TRIM(pc.semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
                                 )
                           )
                         GROUP BY pc.faculty_id
                     ) cs
-                        ON (CAST(cs.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                           (CAST(pf.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+                        ON (cs.faculty_id) =
+                           (pf.faculty_id)
                     LEFT JOIN (
                         SELECT
                             fes.faculty_id,
@@ -356,46 +356,46 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
                             MAX(fes.created_at) AS last_evaluated_at
                         FROM faculty_evaluation_score fes
                         LEFT JOIN user_accounts sua
-                            ON (CAST(sua.user_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                               (CAST(fes.evaluator_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+                            ON (sua.user_id) =
+                               (fes.evaluator_id)
                         WHERE fes.evaluation_type = 'ROLE_PROGRAM_CHAIR'
                           AND fes.school_year = :schoolYear
                           AND (
-                                (LOWER(TRIM(CAST(fes.semester AS CHAR))) COLLATE utf8mb4_unicode_ci) =
-                                (LOWER(TRIM(CAST(:semester AS CHAR))) COLLATE utf8mb4_unicode_ci)
+                                (LOWER(TRIM(fes.semester))) =
+                                (LOWER(TRIM(:semester)))
                                 OR (
-                                    UPPER(TRIM(CAST(:semester AS CHAR))) IN ('1ST', 'FIRST_SEMESTER')
-                                    AND UPPER(TRIM(CAST(fes.semester AS CHAR))) IN ('1ST', 'FIRST_SEMESTER')
+                                    UPPER(TRIM(:semester)) IN ('1ST', 'FIRST_SEMESTER')
+                                    AND UPPER(TRIM(fes.semester)) IN ('1ST', 'FIRST_SEMESTER')
                                 )
                                 OR (
-                                    UPPER(TRIM(CAST(:semester AS CHAR))) IN ('2ND', 'SECOND_SEMESTER')
-                                    AND UPPER(TRIM(CAST(fes.semester AS CHAR))) IN ('2ND', 'SECOND_SEMESTER')
+                                    UPPER(TRIM(:semester)) IN ('2ND', 'SECOND_SEMESTER')
+                                    AND UPPER(TRIM(fes.semester)) IN ('2ND', 'SECOND_SEMESTER')
                                 )
                                 OR (
-                                    UPPER(TRIM(CAST(:semester AS CHAR))) IN ('SUMMER', 'SUMMER_SEMESTER')
-                                    AND UPPER(TRIM(CAST(fes.semester AS CHAR))) IN ('SUMMER', 'SUMMER_SEMESTER')
+                                    UPPER(TRIM(:semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
+                                    AND UPPER(TRIM(fes.semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
                                 )
                           )
                         GROUP BY fes.faculty_id
                     ) se
-                        ON (CAST(se.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                           (CAST(pf.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci)
-                    WHERE UPPER(TRIM(CAST(pf.status AS CHAR))) = 'ACTIVE'
+                        ON (se.faculty_id) =
+                           (pf.faculty_id)
+                    WHERE UPPER(TRIM(pf.status)) = 'ACTIVE'
                       AND (
                             pf.college IS NULL
-                            OR UPPER(TRIM(CAST(pf.college AS CHAR))) <> 'FOR_MIGRATION'
+                            OR UPPER(TRIM(pf.college)) <> 'FOR_MIGRATION'
                       )
                       AND (
                             :legacyDatabase IS NULL
                             OR :legacyDatabase = ''
-                            OR (UPPER(TRIM(CAST(pf.legacy_database AS CHAR))) COLLATE utf8mb4_unicode_ci) =
-                               (UPPER(TRIM(CAST(:legacyDatabase AS CHAR))) COLLATE utf8mb4_unicode_ci)
+                            OR (UPPER(TRIM(pf.legacy_database))) =
+                               (UPPER(TRIM(:legacyDatabase)))
                       )
                       AND (
                             :campus IS NULL
                             OR :campus = ''
-                            OR (UPPER(TRIM(CAST(cs.campus AS CHAR))) COLLATE utf8mb4_unicode_ci) =
-                               (UPPER(TRIM(CAST(:campus AS CHAR))) COLLATE utf8mb4_unicode_ci)
+                            OR (UPPER(TRIM(cs.campus))) =
+                               (UPPER(TRIM(:campus)))
                       )
                       AND (
                             :evaluationStatus IS NULL
@@ -412,16 +412,16 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
                       AND (
                             :search IS NULL
                             OR :search = ''
-                            OR (LOWER(COALESCE(CAST(pf.faculty_id AS CHAR), '')) COLLATE utf8mb4_unicode_ci)
-                               LIKE (LOWER(CONCAT('%', CAST(:search AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
-                            OR (LOWER(COALESCE(CAST(pf.firstname AS CHAR), '')) COLLATE utf8mb4_unicode_ci)
-                               LIKE (LOWER(CONCAT('%', CAST(:search AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
-                            OR (LOWER(COALESCE(CAST(pf.lastname AS CHAR), '')) COLLATE utf8mb4_unicode_ci)
-                               LIKE (LOWER(CONCAT('%', CAST(:search AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
-                            OR (LOWER(COALESCE(CAST(pf.college AS CHAR), '')) COLLATE utf8mb4_unicode_ci)
-                               LIKE (LOWER(CONCAT('%', CAST(:search AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
-                            OR (LOWER(COALESCE(CAST(se.supervisor_names AS CHAR), '')) COLLATE utf8mb4_unicode_ci)
-                               LIKE (LOWER(CONCAT('%', CAST(:search AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
+                            OR (LOWER(COALESCE(pf.faculty_id, '')))
+                               LIKE (LOWER(CONCAT('%', :search, '%')))
+                            OR (LOWER(COALESCE(pf.firstname, '')))
+                               LIKE (LOWER(CONCAT('%', :search, '%')))
+                            OR (LOWER(COALESCE(pf.lastname, '')))
+                               LIKE (LOWER(CONCAT('%', :search, '%')))
+                            OR (LOWER(COALESCE(pf.college, '')))
+                               LIKE (LOWER(CONCAT('%', :search, '%')))
+                            OR (LOWER(COALESCE(se.supervisor_names, '')))
+                               LIKE (LOWER(CONCAT('%', :search, '%')))
                       )
                     ORDER BY
                         CASE WHEN COALESCE(se.supervisor_evaluation_count, 0) = 0 THEN 0 ELSE 1 END ASC,
@@ -438,25 +438,25 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
                         WHERE pc.class_code IS NOT NULL
                           AND pc.school_year = :schoolYear
                           AND (
-                                (LOWER(TRIM(CAST(pc.semester AS CHAR))) COLLATE utf8mb4_unicode_ci) =
-                                (LOWER(TRIM(CAST(:semester AS CHAR))) COLLATE utf8mb4_unicode_ci)
+                                (LOWER(TRIM(pc.semester))) =
+                                (LOWER(TRIM(:semester)))
                                 OR (
-                                    UPPER(TRIM(CAST(:semester AS CHAR))) IN ('1ST', 'FIRST_SEMESTER')
-                                    AND UPPER(TRIM(CAST(pc.semester AS CHAR))) IN ('1ST', 'FIRST_SEMESTER')
+                                    UPPER(TRIM(:semester)) IN ('1ST', 'FIRST_SEMESTER')
+                                    AND UPPER(TRIM(pc.semester)) IN ('1ST', 'FIRST_SEMESTER')
                                 )
                                 OR (
-                                    UPPER(TRIM(CAST(:semester AS CHAR))) IN ('2ND', 'SECOND_SEMESTER')
-                                    AND UPPER(TRIM(CAST(pc.semester AS CHAR))) IN ('2ND', 'SECOND_SEMESTER')
+                                    UPPER(TRIM(:semester)) IN ('2ND', 'SECOND_SEMESTER')
+                                    AND UPPER(TRIM(pc.semester)) IN ('2ND', 'SECOND_SEMESTER')
                                 )
                                 OR (
-                                    UPPER(TRIM(CAST(:semester AS CHAR))) IN ('SUMMER', 'SUMMER_SEMESTER')
-                                    AND UPPER(TRIM(CAST(pc.semester AS CHAR))) IN ('SUMMER', 'SUMMER_SEMESTER')
+                                    UPPER(TRIM(:semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
+                                    AND UPPER(TRIM(pc.semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
                                 )
                           )
                         GROUP BY pc.faculty_id
                     ) cs
-                        ON (CAST(cs.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                           (CAST(pf.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+                        ON (cs.faculty_id) =
+                           (pf.faculty_id)
                     LEFT JOIN (
                         SELECT
                             fes.faculty_id,
@@ -471,46 +471,46 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
                             ) AS supervisor_names
                         FROM faculty_evaluation_score fes
                         LEFT JOIN user_accounts sua
-                            ON (CAST(sua.user_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                               (CAST(fes.evaluator_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+                            ON (sua.user_id) =
+                               (fes.evaluator_id)
                         WHERE fes.evaluation_type = 'ROLE_PROGRAM_CHAIR'
                           AND fes.school_year = :schoolYear
                           AND (
-                                (LOWER(TRIM(CAST(fes.semester AS CHAR))) COLLATE utf8mb4_unicode_ci) =
-                                (LOWER(TRIM(CAST(:semester AS CHAR))) COLLATE utf8mb4_unicode_ci)
+                                (LOWER(TRIM(fes.semester))) =
+                                (LOWER(TRIM(:semester)))
                                 OR (
-                                    UPPER(TRIM(CAST(:semester AS CHAR))) IN ('1ST', 'FIRST_SEMESTER')
-                                    AND UPPER(TRIM(CAST(fes.semester AS CHAR))) IN ('1ST', 'FIRST_SEMESTER')
+                                    UPPER(TRIM(:semester)) IN ('1ST', 'FIRST_SEMESTER')
+                                    AND UPPER(TRIM(fes.semester)) IN ('1ST', 'FIRST_SEMESTER')
                                 )
                                 OR (
-                                    UPPER(TRIM(CAST(:semester AS CHAR))) IN ('2ND', 'SECOND_SEMESTER')
-                                    AND UPPER(TRIM(CAST(fes.semester AS CHAR))) IN ('2ND', 'SECOND_SEMESTER')
+                                    UPPER(TRIM(:semester)) IN ('2ND', 'SECOND_SEMESTER')
+                                    AND UPPER(TRIM(fes.semester)) IN ('2ND', 'SECOND_SEMESTER')
                                 )
                                 OR (
-                                    UPPER(TRIM(CAST(:semester AS CHAR))) IN ('SUMMER', 'SUMMER_SEMESTER')
-                                    AND UPPER(TRIM(CAST(fes.semester AS CHAR))) IN ('SUMMER', 'SUMMER_SEMESTER')
+                                    UPPER(TRIM(:semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
+                                    AND UPPER(TRIM(fes.semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
                                 )
                           )
                         GROUP BY fes.faculty_id
                     ) se
-                        ON (CAST(se.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                           (CAST(pf.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci)
-                    WHERE UPPER(TRIM(CAST(pf.status AS CHAR))) = 'ACTIVE'
+                        ON (se.faculty_id) =
+                           (pf.faculty_id)
+                    WHERE UPPER(TRIM(pf.status)) = 'ACTIVE'
                       AND (
                             pf.college IS NULL
-                            OR UPPER(TRIM(CAST(pf.college AS CHAR))) <> 'FOR_MIGRATION'
+                            OR UPPER(TRIM(pf.college)) <> 'FOR_MIGRATION'
                       )
                       AND (
                             :legacyDatabase IS NULL
                             OR :legacyDatabase = ''
-                            OR (UPPER(TRIM(CAST(pf.legacy_database AS CHAR))) COLLATE utf8mb4_unicode_ci) =
-                               (UPPER(TRIM(CAST(:legacyDatabase AS CHAR))) COLLATE utf8mb4_unicode_ci)
+                            OR (UPPER(TRIM(pf.legacy_database))) =
+                               (UPPER(TRIM(:legacyDatabase)))
                       )
                       AND (
                             :campus IS NULL
                             OR :campus = ''
-                            OR (UPPER(TRIM(CAST(cs.campus AS CHAR))) COLLATE utf8mb4_unicode_ci) =
-                               (UPPER(TRIM(CAST(:campus AS CHAR))) COLLATE utf8mb4_unicode_ci)
+                            OR (UPPER(TRIM(cs.campus))) =
+                               (UPPER(TRIM(:campus)))
                       )
                       AND (
                             :evaluationStatus IS NULL
@@ -527,16 +527,16 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
                       AND (
                             :search IS NULL
                             OR :search = ''
-                            OR (LOWER(COALESCE(CAST(pf.faculty_id AS CHAR), '')) COLLATE utf8mb4_unicode_ci)
-                               LIKE (LOWER(CONCAT('%', CAST(:search AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
-                            OR (LOWER(COALESCE(CAST(pf.firstname AS CHAR), '')) COLLATE utf8mb4_unicode_ci)
-                               LIKE (LOWER(CONCAT('%', CAST(:search AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
-                            OR (LOWER(COALESCE(CAST(pf.lastname AS CHAR), '')) COLLATE utf8mb4_unicode_ci)
-                               LIKE (LOWER(CONCAT('%', CAST(:search AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
-                            OR (LOWER(COALESCE(CAST(pf.college AS CHAR), '')) COLLATE utf8mb4_unicode_ci)
-                               LIKE (LOWER(CONCAT('%', CAST(:search AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
-                            OR (LOWER(COALESCE(CAST(se.supervisor_names AS CHAR), '')) COLLATE utf8mb4_unicode_ci)
-                               LIKE (LOWER(CONCAT('%', CAST(:search AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
+                            OR (LOWER(COALESCE(pf.faculty_id, '')))
+                               LIKE (LOWER(CONCAT('%', :search, '%')))
+                            OR (LOWER(COALESCE(pf.firstname, '')))
+                               LIKE (LOWER(CONCAT('%', :search, '%')))
+                            OR (LOWER(COALESCE(pf.lastname, '')))
+                               LIKE (LOWER(CONCAT('%', :search, '%')))
+                            OR (LOWER(COALESCE(pf.college, '')))
+                               LIKE (LOWER(CONCAT('%', :search, '%')))
+                            OR (LOWER(COALESCE(se.supervisor_names, '')))
+                               LIKE (LOWER(CONCAT('%', :search, '%')))
                       )
                     """,
             nativeQuery = true
@@ -570,25 +570,25 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
                         WHERE pc.class_code IS NOT NULL
                           AND pc.school_year = :schoolYear
                           AND (
-                                (LOWER(TRIM(CAST(pc.semester AS CHAR))) COLLATE utf8mb4_unicode_ci) =
-                                (LOWER(TRIM(CAST(:semester AS CHAR))) COLLATE utf8mb4_unicode_ci)
+                                (LOWER(TRIM(pc.semester))) =
+                                (LOWER(TRIM(:semester)))
                                 OR (
-                                    UPPER(TRIM(CAST(:semester AS CHAR))) IN ('1ST', 'FIRST_SEMESTER')
-                                    AND UPPER(TRIM(CAST(pc.semester AS CHAR))) IN ('1ST', 'FIRST_SEMESTER')
+                                    UPPER(TRIM(:semester)) IN ('1ST', 'FIRST_SEMESTER')
+                                    AND UPPER(TRIM(pc.semester)) IN ('1ST', 'FIRST_SEMESTER')
                                 )
                                 OR (
-                                    UPPER(TRIM(CAST(:semester AS CHAR))) IN ('2ND', 'SECOND_SEMESTER')
-                                    AND UPPER(TRIM(CAST(pc.semester AS CHAR))) IN ('2ND', 'SECOND_SEMESTER')
+                                    UPPER(TRIM(:semester)) IN ('2ND', 'SECOND_SEMESTER')
+                                    AND UPPER(TRIM(pc.semester)) IN ('2ND', 'SECOND_SEMESTER')
                                 )
                                 OR (
-                                    UPPER(TRIM(CAST(:semester AS CHAR))) IN ('SUMMER', 'SUMMER_SEMESTER')
-                                    AND UPPER(TRIM(CAST(pc.semester AS CHAR))) IN ('SUMMER', 'SUMMER_SEMESTER')
+                                    UPPER(TRIM(:semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
+                                    AND UPPER(TRIM(pc.semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
                                 )
                           )
                         GROUP BY pc.faculty_id
                     ) cs
-                        ON (CAST(cs.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                           (CAST(pf.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+                        ON (cs.faculty_id) =
+                           (pf.faculty_id)
                     LEFT JOIN (
                         SELECT
                             fes.faculty_id,
@@ -603,60 +603,60 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
                             ) AS supervisor_names
                         FROM faculty_evaluation_score fes
                         LEFT JOIN user_accounts sua
-                            ON (CAST(sua.user_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                               (CAST(fes.evaluator_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+                            ON (sua.user_id) =
+                               (fes.evaluator_id)
                         WHERE fes.evaluation_type = 'ROLE_PROGRAM_CHAIR'
                           AND fes.school_year = :schoolYear
                           AND (
-                                (LOWER(TRIM(CAST(fes.semester AS CHAR))) COLLATE utf8mb4_unicode_ci) =
-                                (LOWER(TRIM(CAST(:semester AS CHAR))) COLLATE utf8mb4_unicode_ci)
+                                (LOWER(TRIM(fes.semester))) =
+                                (LOWER(TRIM(:semester)))
                                 OR (
-                                    UPPER(TRIM(CAST(:semester AS CHAR))) IN ('1ST', 'FIRST_SEMESTER')
-                                    AND UPPER(TRIM(CAST(fes.semester AS CHAR))) IN ('1ST', 'FIRST_SEMESTER')
+                                    UPPER(TRIM(:semester)) IN ('1ST', 'FIRST_SEMESTER')
+                                    AND UPPER(TRIM(fes.semester)) IN ('1ST', 'FIRST_SEMESTER')
                                 )
                                 OR (
-                                    UPPER(TRIM(CAST(:semester AS CHAR))) IN ('2ND', 'SECOND_SEMESTER')
-                                    AND UPPER(TRIM(CAST(fes.semester AS CHAR))) IN ('2ND', 'SECOND_SEMESTER')
+                                    UPPER(TRIM(:semester)) IN ('2ND', 'SECOND_SEMESTER')
+                                    AND UPPER(TRIM(fes.semester)) IN ('2ND', 'SECOND_SEMESTER')
                                 )
                                 OR (
-                                    UPPER(TRIM(CAST(:semester AS CHAR))) IN ('SUMMER', 'SUMMER_SEMESTER')
-                                    AND UPPER(TRIM(CAST(fes.semester AS CHAR))) IN ('SUMMER', 'SUMMER_SEMESTER')
+                                    UPPER(TRIM(:semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
+                                    AND UPPER(TRIM(fes.semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
                                 )
                           )
                         GROUP BY fes.faculty_id
                     ) se
-                        ON (CAST(se.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                           (CAST(pf.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci)
-                    WHERE UPPER(TRIM(CAST(pf.status AS CHAR))) = 'ACTIVE'
+                        ON (se.faculty_id) =
+                           (pf.faculty_id)
+                    WHERE UPPER(TRIM(pf.status)) = 'ACTIVE'
                       AND (
                             pf.college IS NULL
-                            OR UPPER(TRIM(CAST(pf.college AS CHAR))) <> 'FOR_MIGRATION'
+                            OR UPPER(TRIM(pf.college)) <> 'FOR_MIGRATION'
                       )
                       AND (
                             :legacyDatabase IS NULL
                             OR :legacyDatabase = ''
-                            OR (UPPER(TRIM(CAST(pf.legacy_database AS CHAR))) COLLATE utf8mb4_unicode_ci) =
-                               (UPPER(TRIM(CAST(:legacyDatabase AS CHAR))) COLLATE utf8mb4_unicode_ci)
+                            OR (UPPER(TRIM(pf.legacy_database))) =
+                               (UPPER(TRIM(:legacyDatabase)))
                       )
                       AND (
                             :campus IS NULL
                             OR :campus = ''
-                            OR (UPPER(TRIM(CAST(cs.campus AS CHAR))) COLLATE utf8mb4_unicode_ci) =
-                               (UPPER(TRIM(CAST(:campus AS CHAR))) COLLATE utf8mb4_unicode_ci)
+                            OR (UPPER(TRIM(cs.campus))) =
+                               (UPPER(TRIM(:campus)))
                       )
                       AND (
                             :search IS NULL
                             OR :search = ''
-                            OR (LOWER(COALESCE(CAST(pf.faculty_id AS CHAR), '')) COLLATE utf8mb4_unicode_ci)
-                               LIKE (LOWER(CONCAT('%', CAST(:search AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
-                            OR (LOWER(COALESCE(CAST(pf.firstname AS CHAR), '')) COLLATE utf8mb4_unicode_ci)
-                               LIKE (LOWER(CONCAT('%', CAST(:search AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
-                            OR (LOWER(COALESCE(CAST(pf.lastname AS CHAR), '')) COLLATE utf8mb4_unicode_ci)
-                               LIKE (LOWER(CONCAT('%', CAST(:search AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
-                            OR (LOWER(COALESCE(CAST(pf.college AS CHAR), '')) COLLATE utf8mb4_unicode_ci)
-                               LIKE (LOWER(CONCAT('%', CAST(:search AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
-                            OR (LOWER(COALESCE(CAST(se.supervisor_names AS CHAR), '')) COLLATE utf8mb4_unicode_ci)
-                               LIKE (LOWER(CONCAT('%', CAST(:search AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
+                            OR (LOWER(COALESCE(pf.faculty_id, '')))
+                               LIKE (LOWER(CONCAT('%', :search, '%')))
+                            OR (LOWER(COALESCE(pf.firstname, '')))
+                               LIKE (LOWER(CONCAT('%', :search, '%')))
+                            OR (LOWER(COALESCE(pf.lastname, '')))
+                               LIKE (LOWER(CONCAT('%', :search, '%')))
+                            OR (LOWER(COALESCE(pf.college, '')))
+                               LIKE (LOWER(CONCAT('%', :search, '%')))
+                            OR (LOWER(COALESCE(se.supervisor_names, '')))
+                               LIKE (LOWER(CONCAT('%', :search, '%')))
                       )
                     """,
             nativeQuery = true
@@ -670,6 +670,8 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
     );
 
 }
+
+
 
 
 

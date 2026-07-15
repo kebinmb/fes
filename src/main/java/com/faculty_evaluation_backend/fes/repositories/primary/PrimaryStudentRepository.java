@@ -72,10 +72,10 @@ public interface PrimaryStudentRepository extends JpaRepository<PrimaryStudent, 
                     SELECT DISTINCT ps.student_id
                     FROM primary_student ps
                     INNER JOIN primary_student_load psl
-                        ON (CAST(psl.student_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                           (CAST(ps.student_id AS CHAR) COLLATE utf8mb4_unicode_ci)
-                    WHERE (CAST(ps.legacy_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                          (CAST(:studentId AS CHAR) COLLATE utf8mb4_unicode_ci)
+                        ON (psl.student_id) =
+                           (ps.student_id)
+                    WHERE (ps.legacy_id) =
+                          (:studentId)
                     """,
             nativeQuery = true
     )
@@ -92,3 +92,4 @@ public interface PrimaryStudentRepository extends JpaRepository<PrimaryStudent, 
             @Param("ids") Set<String> ids
     );
 }
+

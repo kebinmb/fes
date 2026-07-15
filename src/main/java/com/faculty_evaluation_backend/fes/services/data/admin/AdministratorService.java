@@ -515,7 +515,7 @@ public class AdministratorService {
                                 term.schoolYear(),
                                 term.semester(),
                                 term.workloadSemester(),
-                                Status.ACTIVE.name(),
+                                Status.ACTIVE,
                                 null
                         )
                         .stream()
@@ -1364,14 +1364,8 @@ public class AdministratorService {
     ) {
         Long workloadCount = safeLong(projection.getWorkloadCount());
         Integer numberOfPreparations = projection.getNumberOfPreparations();
-        College college = parseEnum(
-                College.class,
-                projection.getCollege()
-        );
-        Status status = parseEnum(
-                Status.class,
-                projection.getStatus()
-        );
+        College college = projection.getCollege();
+        Status status = projection.getStatus();
 
         return FacultyWorkloadCoverageFacultyResponse.builder()
                 .facultyId(projection.getFacultyId())

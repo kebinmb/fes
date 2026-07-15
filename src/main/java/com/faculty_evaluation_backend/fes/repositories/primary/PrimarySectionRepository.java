@@ -54,8 +54,8 @@ public interface PrimarySectionRepository extends JpaRepository<PrimarySection, 
                         ) AS notYetEvaluated
                     FROM primary_student_load psl
                     INNER JOIN primary_class pc
-                        ON (CAST(psl.class_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                           (CAST(pc.class_code AS CHAR) COLLATE utf8mb4_unicode_ci)
+                        ON (psl.class_code) =
+                           (pc.class_code)
                     INNER JOIN primary_section ps
                         ON pc.section_id = ps.section_id
                     LEFT JOIN faculty_workload fw_overload
@@ -88,31 +88,31 @@ public interface PrimarySectionRepository extends JpaRepository<PrimarySection, 
                        )
                        AND LOWER(TRIM(fw_overload.load_status)) = 'overload'
                     LEFT JOIN faculty_evaluation_score fes
-                        ON (CAST(psl.student_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                           (CAST(fes.evaluator_id AS CHAR) COLLATE utf8mb4_unicode_ci)
-                       AND (CAST(psl.class_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                           (CAST(fes.class_code AS CHAR) COLLATE utf8mb4_unicode_ci)
+                        ON (psl.student_id) =
+                           (fes.evaluator_id)
+                       AND (psl.class_code) =
+                           (fes.class_code)
                        AND fes.school_year = pc.school_year
-                       AND (CAST(fes.semester AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                           (CAST(pc.semester AS CHAR) COLLATE utf8mb4_unicode_ci)
+                       AND (fes.semester) =
+                           (pc.semester)
                     WHERE pc.school_year = :schoolYear
-                      AND (LOWER(TRIM(CAST(pc.semester AS CHAR))) COLLATE utf8mb4_unicode_ci) =
-                          (LOWER(TRIM(CAST(:semester AS CHAR))) COLLATE utf8mb4_unicode_ci)
+                      AND (LOWER(TRIM(pc.semester))) =
+                          (LOWER(TRIM(:semester)))
                       AND fw_overload.faculty_workload_id IS NULL
                       AND (
                             :programCode IS NULL
-                            OR (CAST(ps.program_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                               (CAST(:programCode AS CHAR) COLLATE utf8mb4_unicode_ci)
+                            OR (ps.program_code) =
+                               (:programCode)
                       )
                       AND (
                             :yearLevel IS NULL
-                            OR (CAST(ps.year_level AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                               (CAST(:yearLevel AS CHAR) COLLATE utf8mb4_unicode_ci)
+                            OR (ps.year_level) =
+                               (:yearLevel)
                       )
                       AND (
                             :sectionCode IS NULL
-                            OR (CAST(ps.section_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                               (CAST(:sectionCode AS CHAR) COLLATE utf8mb4_unicode_ci)
+                            OR (ps.section_code) =
+                               (:sectionCode)
                       )
                     GROUP BY
                         ps.program_code,
@@ -132,8 +132,8 @@ public interface PrimarySectionRepository extends JpaRepository<PrimarySection, 
                             ps.section_code
                         FROM primary_student_load psl
                         INNER JOIN primary_class pc
-                            ON (CAST(psl.class_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                               (CAST(pc.class_code AS CHAR) COLLATE utf8mb4_unicode_ci)
+                            ON (psl.class_code) =
+                               (pc.class_code)
                         INNER JOIN primary_section ps
                             ON pc.section_id = ps.section_id
                         LEFT JOIN faculty_workload fw_overload
@@ -166,23 +166,23 @@ public interface PrimarySectionRepository extends JpaRepository<PrimarySection, 
                            )
                            AND LOWER(TRIM(fw_overload.load_status)) = 'overload'
                         WHERE pc.school_year = :schoolYear
-                          AND (LOWER(TRIM(CAST(pc.semester AS CHAR))) COLLATE utf8mb4_unicode_ci) =
-                              (LOWER(TRIM(CAST(:semester AS CHAR))) COLLATE utf8mb4_unicode_ci)
+                          AND (LOWER(TRIM(pc.semester))) =
+                              (LOWER(TRIM(:semester)))
                           AND fw_overload.faculty_workload_id IS NULL
                           AND (
                                 :programCode IS NULL
-                                OR (CAST(ps.program_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                                   (CAST(:programCode AS CHAR) COLLATE utf8mb4_unicode_ci)
+                                OR (ps.program_code) =
+                                   (:programCode)
                           )
                           AND (
                                 :yearLevel IS NULL
-                                OR (CAST(ps.year_level AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                                   (CAST(:yearLevel AS CHAR) COLLATE utf8mb4_unicode_ci)
+                                OR (ps.year_level) =
+                                   (:yearLevel)
                           )
                           AND (
                                 :sectionCode IS NULL
-                                OR (CAST(ps.section_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                                   (CAST(:sectionCode AS CHAR) COLLATE utf8mb4_unicode_ci)
+                                OR (ps.section_code) =
+                                   (:sectionCode)
                           )
                         GROUP BY
                             ps.program_code,
@@ -225,3 +225,5 @@ public interface PrimarySectionRepository extends JpaRepository<PrimarySection, 
 
 
 }
+
+

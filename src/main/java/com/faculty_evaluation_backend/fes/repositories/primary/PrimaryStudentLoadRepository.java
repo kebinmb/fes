@@ -89,8 +89,8 @@ public interface PrimaryStudentLoadRepository extends JpaRepository<PrimaryStude
     FROM primary_student_load psl
 
     INNER JOIN primary_class pc
-        ON (CAST(psl.class_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
-           (CAST(pc.class_code AS CHAR) COLLATE utf8mb4_unicode_ci)
+        ON (psl.class_code) =
+           (pc.class_code)
 
     INNER JOIN primary_section ps
         ON ps.section_id = pc.section_id
@@ -126,24 +126,24 @@ public interface PrimaryStudentLoadRepository extends JpaRepository<PrimaryStude
        AND LOWER(TRIM(fw_overload.load_status)) = 'overload'
 
     LEFT JOIN faculty_evaluation_score fes
-        ON (CAST(fes.evaluator_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-           (CAST(psl.student_id AS CHAR) COLLATE utf8mb4_unicode_ci)
-        AND (CAST(fes.class_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
-            (CAST(psl.class_code AS CHAR) COLLATE utf8mb4_unicode_ci)
+        ON (fes.evaluator_id) =
+           (psl.student_id)
+        AND (fes.class_code) =
+            (psl.class_code)
         AND fes.school_year = pc.school_year
-        AND (CAST(fes.semester AS CHAR) COLLATE utf8mb4_unicode_ci) =
-            (CAST(pc.semester AS CHAR) COLLATE utf8mb4_unicode_ci)
+        AND (fes.semester) =
+            (pc.semester)
 
     WHERE
-        (CAST(ps.program_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
-        (CAST(:programCode AS CHAR) COLLATE utf8mb4_unicode_ci)
-        AND (CAST(ps.year_level AS CHAR) COLLATE utf8mb4_unicode_ci) =
-            (CAST(:yearLevel AS CHAR) COLLATE utf8mb4_unicode_ci)
-        AND (CAST(ps.section_code AS CHAR) COLLATE utf8mb4_unicode_ci) =
-            (CAST(:sectionCode AS CHAR) COLLATE utf8mb4_unicode_ci)
+        (ps.program_code) =
+        (:programCode)
+        AND (ps.year_level) =
+            (:yearLevel)
+        AND (ps.section_code) =
+            (:sectionCode)
         AND pc.school_year = :schoolYear
-        AND (LOWER(TRIM(CAST(pc.semester AS CHAR))) COLLATE utf8mb4_unicode_ci) =
-            (LOWER(TRIM(CAST(:semester AS CHAR))) COLLATE utf8mb4_unicode_ci)
+        AND (LOWER(TRIM(pc.semester))) =
+            (LOWER(TRIM(:semester)))
         AND fw_overload.faculty_workload_id IS NULL
 
     ORDER BY
@@ -159,3 +159,5 @@ public interface PrimaryStudentLoadRepository extends JpaRepository<PrimaryStude
             @Param("semester") String semester
     );
 }
+
+
