@@ -284,9 +284,29 @@ public class SupervisorDataService {
                 Sort.unsorted()
         );
 
+        SchoolYearAndSemester activeTerm = schoolYearAndSemesterRepository
+                .findByStatus(Status.ACTIVE)
+                .orElseThrow(() ->
+                        new RuntimeException("No active school year and semester found.")
+                );
+
+        UserAccounts supervisor = userAccountsRepository.findById(userId)
+                .orElseThrow(() ->
+                        new EntityNotFoundException(
+                                "User not found with id: " + userId
+                        )
+                );
+        String legacyDatabase = normalizeBlank(supervisor.getDataSource());
+
+        if (legacyDatabase == null) {
+            throw new AccessDeniedException("Supervisor data source is not configured.");
+        }
+
         Page<EvaluatedStudentsDTO> result =
                 facultyEvaluationScoreRepository.findEvaluatedStudents(
-                                userId,
+                                legacyDatabase,
+                                activeTerm.getSchoolYear(),
+                                activeTerm.getSemester().getValue(),
                                 normalizeSearch(searchTerm),
                                 nativeQueryPageable
                         )

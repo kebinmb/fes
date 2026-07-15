@@ -235,57 +235,53 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
                         ps.student_firstname AS studentFirstname,
                         pf.firstname AS firstname,
                         pf.lastname AS lastname
-                    FROM faculty_evaluation_score fes
+                    FROM primary_student ps
+                    INNER JOIN faculty_evaluation_score fes
+                        ON fes.evaluator_id = ps.student_id
+                       AND fes.school_year = :schoolYear
+                       AND fes.semester = :semester
+                       AND (
+                            fes.evaluation_type = 'ROLE_STUDENT'
+                            OR fes.evaluation_type IS NULL
+                       )
                     INNER JOIN primary_faculty pf
-                        ON (CAST(fes.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                           (CAST(pf.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci)
-                    INNER JOIN primary_student ps
-                        ON (CAST(fes.evaluator_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                           (CAST(ps.student_id AS CHAR) COLLATE utf8mb4_unicode_ci)
-                    INNER JOIN user_accounts ua
-                        ON ua.user_id = :userId
-                       AND (CAST(ua.data_source AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                           (CAST(ps.legacy_database AS CHAR) COLLATE utf8mb4_unicode_ci)
-                    WHERE (
+                        ON pf.faculty_id = fes.faculty_id
+                    WHERE ps.legacy_database = :legacyDatabase
+                      AND (
                         :searchTerm IS NULL
                         OR :searchTerm = ''
-                        OR (LOWER(CAST(fes.evaluator_id AS CHAR)) COLLATE utf8mb4_unicode_ci)
-                            LIKE (LOWER(CONCAT('%', CAST(:searchTerm AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
-                        OR (LOWER(CAST(ps.student_firstname AS CHAR)) COLLATE utf8mb4_unicode_ci)
-                            LIKE (LOWER(CONCAT('%', CAST(:searchTerm AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
-                        OR (LOWER(CAST(ps.student_lastname AS CHAR)) COLLATE utf8mb4_unicode_ci)
-                            LIKE (LOWER(CONCAT('%', CAST(:searchTerm AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
-                    )
+                        OR LOWER(fes.evaluator_id) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
+                        OR LOWER(ps.student_firstname) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
+                        OR LOWER(ps.student_lastname) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
+                      )
                     ORDER BY fes.created_at DESC
                     """,
             countQuery = """
                     SELECT COUNT(*)
-                    FROM faculty_evaluation_score fes
-                    INNER JOIN primary_faculty pf
-                        ON (CAST(fes.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                           (CAST(pf.faculty_id AS CHAR) COLLATE utf8mb4_unicode_ci)
-                    INNER JOIN primary_student ps
-                        ON (CAST(fes.evaluator_id AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                           (CAST(ps.student_id AS CHAR) COLLATE utf8mb4_unicode_ci)
-                    INNER JOIN user_accounts ua
-                        ON ua.user_id = :userId
-                       AND (CAST(ua.data_source AS CHAR) COLLATE utf8mb4_unicode_ci) =
-                           (CAST(ps.legacy_database AS CHAR) COLLATE utf8mb4_unicode_ci)
-                    WHERE (
+                    FROM primary_student ps
+                    INNER JOIN faculty_evaluation_score fes
+                        ON fes.evaluator_id = ps.student_id
+                       AND fes.school_year = :schoolYear
+                       AND fes.semester = :semester
+                       AND (
+                            fes.evaluation_type = 'ROLE_STUDENT'
+                            OR fes.evaluation_type IS NULL
+                       )
+                    WHERE ps.legacy_database = :legacyDatabase
+                      AND (
                         :searchTerm IS NULL
                         OR :searchTerm = ''
-                        OR (LOWER(CAST(fes.evaluator_id AS CHAR)) COLLATE utf8mb4_unicode_ci)
-                            LIKE (LOWER(CONCAT('%', CAST(:searchTerm AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
-                        OR (LOWER(CAST(ps.student_firstname AS CHAR)) COLLATE utf8mb4_unicode_ci)
-                            LIKE (LOWER(CONCAT('%', CAST(:searchTerm AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
-                        OR (LOWER(CAST(ps.student_lastname AS CHAR)) COLLATE utf8mb4_unicode_ci)
-                            LIKE (LOWER(CONCAT('%', CAST(:searchTerm AS CHAR), '%')) COLLATE utf8mb4_unicode_ci)
-                    )
+                        OR LOWER(fes.evaluator_id) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
+                        OR LOWER(ps.student_firstname) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
+                        OR LOWER(ps.student_lastname) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
+                      )
                     """,
             nativeQuery = true
     )
     Page<Object[]> findEvaluatedStudents(
-            @Param("userId") Long userId,
+            @Param("legacyDatabase") String legacyDatabase,
+            @Param("schoolYear") Integer schoolYear,
+            @Param("semester") String semester,
             @Param("searchTerm") String searchTerm,
             Pageable pageable
     );
