@@ -131,7 +131,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         return path.equals("/auth/student/login") ||
                 path.equals("/auth/supervisor/login") ||
-                path.equals("/auth/access-code/generate") || path.equals("/auth/administrator/login");
+                path.equals("/auth/access-code/generate") ||
+                path.equals("/auth/csrf") ||
+                path.equals("/auth/administrator/login");
     }
     private String extractAccessToken(HttpServletRequest request) {
 

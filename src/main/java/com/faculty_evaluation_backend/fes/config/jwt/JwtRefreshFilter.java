@@ -418,6 +418,7 @@ public class JwtRefreshFilter extends OncePerRequestFilter {
                 || path.equals("/auth/supervisor/login")
                 || path.equals("/auth/administrator/login")
                 || path.equals("/auth/access-code/generate")
+                || path.equals("/auth/csrf")
                 || path.equals("/auth/logout");
     }
 }

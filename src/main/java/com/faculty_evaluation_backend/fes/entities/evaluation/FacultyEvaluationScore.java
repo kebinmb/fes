@@ -16,10 +16,13 @@ import lombok.*;
 @Table(
         name = "faculty_evaluation_score",
         uniqueConstraints = @UniqueConstraint(
+                name = "uq_evaluation",
                 columnNames = {
                         "faculty_id",
                         "evaluator_id",
                         "class_code",
+                        "subject_code",
+                        "year_level",
                         "semester",
                         "school_year"
                 }
@@ -44,7 +47,7 @@ public class FacultyEvaluationScore extends Auditable {
     )
     private PrimaryFaculty faculty;
 
-    @Column(name = "evaluator_id", nullable = false, length = 15)
+    @Column(name = "evaluator_id", nullable = false, length = 50)
     private String evaluatorId;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -56,7 +59,7 @@ public class FacultyEvaluationScore extends Auditable {
     )
     private PrimaryStudent student;
 
-    @Column(name = "class_code", nullable = false, length = 20)
+    @Column(name = "class_code", nullable = false, length = 255)
     private String classCode;
 
     @Column(name = "semester", nullable = false, length = 10)
@@ -68,7 +71,7 @@ public class FacultyEvaluationScore extends Auditable {
     @Column(name = "subject_code", nullable = false)
     private String subjectCode;
 
-    @Column(name = "year_level", nullable = false)
+    @Column(name = "year_level", nullable = false, length = 50)
     private String yearLevel;
 
     @Column(name = "comments_or_feedbacks")

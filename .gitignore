@@ -7,8 +7,8 @@ src/main/resources/*service-account*.json
 hs_err_pid*.log
 replay_pid*.log
 .env
-.env
-!.env
+.env.*
+!.env.example
 !**/src/main/**/target/
 !**/src/test/**/target/
 
