@@ -26,7 +26,7 @@ SET @index_exists := (
 
 SET @statement := IF(
     @index_exists = 0,
-    'CREATE INDEX idx_fes_supervisor_evaluated_lookup ON faculty_evaluation_score(school_year, semester, evaluator_id, evaluation_type(32), created_at DESC, faculty_id)',
+    'CREATE INDEX idx_fes_supervisor_evaluated_lookup ON faculty_evaluation_score(school_year, semester, evaluator_id, evaluation_type, created_at DESC, faculty_id)',
     'SELECT 1'
 );
 
