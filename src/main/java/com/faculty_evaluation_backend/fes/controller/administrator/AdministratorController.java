@@ -288,6 +288,16 @@ public class AdministratorController {
         );
     }
 
+    @DeleteMapping("/faculty-workloads/{facultyWorkloadId}")
+    @AuditableAction(action = "DELETE", entity = "FACULTY_WORKLOAD")
+    public ResponseEntity<Void> deleteFacultyWorkload(
+            @PathVariable Long facultyWorkloadId
+    ) {
+        administratorService.deleteFacultyWorkload(facultyWorkloadId);
+
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/faculty-workloads/section-options")
     @AuditableAction(action = "FETCH", entity = "FACULTY_WORKLOAD_SECTION_OPTIONS")
     public ResponseEntity<List<FacultyWorkloadSectionOptionResponse>>

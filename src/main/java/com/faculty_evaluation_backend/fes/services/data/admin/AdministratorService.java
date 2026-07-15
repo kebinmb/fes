@@ -892,6 +892,54 @@ public class AdministratorService {
     }
 
     @Transactional(
+            transactionManager = "primaryTransactionManager"
+    )
+    @CacheEvict(
+            value = {
+                    "adminDashboard",
+                    "adminDashboardSummary",
+                    "adminDashboardPrograms",
+                    "adminDashboardFacultyLoads",
+                    "facultyWorkloadCoverage",
+                    "facultyWorkloadClassOptions",
+                    "facultyEvaluationReports",
+                    "supervisorFacultyLoads",
+                    "supervisorFacultyProgramLoads"
+            },
+            allEntries = true
+    )
+    public void deleteFacultyWorkload(Long facultyWorkloadId) {
+        if (facultyWorkloadId == null) {
+            throw new BadRequestException("Faculty workload ID is required.");
+        }
+
+        FacultyWorkload workload = facultyWorkloadRepository
+                .findById(facultyWorkloadId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Faculty workload not found."
+                        )
+                );
+        String facultyId = workload.getFacultyId();
+        Integer schoolYear = workload.getSchoolYear();
+        String semester = workload.getSemester();
+        Integer numberOfPreparations =
+                workload.getNumberOfPreparations();
+        BigDecimal designationEtu = workload.getDesignationEtu();
+
+        facultyWorkloadRepository.delete(workload);
+        facultyWorkloadRepository.flush();
+
+        updateFacultyTermTeachingLoad(
+                facultyId,
+                schoolYear,
+                semester,
+                numberOfPreparations,
+                designationEtu
+        );
+    }
+
+    @Transactional(
             transactionManager = "primaryTransactionManager",
             readOnly = true
     )
