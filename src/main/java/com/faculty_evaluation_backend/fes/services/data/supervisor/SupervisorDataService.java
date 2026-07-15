@@ -1,5 +1,6 @@
 package com.faculty_evaluation_backend.fes.services.data.supervisor;
 
+import com.faculty_evaluation_backend.fes.dto.dashboard.ClassStudentEvaluationStatsResponse;
 import com.faculty_evaluation_backend.fes.dto.data.SchoolYearAndSemesterDTO;
 import com.faculty_evaluation_backend.fes.dto.evaluation.EvaluatedStudentsDTO;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassDTO;
@@ -27,6 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataRetrievalFailureException;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -34,7 +36,9 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @Slf4j
@@ -188,10 +192,6 @@ public class SupervisorDataService {
             transactionManager = "primaryTransactionManager",
             readOnly = true
     )
-    @Cacheable(
-            value = "supervisorFacultyProgramLoads",
-            key = "#userId + ':' + (#search == null ? '' : #search.trim().toLowerCase()) + ':' + (#campus == null ? '' : #campus.trim().toLowerCase()) + ':' + #pageable.pageNumber + ':' + #pageable.pageSize + ':' + #pageable.sort.toString()"
-    )
     public Page<FacultyProgramLoadsDTO> getFacultyInPrograms(
 
             Long userId,
@@ -209,24 +209,43 @@ public class SupervisorDataService {
                 search,
                 campus,
                 pageable.getPageNumber(),
-                pageable.getPageSize()
+            pageable.getPageSize()
         );
+
+        SchoolYearAndSemester activeTerm = schoolYearAndSemesterRepository
+                .findByStatus(Status.ACTIVE)
+                .orElseThrow(() ->
+                        new RuntimeException("No active school year and semester found.")
+                );
 
         UserAccounts supervisor = userAccountsRepository.findById(userId)
                 .orElseThrow(() ->
                         new EntityNotFoundException(
                                 "User not found with id: " + userId
                         )
-                );
+        );
         String programCode = resolveProgramCode(supervisor);
+        String legacyDatabase = normalizeBlank(supervisor.getDataSource());
+
+        if (legacyDatabase == null) {
+            throw new AccessDeniedException("Supervisor data source is not configured.");
+        }
+
+        Pageable nativePageable = PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                Sort.unsorted()
+        );
 
         Page<FacultyProgramLoadsDTO> result =
                 primaryClassRepository.findFacultyPerProgram(
-                        userId,
-                        search,
-                        campus,
+                        activeTerm.getSchoolYear(),
+                        activeTerm.getSemester().getValue(),
+                        legacyDatabase,
+                        normalizeSearch(search),
+                        normalizeBlank(campus),
                         programCode,
-                        pageable
+                        nativePageable
                 );
 
         log.info(
@@ -283,6 +302,98 @@ public class SupervisorDataService {
         return result;
     }
 
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
+    public Page<ClassStudentEvaluationStatsResponse> findClassStudentEvaluationStats(
+            Long userId,
+            String search,
+            String campus,
+            Pageable pageable
+    ) {
+        SchoolYearAndSemester activeTerm = schoolYearAndSemesterRepository
+                .findByStatus(Status.ACTIVE)
+                .orElseThrow(() ->
+                        new RuntimeException("No active school year and semester found.")
+                );
+
+        UserAccounts supervisor = userAccountsRepository.findById(userId)
+                .orElseThrow(() ->
+                        new EntityNotFoundException(
+                                "User not found with id: " + userId
+                        )
+                );
+
+        String programCode = resolveProgramCode(supervisor);
+        String legacyDatabase = normalizeBlank(supervisor.getDataSource());
+
+        if (legacyDatabase == null) {
+            throw new AccessDeniedException("Supervisor data source is not configured.");
+        }
+
+        Pageable nativePageable = PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                Sort.unsorted()
+        );
+
+        Page<Object[]> classPage =
+                primaryClassRepository.findClassStudentEvaluationStatClassPage(
+                        activeTerm.getSchoolYear(),
+                        activeTerm.getSemester().getValue(),
+                        legacyDatabase,
+                        normalizeSearch(search),
+                        normalizeBlank(campus),
+                        programCode,
+                        nativePageable
+                );
+
+        if (classPage.isEmpty()) {
+            return new PageImpl<>(
+                    List.of(),
+                    nativePageable,
+                    classPage.getTotalElements()
+            );
+        }
+
+        List<String> classCodes = classPage
+                .getContent()
+                .stream()
+                .map(row -> safeString(row, 0))
+                .filter(value -> !value.isBlank())
+                .distinct()
+                .toList();
+
+        Map<String, StudentEvaluationTotals> totalsByClassCode =
+                findTotalsByClassCode(
+                        classCodes,
+                        activeTerm.getSchoolYear(),
+                        activeTerm.getSemester().getValue()
+                );
+
+        List<ClassStudentEvaluationStatsResponse> content =
+                classPage
+                        .getContent()
+                        .stream()
+                        .map(row ->
+                                toClassStudentEvaluationStatsResponse(
+                                        row,
+                                        totalsByClassCode.getOrDefault(
+                                                safeString(row, 0),
+                                                StudentEvaluationTotals.empty()
+                                        )
+                                )
+                        )
+                        .toList();
+
+        return new PageImpl<>(
+                content,
+                nativePageable,
+                classPage.getTotalElements()
+        );
+    }
+
     private EvaluatedStudentsDTO toEvaluatedStudentsDTO(Object[] row) {
         return new EvaluatedStudentsDTO(
                 row[0] == null ? null : row[0].toString(),
@@ -302,6 +413,99 @@ public class SupervisorDataService {
         }
 
         return searchTerm.trim();
+    }
+
+    private String normalizeBlank(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+
+        return value.trim();
+    }
+
+    private ClassStudentEvaluationStatsResponse toClassStudentEvaluationStatsResponse(
+            Object[] row,
+            StudentEvaluationTotals totals
+    ) {
+        Long totalStudents = totals.totalStudents();
+        Long evaluatedStudents = totals.evaluatedStudents();
+        Long pendingStudents = Math.max(totalStudents - evaluatedStudents, 0);
+        Double evaluationPercentage = totalStudents == 0
+                ? 0.0
+                : Math.round((evaluatedStudents * 10000.0) / totalStudents) / 100.0;
+
+        return new ClassStudentEvaluationStatsResponse(
+                safeString(row, 0),
+                safeString(row, 1),
+                safeString(row, 2),
+                safeString(row, 3),
+                safeString(row, 4),
+                safeString(row, 5),
+                safeString(row, 6),
+                totalStudents,
+                evaluatedStudents,
+                pendingStudents,
+                evaluationPercentage
+        );
+    }
+
+    private Map<String, StudentEvaluationTotals> findTotalsByClassCode(
+            List<String> classCodes,
+            Integer schoolYear,
+            String semester
+    ) {
+        if (classCodes.isEmpty()) {
+            return Map.of();
+        }
+
+        List<Object[]> totalRows =
+                primaryClassRepository.findClassStudentEvaluationTotalsForClasses(
+                        classCodes,
+                        schoolYear,
+                        semester
+                );
+
+        Map<String, StudentEvaluationTotals> totals = new HashMap<>();
+
+        for (Object[] row : totalRows) {
+            totals.put(
+                    safeString(row, 0),
+                    new StudentEvaluationTotals(
+                            safeLong(row, 1),
+                            safeLong(row, 2)
+                    )
+            );
+        }
+
+        return totals;
+    }
+
+    private record StudentEvaluationTotals(
+            Long totalStudents,
+            Long evaluatedStudents
+    ) {
+        private static StudentEvaluationTotals empty() {
+            return new StudentEvaluationTotals(0L, 0L);
+        }
+    }
+
+    private String safeString(Object[] row, int index) {
+        Object value = row[index];
+        return value == null ? "" : value.toString();
+    }
+
+    private Long safeLong(Object[] row, int index) {
+        Object value = row[index];
+
+        if (value == null) {
+            return 0L;
+        }
+
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+
+        return Long.parseLong(value.toString());
     }
 
     private String resolveProgramCode(UserAccounts userAccount) {

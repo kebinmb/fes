@@ -1,6 +1,7 @@
 package com.faculty_evaluation_backend.fes.controller.supervisor;
 
 import com.faculty_evaluation_backend.fes.audit.AuditableAction;
+import com.faculty_evaluation_backend.fes.dto.dashboard.ClassStudentEvaluationStatsResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.EvaluatedStudentsDTO;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassDTO;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyDTO;
@@ -180,6 +181,27 @@ public class SupervisorDataController {
                 supervisorDataService.findEvaluatedStudents(
                         authenticatedUserId,
                         searchTerm,
+                        pageable
+                )
+        );
+    }
+
+    @GetMapping("/student-evaluation-stats")
+    @AuditableAction(action = "FETCH", entity = "CLASS_STUDENT_EVALUATION_STATS")
+    public ResponseEntity<Page<ClassStudentEvaluationStatsResponse>> getStudentEvaluationStats(
+            @RequestParam(required = false, defaultValue = "") String search,
+            @RequestParam(required = false, defaultValue = "") String campus,
+            @PageableDefault(page = 0, size = 10)
+            Pageable pageable,
+            Authentication authentication
+    ) {
+        Long authenticatedUserId = authenticatedUserId(authentication);
+
+        return ResponseEntity.ok(
+                supervisorDataService.findClassStudentEvaluationStats(
+                        authenticatedUserId,
+                        search,
+                        campus,
                         pageable
                 )
         );
