@@ -1,20 +1,12 @@
 package com.faculty_evaluation_backend.fes.services.data.admin;
 
 import com.faculty_evaluation_backend.fes.dto.data.SchoolYearAndSemesterDTO;
-import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardFacultyLoadProjection;
 import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardFacultyLoadResponse;
-import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardProgramBreakdownProjection;
 import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardProgramBreakdownResponse;
 import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardResponse;
 import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardSummaryResponse;
-import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardSummaryProjection;
-import com.faculty_evaluation_backend.fes.dto.dashboard.FacultyWorkloadCoverageFacultyResponse;
-import com.faculty_evaluation_backend.fes.dto.dashboard.FacultyWorkloadCoverageProjection;
 import com.faculty_evaluation_backend.fes.dto.dashboard.FacultyWorkloadCoverageResponse;
 import com.faculty_evaluation_backend.fes.dto.dashboard.SupervisorEvaluationDashboardPageResponse;
-import com.faculty_evaluation_backend.fes.dto.dashboard.SupervisorEvaluationDashboardMetricsProjection;
-import com.faculty_evaluation_backend.fes.dto.dashboard.SupervisorEvaluationDashboardProjection;
-import com.faculty_evaluation_backend.fes.dto.dashboard.SupervisorEvaluationDashboardResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.StudentEvaluationStatusResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.StudentFacultyEvaluationDTO;
 import com.faculty_evaluation_backend.fes.dto.evaluation.StudentFacultyEvaluationProjection;
@@ -36,22 +28,18 @@ import com.faculty_evaluation_backend.fes.dto.student.StudentSectionDTO;
 import com.faculty_evaluation_backend.fes.dto.user_accounts.CreateUserAccountDTO;
 import com.faculty_evaluation_backend.fes.dto.user_accounts.UpdateUserAccountDTO;
 import com.faculty_evaluation_backend.fes.dto.user_accounts.UpdateUserPasswordDTO;
-import com.faculty_evaluation_backend.fes.entities.authentication.UserAccounts;
 import com.faculty_evaluation_backend.fes.entities.data.SchoolYearAndSemester;
 import com.faculty_evaluation_backend.fes.entities.data.enums.Semester;
 import com.faculty_evaluation_backend.fes.entities.evaluation.FacultyEvaluationScore;
 import com.faculty_evaluation_backend.fes.entities.primary.FacultyWorkload;
-import com.faculty_evaluation_backend.fes.entities.primary.PrimaryClass;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryFaculty;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.College;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.FacultyWorkloadSource;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.Status;
 import com.faculty_evaluation_backend.fes.exceptions.BadRequestException;
 import com.faculty_evaluation_backend.fes.exceptions.ResourceNotFoundException;
-import com.faculty_evaluation_backend.fes.repositories.authentication.UserAccountsRepository;
 import com.faculty_evaluation_backend.fes.repositories.data.SchoolYearAndSemesterRepository;
 import com.faculty_evaluation_backend.fes.repositories.evaluation.FacultyEvaluationScoreRepository;
-import com.faculty_evaluation_backend.fes.repositories.primary.AdminDashboardRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.FacultyWorkloadRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryClassRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryFacultyRepository;
@@ -64,13 +52,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.*;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -113,18 +99,17 @@ public class AdministratorService {
 
     private final PrimaryFacultyRepository primaryFacultyRepository;
 
-    private final UserAccountsRepository userAccountsRepository;
-
     private final FacultyEvaluationScoreRepository facultyEvaluationScoreRepository;
 
     private final SchoolYearAndSemesterRepository schoolYearAndSemesterRepository;
 
-    private final PasswordEncoder passwordEncoder;
     private final PrimarySectionRepository primarySectionRepository;
     private final PrimaryClassRepository primaryClassRepository;
     private final PrimaryStudentLoadRepository primaryStudentLoadRepository;
-    private final AdminDashboardRepository adminDashboardRepository;
     private final FacultyWorkloadRepository facultyWorkloadRepository;
+    private final AdminClassAssignmentService adminClassAssignmentService;
+    private final AdminDashboardService adminDashboardService;
+    private final AdminUserAccountService adminUserAccountService;
 
     @Transactional
     @CacheEvict(
@@ -200,40 +185,19 @@ public class AdministratorService {
             String search,
             String legacyDatabase
     ) {
-        DashboardTerm term = resolveDashboardTerm();
-        int safePage = Math.max(page, 0);
-        int safeSize = Math.min(Math.max(size, 1), 100);
-        Pageable pageable = PageRequest.of(
-                safePage,
-                safeSize,
-                Sort.by(
-                        Sort.Order.asc("subjectCode"),
-                        Sort.Order.asc("classCode"),
-                        Sort.Order.asc("primaryClassId")
-                )
+        return adminClassAssignmentService.getClassAssignments(
+                page,
+                size,
+                search,
+                legacyDatabase
         );
-
-        Page<ClassFacultyAssignmentResponse> assignments =
-                primaryClassRepository.findAdminClassAssignments(
-                        term.schoolYear(),
-                        term.semester(),
-                        normalizeOptional(search),
-                        normalizeOptional(legacyDatabase),
-                        pageable
-                ).map(this::toClassFacultyAssignmentResponse);
-
-        return PageMapper.toPageResponse(assignments);
     }
 
     @Transactional(readOnly = true)
     public List<FacultyAssignmentOptionResponse>
     getClassAssignmentFacultyOptions(String legacyDatabase) {
-        return primaryFacultyRepository.findAssignmentOptions(
-                        Status.ACTIVE,
-                        normalizeOptional(legacyDatabase)
-                ).stream()
-                .map(this::toFacultyAssignmentOptionResponse)
-                .toList();
+        return adminClassAssignmentService
+                .getClassAssignmentFacultyOptions(legacyDatabase);
     }
 
     @Transactional
@@ -263,76 +227,9 @@ public class AdministratorService {
             Long primaryClassId,
             ClassFacultyReassignmentRequest request
     ) {
-        if (primaryClassId == null) {
-            throw new BadRequestException("Primary class ID is required.");
-        }
-
-        PrimaryClass primaryClass = primaryClassRepository
-                .findAssignmentById(primaryClassId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("Class assignment not found.")
-                );
-
-        DashboardTerm term = resolveDashboardTerm();
-        if (!Objects.equals(primaryClass.getSchoolYear(), term.schoolYear())
-                || !term.semester().equalsIgnoreCase(
-                        primaryClass.getSemester()
-                )) {
-            throw new BadRequestException(
-                    "Only classes in the current school year and semester can be reassigned."
-            );
-        }
-
-        String previousFacultyId = normalizeOptional(
-                primaryClass.getFacultyId()
-        );
-        String expectedFacultyId = normalizeOptional(
-                request.expectedCurrentFacultyId()
-        );
-        if (!Objects.equals(previousFacultyId, expectedFacultyId)) {
-            throw new BadRequestException(
-                    "This class assignment has changed. Refresh the list and try again."
-            );
-        }
-
-        String newFacultyId = request.facultyId().trim();
-        PrimaryFaculty newFaculty = primaryFacultyRepository
-                .findByFacultyId(newFacultyId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("Faculty not found.")
-                );
-
-        if (newFaculty.getStatus() != Status.ACTIVE) {
-            throw new BadRequestException(
-                    "Only an active faculty member can be assigned."
-            );
-        }
-
-        String classDatabase = normalizeOptional(
-                primaryClass.getLegacyDatabase()
-        );
-        String facultyDatabase = normalizeOptional(
-                newFaculty.getLegacyDatabase()
-        );
-        if (classDatabase != null
-                && !classDatabase.equalsIgnoreCase(facultyDatabase)) {
-            throw new BadRequestException(
-                    "The faculty member must belong to the same source database as the class."
-            );
-        }
-
-        boolean changed = !Objects.equals(previousFacultyId, newFacultyId);
-        if (changed) {
-            primaryClass.setFacultyId(newFacultyId);
-            primaryClassRepository.saveAndFlush(primaryClass);
-            primaryClass.setFaculty(newFaculty);
-        }
-
-        return new ClassFacultyReassignmentResponse(
-                toClassFacultyAssignmentResponse(primaryClass),
-                previousFacultyId,
-                newFacultyId,
-                changed
+        return adminClassAssignmentService.reassignClassFaculty(
+                primaryClassId,
+                request
         );
     }
 
@@ -342,13 +239,7 @@ public class AdministratorService {
     )
     @Cacheable(value = "adminDashboard", key = "'active'")
     public AdminDashboardResponse getDashboard() {
-        DashboardTerm term = resolveDashboardTerm();
-
-        return AdminDashboardResponse.builder()
-                .summary(buildDashboardSummary(term))
-                .programs(findDashboardProgramBreakdown(term))
-                .facultyLoads(findDashboardFacultyLoads(term, 10))
-                .build();
+        return adminDashboardService.getDashboard();
     }
 
     @Transactional(
@@ -357,42 +248,7 @@ public class AdministratorService {
     )
     @Cacheable(value = "adminDashboardSummary", key = "'active'")
     public AdminDashboardSummaryResponse getDashboardSummary() {
-        return buildDashboardSummary(resolveDashboardTerm());
-    }
-
-    private AdminDashboardSummaryResponse buildDashboardSummary(
-            DashboardTerm term
-    ) {
-        AdminDashboardSummaryProjection summary =
-                adminDashboardRepository.findSummary(
-                        term.schoolYear(),
-                        term.semester()
-                );
-
-        Long expectedEvaluations = safeLong(summary.getExpectedEvaluations());
-        Long completedEvaluations = safeLong(summary.getCompletedEvaluations());
-
-        return AdminDashboardSummaryResponse.builder()
-                .schoolYear(term.schoolYear())
-                .semester(term.semester())
-                .totalStudents(safeLong(summary.getTotalStudents()))
-                .totalFaculty(safeLong(summary.getTotalFaculty()))
-                .totalClasses(safeLong(summary.getTotalClasses()))
-                .totalSubjects(safeLong(summary.getTotalSubjects()))
-                .totalPrograms(safeLong(summary.getTotalPrograms()))
-                .totalSections(safeLong(summary.getTotalSections()))
-                .expectedEvaluations(expectedEvaluations)
-                .completedEvaluations(completedEvaluations)
-                .evaluatedStudents(safeLong(summary.getEvaluatedStudents()))
-                .pendingEvaluations(Math.max(
-                        expectedEvaluations - completedEvaluations,
-                        0
-                ))
-                .evaluationCompletionRate(
-                        percentage(completedEvaluations, expectedEvaluations)
-                )
-                .averageOverallScore(safeDouble(summary.getAverageOverallScore()))
-                .build();
+        return adminDashboardService.getDashboardSummary();
     }
 
     @Transactional(
@@ -402,16 +258,7 @@ public class AdministratorService {
     @Cacheable(value = "adminDashboardPrograms", key = "'active'")
     public List<AdminDashboardProgramBreakdownResponse>
     getDashboardProgramBreakdown() {
-        return findDashboardProgramBreakdown(resolveDashboardTerm());
-    }
-
-    private List<AdminDashboardProgramBreakdownResponse>
-    findDashboardProgramBreakdown(DashboardTerm term) {
-        return adminDashboardRepository
-                .findProgramBreakdown(term.schoolYear(), term.semester())
-                .stream()
-                .map(this::toProgramBreakdownResponse)
-                .toList();
+        return adminDashboardService.getDashboardProgramBreakdown();
     }
 
     @Transactional(
@@ -425,7 +272,7 @@ public class AdministratorService {
     public List<AdminDashboardFacultyLoadResponse> getDashboardFacultyLoads(
             int limit
     ) {
-        return findDashboardFacultyLoads(resolveDashboardTerm(), limit);
+        return adminDashboardService.getDashboardFacultyLoads(limit);
     }
 
     @Transactional(
@@ -443,66 +290,16 @@ public class AdministratorService {
             Integer schoolYear,
             String semester
     ) {
-        DashboardTerm activeTerm = resolveDashboardTerm();
-        Integer resolvedSchoolYear =
-                schoolYear == null ? activeTerm.schoolYear() : schoolYear;
-        String resolvedSemester =
-                normalizeBlank(semester) == null
-                        ? activeTerm.semester()
-                        : normalizeSemester(semester);
-        String normalizedStatus =
-                normalizeSupervisorEvaluationStatus(evaluationStatus);
-        String normalizedSearch = normalizeBlank(search);
-        String normalizedLegacyDatabase = normalizeLegacyDatabase(legacyDatabase);
-        String normalizedCampus = normalizeBlank(campus);
-
-        Pageable pageable = PageRequest.of(
-                safePage(page),
-                safePageSize(size)
+        return adminDashboardService.getSupervisorEvaluationDashboard(
+                page,
+                size,
+                search,
+                evaluationStatus,
+                legacyDatabase,
+                campus,
+                schoolYear,
+                semester
         );
-
-        Page<SupervisorEvaluationDashboardResponse> dashboardPage =
-                facultyEvaluationScoreRepository
-                        .findSupervisorEvaluationDashboard(
-                                resolvedSchoolYear,
-                                resolvedSemester,
-                                normalizedSearch,
-                                normalizedStatus,
-                                normalizedLegacyDatabase,
-                                normalizedCampus,
-                                pageable
-                        )
-                        .map(projection ->
-                                toSupervisorEvaluationDashboardResponse(
-                                        projection,
-                                        resolvedSchoolYear,
-                                        resolvedSemester
-                                )
-                        );
-
-        SupervisorEvaluationDashboardMetricsProjection metrics =
-                facultyEvaluationScoreRepository
-                        .findSupervisorEvaluationDashboardMetrics(
-                                resolvedSchoolYear,
-                                resolvedSemester,
-                                normalizedSearch,
-                                normalizedLegacyDatabase,
-                                normalizedCampus
-                        );
-        long totalFacultyCount = metrics == null ? 0L : safeLong(metrics.getTotalFacultyCount());
-        long evaluatedFacultyCount = metrics == null ? 0L : safeLong(metrics.getEvaluatedFacultyCount());
-        long pendingFacultyCount = metrics == null ? 0L : safeLong(metrics.getPendingFacultyCount());
-
-        return SupervisorEvaluationDashboardPageResponse.builder()
-                .content(dashboardPage.getContent())
-                .totalElements(dashboardPage.getTotalElements())
-                .totalPages(dashboardPage.getTotalPages())
-                .page(dashboardPage.getNumber())
-                .size(dashboardPage.getSize())
-                .totalFacultyCount(totalFacultyCount)
-                .evaluatedFacultyCount(evaluatedFacultyCount)
-                .pendingFacultyCount(pendingFacultyCount)
-                .build();
     }
 
     @Transactional(
@@ -511,58 +308,7 @@ public class AdministratorService {
     )
     @Cacheable(value = "facultyWorkloadCoverage", key = "'active'")
     public FacultyWorkloadCoverageResponse getFacultyWorkloadCoverage() {
-        DashboardTerm term = resolveDashboardTerm();
-        List<FacultyWorkloadCoverageFacultyResponse> rows =
-                primaryFacultyRepository
-                        .findFacultyWorkloadCoverage(
-                                term.schoolYear(),
-                                term.semester(),
-                                term.workloadSemester(),
-                                Status.ACTIVE,
-                                null
-                        )
-                        .stream()
-                        .map(this::toFacultyWorkloadCoverageFacultyResponse)
-                        .toList();
-
-        List<FacultyWorkloadCoverageFacultyResponse> withWorkload =
-                rows.stream()
-                        .filter(FacultyWorkloadCoverageFacultyResponse::isHasWorkload)
-                        .toList();
-        List<FacultyWorkloadCoverageFacultyResponse> withoutWorkload =
-                rows.stream()
-                        .filter(row -> !row.isHasWorkload())
-                        .toList();
-        long totalActiveFaculty = rows.size();
-        long withWorkloadCount = withWorkload.size();
-
-        return FacultyWorkloadCoverageResponse.builder()
-                .schoolYear(term.schoolYear())
-                .semester(term.semester())
-                .totalActiveFaculty(totalActiveFaculty)
-                .withWorkloadCount(withWorkloadCount)
-                .withoutWorkloadCount((long) withoutWorkload.size())
-                .coverageRate(percentage(withWorkloadCount, totalActiveFaculty))
-                .withWorkload(withWorkload)
-                .withoutWorkload(withoutWorkload)
-                .build();
-    }
-
-    private List<AdminDashboardFacultyLoadResponse> findDashboardFacultyLoads(
-            DashboardTerm term,
-            int limit
-    ) {
-        int safeLimit = Math.min(Math.max(limit, 1), 50);
-
-        return adminDashboardRepository
-                .findTopFacultyLoads(
-                        term.schoolYear(),
-                        term.semester(),
-                        safeLimit
-                )
-                .stream()
-                .map(this::toFacultyLoadResponse)
-                .toList();
+        return adminDashboardService.getFacultyWorkloadCoverage();
     }
 
     @Transactional(
@@ -607,18 +353,7 @@ public class AdministratorService {
             readOnly = true
     )
     public PageResponse<FetchUserAccountsResponse> accountList(int page, int size) {
-
-        Page<UserAccounts> userAccountsPage = userAccountsRepository.findAll(
-                PageRequest.of(
-                        safePage(page),
-                        safePageSize(size),
-                        Sort.by(Sort.Order.asc("username"), Sort.Order.asc("userId"))
-                )
-        );
-
-        List<FetchUserAccountsResponse> responseList = userAccountsPage.getContent().stream().map(user -> FetchUserAccountsResponse.builder().userId(user.getUserId()).username(user.getUsername()).email(user.getEmail()).role(user.getRole()).status(user.getStatus()).college(user.getCollege()).programs(user.getPrograms()).majors(user.getMajors()).isEnabled(user.getIsEnabled()).isLocked(user.getIsLocked()).lastLoginAt(user.getLastLoginAt()).build()).toList();
-
-        return PageResponse.<FetchUserAccountsResponse>builder().content(responseList).page(userAccountsPage.getNumber()).size(userAccountsPage.getSize()).totalElements(userAccountsPage.getTotalElements()).totalPages(userAccountsPage.getTotalPages()).build();
+        return adminUserAccountService.accountList(page, size);
     }
 
     @Transactional(
@@ -1053,90 +788,17 @@ public class AdministratorService {
 
     @Transactional
     public String createUserAccount(CreateUserAccountDTO dto) {
-
-        validateCreateUser(dto);
-
-        if (userAccountsRepository.existsByUsername(dto.getUsername().trim())) {
-
-            throw new BadRequestException("Username already exists.");
-        }
-
-        if (userAccountsRepository.existsByEmail(dto.getEmail().trim())) {
-
-            throw new BadRequestException("Email already exists.");
-        }
-
-        UserAccounts user = UserAccounts.builder().username(dto.getUsername().trim()).email(dto.getEmail().trim().toLowerCase()).password(passwordEncoder.encode(dto.getPassword())).role(dto.getRole()).college(dto.getCollege()).programs(dto.getPrograms()).majors(dto.getMajors()).status(dto.getStatus()).isEnabled(true).isLocked(false).build();
-
-        userAccountsRepository.save(user);
-
-        return "User account created successfully.";
+        return adminUserAccountService.createUserAccount(dto);
     }
 
     @Transactional
     public String updateUserAccount(UpdateUserAccountDTO dto) {
-
-        validateUpdateUser(dto);
-
-        UserAccounts existingUser = userAccountsRepository.findById(dto.getUserId()).orElseThrow(() -> new ResourceNotFoundException("User not found."));
-
-        Optional<UserAccounts> usernameCheck = userAccountsRepository.findByUsername(dto.getUsername());
-
-        if (usernameCheck.isPresent() && !usernameCheck.get().getUserId().equals(dto.getUserId())) {
-
-            throw new BadRequestException("Username already exists.");
-        }
-
-        Optional<UserAccounts> emailCheck = userAccountsRepository.findByEmail(dto.getEmail());
-
-        if (emailCheck.isPresent() && !emailCheck.get().getUserId().equals(dto.getUserId())) {
-
-            throw new BadRequestException("Email already exists.");
-        }
-
-        existingUser.setUsername(dto.getUsername().trim());
-
-        existingUser.setEmail(dto.getEmail().trim().toLowerCase());
-
-        existingUser.setRole(dto.getRole());
-
-        existingUser.setCollege(dto.getCollege());
-
-        existingUser.setPrograms(dto.getPrograms());
-
-        existingUser.setMajors(dto.getMajors());
-
-        existingUser.setStatus(dto.getStatus());
-
-        existingUser.setIsEnabled(dto.getIsEnabled());
-
-        existingUser.setIsLocked(dto.getIsLocked());
-
-        userAccountsRepository.save(existingUser);
-
-        return "User account updated successfully.";
+        return adminUserAccountService.updateUserAccount(dto);
     }
 
     @Transactional
     public String updateUserPassword(UpdateUserPasswordDTO dto) {
-
-        if (dto.getNewPassword() == null || dto.getNewPassword().trim().isEmpty()) {
-
-            throw new BadRequestException("Password is required.");
-        }
-
-        if (dto.getNewPassword().length() < 8) {
-
-            throw new BadRequestException("Password must be at least 8 characters.");
-        }
-
-        UserAccounts user = userAccountsRepository.findById(dto.getUserId()).orElseThrow(() -> new ResourceNotFoundException("User not found."));
-
-        user.setPassword(passwordEncoder.encode(dto.getNewPassword()));
-
-        userAccountsRepository.save(user);
-
-        return "Password updated successfully.";
+        return adminUserAccountService.updateUserPassword(dto);
     }
 
     @Cacheable(
@@ -1222,62 +884,6 @@ public class AdministratorService {
                 term.semester());
     }
 
-    private void validateCreateUser(CreateUserAccountDTO dto) {
-
-        if (dto.getUsername() == null || dto.getUsername().trim().isEmpty()) {
-
-            throw new BadRequestException("Username is required.");
-        }
-
-        if (dto.getUsername().trim().length() < 4) {
-
-            throw new BadRequestException("Username must be at least 4 characters.");
-        }
-
-        if (dto.getEmail() == null || dto.getEmail().trim().isEmpty()) {
-
-            throw new BadRequestException("Email is required.");
-        }
-
-        if (!dto.getEmail().matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$")) {
-
-            throw new BadRequestException("Invalid email address.");
-        }
-
-        if (dto.getPassword() == null || dto.getPassword().trim().isEmpty()) {
-
-            throw new BadRequestException("Password is required.");
-        }
-
-        if (dto.getPassword().length() < 8) {
-
-            throw new BadRequestException("Password must be at least 8 characters.");
-        }
-    }
-
-    private void validateUpdateUser(UpdateUserAccountDTO dto) {
-
-        if (dto.getUserId() == null) {
-
-            throw new BadRequestException("User ID is required.");
-        }
-
-        if (dto.getUsername() == null || dto.getUsername().trim().isEmpty()) {
-
-            throw new BadRequestException("Username is required.");
-        }
-
-        if (dto.getEmail() == null || dto.getEmail().trim().isEmpty()) {
-
-            throw new BadRequestException("Email is required.");
-        }
-
-        if (!dto.getEmail().matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$")) {
-
-            throw new BadRequestException("Invalid email address.");
-        }
-    }
-
     private DashboardTerm resolveDashboardTerm() {
         SchoolYearAndSemester activeTerm =
                 schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE)
@@ -1294,193 +900,11 @@ public class AdministratorService {
         );
     }
 
-    private ClassFacultyAssignmentResponse toClassFacultyAssignmentResponse(
-            PrimaryClass primaryClass
-    ) {
-        PrimaryFaculty faculty = primaryClass.getFaculty();
-
-        return new ClassFacultyAssignmentResponse(
-                primaryClass.getPrimaryClassId(),
-                primaryClass.getClassCode(),
-                primaryClass.getSubjectCode(),
-                primaryClass.getSubject() == null
-                        ? null
-                        : primaryClass.getSubject().getDescriptiveTitle(),
-                primaryClass.getSectionId(),
-                primaryClass.getSection() == null
-                        ? null
-                        : primaryClass.getSection().getProgramCode(),
-                primaryClass.getSection() == null
-                        ? null
-                        : primaryClass.getSection().getYearLevel(),
-                primaryClass.getSection() == null
-                        ? null
-                        : primaryClass.getSection().getSectionCode(),
-                primaryClass.getFacultyId(),
-                faculty == null ? null : formatFacultyName(faculty),
-                primaryClass.getSchoolYear(),
-                primaryClass.getSemester(),
-                primaryClass.getLegacyDatabase(),
-                primaryClass.getSourceCampus() == null
-                        ? null
-                        : primaryClass.getSourceCampus().name()
-        );
-    }
-
-    private FacultyAssignmentOptionResponse toFacultyAssignmentOptionResponse(
-            PrimaryFaculty faculty
-    ) {
-        return new FacultyAssignmentOptionResponse(
-                faculty.getFacultyId(),
-                formatFacultyName(faculty),
-                faculty.getPosition(),
-                faculty.getCollege() == null
-                        ? null
-                        : faculty.getCollege().name(),
-                faculty.getLegacyDatabase()
-        );
-    }
-
-    private String formatFacultyName(PrimaryFaculty faculty) {
-        String firstName = normalizeOptional(faculty.getFirstname());
-        String middleName = normalizeOptional(faculty.getMiddlename());
-        String lastName = normalizeOptional(faculty.getLastname());
-
-        return String.join(
-                " ",
-                java.util.stream.Stream.of(
-                                firstName,
-                                middleName,
-                                lastName
-                        )
-                        .filter(Objects::nonNull)
-                        .toList()
-        );
-    }
-
     private String normalizeOptional(String value) {
         if (value == null || value.trim().isEmpty()) {
             return null;
         }
         return value.trim();
-    }
-
-    private AdminDashboardProgramBreakdownResponse
-    toProgramBreakdownResponse(
-            AdminDashboardProgramBreakdownProjection projection
-    ) {
-        Long expected = safeLong(projection.getExpectedEvaluations());
-        Long completed = safeLong(projection.getCompletedEvaluations());
-
-        return AdminDashboardProgramBreakdownResponse.builder()
-                .programCode(projection.getProgramCode())
-                .totalStudents(safeLong(projection.getTotalStudents()))
-                .totalClasses(safeLong(projection.getTotalClasses()))
-                .totalSections(safeLong(projection.getTotalSections()))
-                .expectedEvaluations(expected)
-                .completedEvaluations(completed)
-                .completionRate(percentage(completed, expected))
-                .averageOverallScore(safeDouble(
-                        projection.getAverageOverallScore()
-                ))
-                .build();
-    }
-
-    private AdminDashboardFacultyLoadResponse toFacultyLoadResponse(
-            AdminDashboardFacultyLoadProjection projection
-    ) {
-        return AdminDashboardFacultyLoadResponse.builder()
-                .facultyId(projection.getFacultyId())
-                .facultyName(projection.getFacultyName())
-                .totalClasses(safeLong(projection.getTotalClasses()))
-                .totalSubjects(safeLong(projection.getTotalSubjects()))
-                .totalStudents(safeLong(projection.getTotalStudents()))
-                .completedEvaluations(safeLong(
-                        projection.getCompletedEvaluations()
-                ))
-                .averageOverallScore(safeDouble(
-                        projection.getAverageOverallScore()
-                ))
-                .build();
-    }
-
-    private FacultyWorkloadCoverageFacultyResponse
-    toFacultyWorkloadCoverageFacultyResponse(
-            FacultyWorkloadCoverageProjection projection
-    ) {
-        Long workloadCount = safeLong(projection.getWorkloadCount());
-        Integer numberOfPreparations = projection.getNumberOfPreparations();
-        College college = projection.getCollege();
-        Status status = projection.getStatus();
-
-        return FacultyWorkloadCoverageFacultyResponse.builder()
-                .facultyId(projection.getFacultyId())
-                .facultyName(fullFacultyName(
-                        projection.getFirstname(),
-                        projection.getMiddlename(),
-                        projection.getLastname(),
-                        projection.getFacultyId()
-                ))
-                .position(projection.getPosition())
-                .college(college)
-                .status(status)
-                .loadLimit(numberOfPreparations == null
-                        ? projection.getLoadLimit()
-                        : effectiveLoadLimit(numberOfPreparations).doubleValue())
-                .hasWorkload(workloadCount > 0)
-                .workloadCount(workloadCount)
-                .totalHoursPerWeek(safeBigDecimal(
-                        projection.getTotalHoursPerWeek()
-                ))
-                .numberOfPreparations(numberOfPreparations)
-                .build();
-    }
-
-    private SupervisorEvaluationDashboardResponse
-    toSupervisorEvaluationDashboardResponse(
-            SupervisorEvaluationDashboardProjection projection,
-            Integer schoolYear,
-            String semester
-    ) {
-        Long supervisorEvaluationCount =
-                safeLong(projection.getSupervisorEvaluationCount());
-
-        return SupervisorEvaluationDashboardResponse.builder()
-                .facultyId(projection.getFacultyId())
-                .facultyName(projection.getFacultyName())
-                .position(projection.getPosition())
-                .college(projection.getCollege())
-                .legacyDatabase(projection.getLegacyDatabase())
-                .campus(projection.getCampus())
-                .assignedClassCount(safeLong(projection.getAssignedClassCount()))
-                .supervisorEvaluated(supervisorEvaluationCount > 0)
-                .supervisorEvaluationCount(supervisorEvaluationCount)
-                .supervisorIds(projection.getSupervisorIds())
-                .supervisorNames(projection.getSupervisorNames())
-                .supervisorPositions(projection.getSupervisorPositions())
-                .supervisorAverageScore(projection.getSupervisorAverageScore())
-                .lastEvaluatedAt(projection.getLastEvaluatedAt())
-                .schoolYear(schoolYear)
-                .semester(semester)
-                .build();
-    }
-
-    private String fullFacultyName(
-            String firstname,
-            String middlename,
-            String lastname,
-            String fallback
-    ) {
-        String name = String.join(
-                        " ",
-                        firstname == null ? "" : firstname.trim(),
-                        middlename == null ? "" : middlename.trim(),
-                        lastname == null ? "" : lastname.trim()
-                )
-                .replaceAll("\\s+", " ")
-                .trim();
-
-        return name.isBlank() ? fallback : name;
     }
 
     private Long safeLong(Long value) {
