@@ -91,29 +91,82 @@ public interface FacultyWorkloadRepository
             @Param("semester") String semester
     );
 
-    @EntityGraph(attributePaths = "faculty")
-    Optional<FacultyWorkload>
-    findByFacultyIdAndSchoolYearAndSemesterAndClassCodeAndCourseCodeAndProgramCodeAndYearLevelAndSectionCode(
-            String facultyId,
-            Integer schoolYear,
-            String semester,
-            String classCode,
-            String courseCode,
-            String programCode,
-            String yearLevel,
-            String sectionCode
+    @Query(
+            value = """
+                    SELECT fw
+                    FROM FacultyWorkload fw
+                    LEFT JOIN FETCH fw.faculty
+                    WHERE fw.facultyId = :facultyId
+                      AND fw.schoolYear = :schoolYear
+                      AND (
+                            LOWER(TRIM(fw.semester)) = LOWER(TRIM(:semester))
+                            OR (
+                                UPPER(TRIM(:semester)) IN ('1ST', 'FIRST_SEMESTER')
+                                AND UPPER(TRIM(fw.semester)) IN ('1ST', 'FIRST_SEMESTER')
+                            )
+                            OR (
+                                UPPER(TRIM(:semester)) IN ('2ND', 'SECOND_SEMESTER')
+                                AND UPPER(TRIM(fw.semester)) IN ('2ND', 'SECOND_SEMESTER')
+                            )
+                            OR (
+                                UPPER(TRIM(:semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
+                                AND UPPER(TRIM(fw.semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
+                            )
+                      )
+                      AND fw.classCode = :classCode
+                      AND fw.courseCode = :courseCode
+                      AND fw.programCode = :programCode
+                      AND fw.yearLevel = :yearLevel
+                      AND fw.sectionCode = :sectionCode
+                    """
+    )
+    Optional<FacultyWorkload> findByFacultyClassAndEquivalentSemester(
+            @Param("facultyId") String facultyId,
+            @Param("schoolYear") Integer schoolYear,
+            @Param("semester") String semester,
+            @Param("classCode") String classCode,
+            @Param("courseCode") String courseCode,
+            @Param("programCode") String programCode,
+            @Param("yearLevel") String yearLevel,
+            @Param("sectionCode") String sectionCode
     );
 
-    @EntityGraph(attributePaths = "faculty")
-    Optional<FacultyWorkload>
-    findByFacultyIdAndSchoolYearAndSemesterAndCourseCodeAndProgramCodeAndYearLevelAndSectionCode(
-            String facultyId,
-            Integer schoolYear,
-            String semester,
-            String courseCode,
-            String programCode,
-            String yearLevel,
-            String sectionCode
+    @Query(
+            value = """
+                    SELECT fw
+                    FROM FacultyWorkload fw
+                    LEFT JOIN FETCH fw.faculty
+                    WHERE fw.facultyId = :facultyId
+                      AND fw.schoolYear = :schoolYear
+                      AND (
+                            LOWER(TRIM(fw.semester)) = LOWER(TRIM(:semester))
+                            OR (
+                                UPPER(TRIM(:semester)) IN ('1ST', 'FIRST_SEMESTER')
+                                AND UPPER(TRIM(fw.semester)) IN ('1ST', 'FIRST_SEMESTER')
+                            )
+                            OR (
+                                UPPER(TRIM(:semester)) IN ('2ND', 'SECOND_SEMESTER')
+                                AND UPPER(TRIM(fw.semester)) IN ('2ND', 'SECOND_SEMESTER')
+                            )
+                            OR (
+                                UPPER(TRIM(:semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
+                                AND UPPER(TRIM(fw.semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
+                            )
+                      )
+                      AND fw.courseCode = :courseCode
+                      AND fw.programCode = :programCode
+                      AND fw.yearLevel = :yearLevel
+                      AND fw.sectionCode = :sectionCode
+                    """
+    )
+    Optional<FacultyWorkload> findByFacultyCourseSectionAndEquivalentSemester(
+            @Param("facultyId") String facultyId,
+            @Param("schoolYear") Integer schoolYear,
+            @Param("semester") String semester,
+            @Param("courseCode") String courseCode,
+            @Param("programCode") String programCode,
+            @Param("yearLevel") String yearLevel,
+            @Param("sectionCode") String sectionCode
     );
 
     @Query(
@@ -141,6 +194,18 @@ public interface FacultyWorkloadRepository
                             :semester IS NULL
                             OR :semester = ''
                             OR LOWER(TRIM(fw.semester)) = LOWER(TRIM(:semester))
+                            OR (
+                                UPPER(TRIM(:semester)) IN ('1ST', 'FIRST_SEMESTER')
+                                AND UPPER(TRIM(fw.semester)) IN ('1ST', 'FIRST_SEMESTER')
+                            )
+                            OR (
+                                UPPER(TRIM(:semester)) IN ('2ND', 'SECOND_SEMESTER')
+                                AND UPPER(TRIM(fw.semester)) IN ('2ND', 'SECOND_SEMESTER')
+                            )
+                            OR (
+                                UPPER(TRIM(:semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
+                                AND UPPER(TRIM(fw.semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
+                            )
                       )
                     ORDER BY fw.updatedAt DESC, fw.facultyWorkloadId DESC
                     """,
@@ -168,6 +233,18 @@ public interface FacultyWorkloadRepository
                             :semester IS NULL
                             OR :semester = ''
                             OR LOWER(TRIM(fw.semester)) = LOWER(TRIM(:semester))
+                            OR (
+                                UPPER(TRIM(:semester)) IN ('1ST', 'FIRST_SEMESTER')
+                                AND UPPER(TRIM(fw.semester)) IN ('1ST', 'FIRST_SEMESTER')
+                            )
+                            OR (
+                                UPPER(TRIM(:semester)) IN ('2ND', 'SECOND_SEMESTER')
+                                AND UPPER(TRIM(fw.semester)) IN ('2ND', 'SECOND_SEMESTER')
+                            )
+                            OR (
+                                UPPER(TRIM(:semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
+                                AND UPPER(TRIM(fw.semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
+                            )
                       )
                     """
     )

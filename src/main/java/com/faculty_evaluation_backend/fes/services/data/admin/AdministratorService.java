@@ -575,7 +575,7 @@ public class AdministratorService {
         String normalizedClassCode = normalizeBlank(classCode);
         if (normalizedClassCode != null) {
             workload = facultyWorkloadRepository
-                    .findByFacultyIdAndSchoolYearAndSemesterAndClassCodeAndCourseCodeAndProgramCodeAndYearLevelAndSectionCode(
+                    .findByFacultyClassAndEquivalentSemester(
                             facultyId.trim(),
                             schoolYear,
                             semester.trim(),
@@ -589,7 +589,7 @@ public class AdministratorService {
 
         FacultyWorkload resolvedWorkload = workload.or(() ->
                         facultyWorkloadRepository
-                                .findByFacultyIdAndSchoolYearAndSemesterAndCourseCodeAndProgramCodeAndYearLevelAndSectionCode(
+                                .findByFacultyCourseSectionAndEquivalentSemester(
                                         facultyId.trim(),
                                         schoolYear,
                                         semester.trim(),
@@ -1109,7 +1109,7 @@ public class AdministratorService {
         if (classCode != null) {
             Optional<FacultyWorkload> workload =
                     facultyWorkloadRepository
-                            .findByFacultyIdAndSchoolYearAndSemesterAndClassCodeAndCourseCodeAndProgramCodeAndYearLevelAndSectionCode(
+                            .findByFacultyClassAndEquivalentSemester(
                                     facultyId,
                                     request.getSchoolYear(),
                                     semester,
@@ -1126,7 +1126,7 @@ public class AdministratorService {
         }
 
         return facultyWorkloadRepository
-                .findByFacultyIdAndSchoolYearAndSemesterAndCourseCodeAndProgramCodeAndYearLevelAndSectionCode(
+                .findByFacultyCourseSectionAndEquivalentSemester(
                         facultyId,
                         request.getSchoolYear(),
                         semester,
@@ -1146,7 +1146,7 @@ public class AdministratorService {
             BigDecimal designationEtu
     ) {
         List<FacultyWorkload> termWorkloads =
-                facultyWorkloadRepository.findAllByFacultyIdAndSchoolYearAndSemester(
+                facultyWorkloadRepository.findAllByFacultyIdAndSchoolYearAndEquivalentSemester(
                         facultyId,
                         schoolYear,
                         semester

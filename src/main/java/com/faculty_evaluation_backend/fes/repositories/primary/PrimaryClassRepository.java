@@ -187,8 +187,21 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
             WHERE (pc.faculty_id) =
                   (:facultyId)
               AND pc.school_year = :schoolYear
-              AND (LOWER(TRIM(pc.semester))) =
-                  (LOWER(TRIM(:semester)))
+              AND (
+                    LOWER(TRIM(pc.semester)) = LOWER(TRIM(:semester))
+                    OR (
+                        UPPER(TRIM(:semester)) IN ('1ST', 'FIRST_SEMESTER')
+                        AND UPPER(TRIM(pc.semester)) IN ('1ST', 'FIRST_SEMESTER')
+                    )
+                    OR (
+                        UPPER(TRIM(:semester)) IN ('2ND', 'SECOND_SEMESTER')
+                        AND UPPER(TRIM(pc.semester)) IN ('2ND', 'SECOND_SEMESTER')
+                    )
+                    OR (
+                        UPPER(TRIM(:semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
+                        AND UPPER(TRIM(pc.semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
+                    )
+              )
             """, nativeQuery = true)
     long countFacultyInSupervisorScope(
             @Param("userId") Long userId,
@@ -246,8 +259,21 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
             WHERE (pc.faculty_id) =
                   (:facultyId)
               AND pc.school_year = :schoolYear
-              AND (LOWER(TRIM(pc.semester))) =
-                  (LOWER(TRIM(:semester)))
+              AND (
+                    LOWER(TRIM(pc.semester)) = LOWER(TRIM(:semester))
+                    OR (
+                        UPPER(TRIM(:semester)) IN ('1ST', 'FIRST_SEMESTER')
+                        AND UPPER(TRIM(pc.semester)) IN ('1ST', 'FIRST_SEMESTER')
+                    )
+                    OR (
+                        UPPER(TRIM(:semester)) IN ('2ND', 'SECOND_SEMESTER')
+                        AND UPPER(TRIM(pc.semester)) IN ('2ND', 'SECOND_SEMESTER')
+                    )
+                    OR (
+                        UPPER(TRIM(:semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
+                        AND UPPER(TRIM(pc.semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
+                    )
+              )
               AND pc.subject_code IS NOT NULL
               AND pc.section_id IS NOT NULL
               AND pc.class_code IS NOT NULL
