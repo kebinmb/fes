@@ -159,6 +159,27 @@ public class AdministratorController {
                 semester
         );
     }
+    @GetMapping("/dashboard/faculty-evaluation-readiness/faculty-ids")
+    @AuditableAction(action = "FETCH", entity = "FACULTY_EVALUATION_READINESS_IDS")
+    public ResponseEntity<List<String>> getFacultyEvaluationReadinessFacultyIds(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) College college,
+            @RequestParam(required = false) String legacyDatabase,
+            @RequestParam(required = false) String campus,
+            @RequestParam(required = false) Integer schoolYear,
+            @RequestParam(required = false) String semester
+    ) {
+        return ResponseEntity.ok(
+                administratorService.findFacultyEvaluationReadinessFacultyIds(
+                        search,
+                        college,
+                        legacyDatabase,
+                        campus,
+                        schoolYear,
+                        semester
+                )
+        );
+    }
     @GetMapping("/faculties")
     @AuditableAction(action = "FETCH", entity = "FACULTY")
     public PageResponse<FetchFacultyResponse> getFacultyList(

@@ -15,14 +15,17 @@ import org.springframework.dao.DataRetrievalFailureException;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotWritableException;
 
 import org.springframework.security.authentication.BadCredentialsException;
 
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.Instant;
+import java.io.IOException;
 
 import java.util.stream.Collectors;
 
@@ -179,6 +182,31 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler({
+            HttpMessageNotWritableException.class,
+            AsyncRequestNotUsableException.class
+    })
+    public ResponseEntity<?> handleResponseWriteFailure(
+            Exception ex,
+            HttpServletRequest request
+    ) {
+        if (isClientAbort(ex)) {
+            log.debug(
+                    "Client disconnected before response completed | method={} path={}",
+                    request.getMethod(),
+                    request.getRequestURI()
+            );
+            return ResponseEntity.noContent().build();
+        }
+
+        log.error("Failed to write HTTP response", ex);
+
+        return buildResponse(
+                new Exception("Failed to write response."),
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                request
+        );
+    }
+    @ExceptionHandler({
             DataAccessException.class,
             DataRetrievalFailureException.class
     })
@@ -213,6 +241,32 @@ public class GlobalExceptionHandler {
         );
     }
 
+    private boolean isClientAbort(Throwable throwable) {
+        Throwable current = throwable;
+
+        while (current != null) {
+            String className = current.getClass().getName();
+            String message = current.getMessage();
+            String normalizedMessage = message == null
+                    ? ""
+                    : message.toLowerCase();
+
+            if (current instanceof AsyncRequestNotUsableException
+                    || current instanceof IOException
+                    || className.equals("org.apache.catalina.connector.ClientAbortException")) {
+                if (normalizedMessage.contains("connection was aborted")
+                        || normalizedMessage.contains("connection reset")
+                        || normalizedMessage.contains("broken pipe")
+                        || normalizedMessage.contains("failed to flush")) {
+                    return true;
+                }
+            }
+
+            current = current.getCause();
+        }
+
+        return false;
+    }
     private ResponseEntity<ApiErrorResponse> buildResponse(
             Exception ex,
             HttpStatus status,

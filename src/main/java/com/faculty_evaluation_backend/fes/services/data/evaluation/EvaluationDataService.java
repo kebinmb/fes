@@ -122,9 +122,31 @@ public class EvaluationDataService {
         if (!evaluationScore.isComplete()) {
             throw new RuntimeException("Incomplete Evaluation");
         }
-        return facultyEvaluationScoreRepository.save(evaluationScore);
+        FacultyEvaluationScore savedEvaluationScore =
+                facultyEvaluationScoreRepository.save(evaluationScore);
+
+        refreshFacultyEvaluationReadinessSummary(savedEvaluationScore);
+
+        return savedEvaluationScore;
     }
 
+
+    private void refreshFacultyEvaluationReadinessSummary(
+            FacultyEvaluationScore evaluationScore
+    ) {
+        facultyEvaluationScoreRepository
+                .deleteFacultyEvaluationReadinessSummary(
+                        evaluationScore.getFacultyId(),
+                        evaluationScore.getSchoolYear(),
+                        evaluationScore.getSemester()
+                );
+        facultyEvaluationScoreRepository
+                .insertFacultyEvaluationReadinessSummary(
+                        evaluationScore.getFacultyId(),
+                        evaluationScore.getSchoolYear(),
+                        evaluationScore.getSemester()
+                );
+    }
     private void normalizeEvaluationTerm(BaseEvaluationDTO baseEvaluationDTO) {
         if (baseEvaluationDTO == null) {
             return;
@@ -917,30 +939,37 @@ public class EvaluationDataService {
             Long generatedByUserId,
             CustomUserDetails generatedBy
     ) {
+        if (generatedByUserId != null) {
+            String displayName = userAccountsRepository
+                    .findById(generatedByUserId)
+                    .map(this::preparedByName)
+                    .orElse(null);
+
+            if (displayName != null && !displayName.isBlank()) {
+                return displayName;
+            }
+        }
+
         if (generatedBy != null) {
             return preparedByName(generatedBy.getUser());
         }
 
-        if (generatedByUserId == null) {
-            return null;
-        }
-
-        return userAccountsRepository
-                .findById(generatedByUserId)
-                .map(this::preparedByName)
-                .orElse(null);
+        return null;
     }
 
     private String preparedByName(UserAccounts user) {
-        String username = normalizeNamePart(
-                user.getUsername()
+        String firstname = normalizeNamePart(
+                user.getFirstname()
         );
         String lastname = normalizeNamePart(
                 user.getLastname()
         );
+        String username = normalizeNamePart(
+                user.getUsername()
+        );
 
         String displayName = java.util.stream.Stream
-                .of(username, lastname)
+                .of(firstname, lastname)
                 .filter(value -> value != null && !value.isBlank())
                 .collect(Collectors.joining(" "))
                 .trim();

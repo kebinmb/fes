@@ -14,6 +14,7 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -688,107 +689,85 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
                         pf.position AS position,
                         pf.college AS college,
                         pf.legacy_database AS legacyDatabase,
-                        COALESCE(MAX(pc.campus), MAX(pf.source_campus)) AS campus,
-                        GROUP_CONCAT(DISTINCT fes.subject_code ORDER BY fes.subject_code SEPARATOR ', ') AS subjects,
-                        COUNT(DISTINCT CASE WHEN fes.evaluation_type IN ('ROLE_STUDENT', 'STUDENT_EVALUATION') THEN fes.faculty_evaluation_score_id END) AS studentEvaluationCount,
-                        COUNT(DISTINCT CASE WHEN fes.evaluation_type IN ('ROLE_PROGRAM_CHAIR', 'SUPERVISOR_EVALUATION') THEN fes.faculty_evaluation_score_id END) AS supervisorEvaluationCount,
-                        COUNT(DISTINCT fes.faculty_evaluation_score_id) AS totalScoreRecords,
-                        ROUND(AVG(CASE WHEN fes.evaluation_type IN ('ROLE_STUDENT', 'STUDENT_EVALUATION') THEN fes.overall_average_score END), 2) AS setAverage,
-                        ROUND(AVG(CASE WHEN fes.evaluation_type IN ('ROLE_PROGRAM_CHAIR', 'SUPERVISOR_EVALUATION') THEN fes.overall_average_score END), 2) AS sefAverage,
-                        ROUND(AVG(fes.overall_average_score), 2) AS overallAverage,
-                        MAX(fes.created_at) AS lastEvaluatedAt
-                    FROM primary_faculty pf
-                    INNER JOIN faculty_evaluation_score fes ON fes.faculty_id = pf.faculty_id
-                    LEFT JOIN (
-                        SELECT faculty_id, class_code, subject_code, school_year, semester, MAX(source_campus) AS campus
-                        FROM primary_class
-                        GROUP BY faculty_id, class_code, subject_code, school_year, semester
-                    ) pc ON pc.faculty_id = fes.faculty_id
-                       AND pc.class_code = fes.class_code
-                       AND pc.subject_code = fes.subject_code
-                       AND pc.school_year = fes.school_year
-                       AND (
-                            LOWER(TRIM(pc.semester)) = LOWER(TRIM(fes.semester))
-                            OR (UPPER(TRIM(fes.semester)) IN ('1ST', 'FIRST_SEMESTER') AND UPPER(TRIM(pc.semester)) IN ('1ST', 'FIRST_SEMESTER'))
-                            OR (UPPER(TRIM(fes.semester)) IN ('2ND', 'SECOND_SEMESTER') AND UPPER(TRIM(pc.semester)) IN ('2ND', 'SECOND_SEMESTER'))
-                            OR (UPPER(TRIM(fes.semester)) IN ('SUMMER', 'SUMMER_SEMESTER') AND UPPER(TRIM(pc.semester)) IN ('SUMMER', 'SUMMER_SEMESTER'))
-                       )
-                    WHERE fes.school_year = :schoolYear
-                      AND (
-                            LOWER(TRIM(fes.semester)) = LOWER(TRIM(:semester))
-                            OR (UPPER(TRIM(:semester)) IN ('1ST', 'FIRST_SEMESTER') AND UPPER(TRIM(fes.semester)) IN ('1ST', 'FIRST_SEMESTER'))
-                            OR (UPPER(TRIM(:semester)) IN ('2ND', 'SECOND_SEMESTER') AND UPPER(TRIM(fes.semester)) IN ('2ND', 'SECOND_SEMESTER'))
-                            OR (UPPER(TRIM(:semester)) IN ('SUMMER', 'SUMMER_SEMESTER') AND UPPER(TRIM(fes.semester)) IN ('SUMMER', 'SUMMER_SEMESTER'))
-                      )
-                      AND fes.evaluation_type IN ('ROLE_STUDENT', 'STUDENT_EVALUATION', 'ROLE_PROGRAM_CHAIR', 'SUPERVISOR_EVALUATION')
+                        s.campus AS campus,
+                        s.subjects AS subjects,
+                        s.student_evaluation_count AS studentEvaluationCount,
+                        s.supervisor_evaluation_count AS supervisorEvaluationCount,
+                        s.total_score_records AS totalScoreRecords,
+                        s.set_average AS setAverage,
+                        s.sef_average AS sefAverage,
+                        s.overall_average AS overallAverage,
+                        s.last_evaluated_at AS lastEvaluatedAt
+                    FROM faculty_evaluation_readiness_summary s
+                    INNER JOIN primary_faculty pf
+                        ON pf.faculty_id = s.faculty_id
+                    WHERE s.school_year = :schoolYear
+                      AND s.semester = CONVERT(:semester USING utf8mb4) COLLATE utf8mb4_unicode_ci
+                      AND s.student_evaluation_count > 0
+                      AND s.supervisor_evaluation_count > 0
                       AND UPPER(TRIM(pf.status)) = 'ACTIVE'
-                      AND (pf.college IS NULL OR UPPER(TRIM(pf.college)) <> 'FOR_MIGRATION')
-                      AND (:college IS NULL OR :college = '' OR UPPER(TRIM(pf.college)) = UPPER(TRIM(:college)))
-                      AND (:legacyDatabase IS NULL OR :legacyDatabase = '' OR UPPER(TRIM(pf.legacy_database)) = UPPER(TRIM(:legacyDatabase)))
-                      AND (:campus IS NULL OR :campus = '' OR UPPER(TRIM(COALESCE(pc.campus, pf.source_campus))) = UPPER(TRIM(:campus)))
+                      AND (
+                            pf.college IS NULL
+                            OR UPPER(TRIM(pf.college)) <> 'FOR_MIGRATION'
+                      )
+                      AND (
+                            :college IS NULL
+                            OR UPPER(TRIM(pf.college)) = UPPER(TRIM(CONVERT(:college USING utf8mb4) COLLATE utf8mb4_unicode_ci))
+                      )
+                      AND (
+                            :legacyDatabase IS NULL
+                            OR UPPER(TRIM(pf.legacy_database)) = UPPER(TRIM(CONVERT(:legacyDatabase USING utf8mb4) COLLATE utf8mb4_unicode_ci))
+                      )
+                      AND (
+                            :campus IS NULL
+                            OR UPPER(TRIM(COALESCE(s.campus, pf.source_campus))) = UPPER(TRIM(CONVERT(:campus USING utf8mb4) COLLATE utf8mb4_unicode_ci))
+                      )
                       AND (
                             :search IS NULL
-                            OR :search = ''
-                            OR LOWER(COALESCE(pf.faculty_id, '')) LIKE LOWER(CONCAT('%', :search, '%'))
-                            OR LOWER(COALESCE(pf.firstname, '')) LIKE LOWER(CONCAT('%', :search, '%'))
-                            OR LOWER(COALESCE(pf.lastname, '')) LIKE LOWER(CONCAT('%', :search, '%'))
-                            OR LOWER(COALESCE(pf.college, '')) LIKE LOWER(CONCAT('%', :search, '%'))
-                            OR LOWER(COALESCE(pf.position, '')) LIKE LOWER(CONCAT('%', :search, '%'))
-                            OR LOWER(COALESCE(fes.subject_code, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                            OR LOWER(COALESCE(pf.faculty_id, '')) LIKE LOWER(CONCAT('%', CONVERT(:search USING utf8mb4) COLLATE utf8mb4_unicode_ci, '%'))
+                            OR LOWER(COALESCE(pf.firstname, '')) LIKE LOWER(CONCAT('%', CONVERT(:search USING utf8mb4) COLLATE utf8mb4_unicode_ci, '%'))
+                            OR LOWER(COALESCE(pf.lastname, '')) LIKE LOWER(CONCAT('%', CONVERT(:search USING utf8mb4) COLLATE utf8mb4_unicode_ci, '%'))
+                            OR LOWER(COALESCE(pf.college, '')) LIKE LOWER(CONCAT('%', CONVERT(:search USING utf8mb4) COLLATE utf8mb4_unicode_ci, '%'))
+                            OR LOWER(COALESCE(pf.position, '')) LIKE LOWER(CONCAT('%', CONVERT(:search USING utf8mb4) COLLATE utf8mb4_unicode_ci, '%'))
+                            OR LOWER(COALESCE(s.subjects, '')) LIKE LOWER(CONCAT('%', CONVERT(:search USING utf8mb4) COLLATE utf8mb4_unicode_ci, '%'))
                       )
-                    GROUP BY pf.faculty_id, pf.firstname, pf.middlename, pf.lastname, pf.position, pf.college, pf.legacy_database
-                    HAVING studentEvaluationCount > 0 AND supervisorEvaluationCount > 0
                     ORDER BY pf.lastname ASC, pf.firstname ASC, pf.faculty_id ASC
                     """,
             countQuery = """
                     SELECT COUNT(*)
-                    FROM (
-                        SELECT
-                            pf.faculty_id,
-                            COUNT(DISTINCT CASE WHEN fes.evaluation_type IN ('ROLE_STUDENT', 'STUDENT_EVALUATION') THEN fes.faculty_evaluation_score_id END) AS studentEvaluationCount,
-                            COUNT(DISTINCT CASE WHEN fes.evaluation_type IN ('ROLE_PROGRAM_CHAIR', 'SUPERVISOR_EVALUATION') THEN fes.faculty_evaluation_score_id END) AS supervisorEvaluationCount
-                        FROM primary_faculty pf
-                        INNER JOIN faculty_evaluation_score fes ON fes.faculty_id = pf.faculty_id
-                        LEFT JOIN (
-                            SELECT faculty_id, class_code, subject_code, school_year, semester, MAX(source_campus) AS campus
-                            FROM primary_class
-                            GROUP BY faculty_id, class_code, subject_code, school_year, semester
-                        ) pc ON pc.faculty_id = fes.faculty_id
-                           AND pc.class_code = fes.class_code
-                           AND pc.subject_code = fes.subject_code
-                           AND pc.school_year = fes.school_year
-                           AND (
-                                LOWER(TRIM(pc.semester)) = LOWER(TRIM(fes.semester))
-                                OR (UPPER(TRIM(fes.semester)) IN ('1ST', 'FIRST_SEMESTER') AND UPPER(TRIM(pc.semester)) IN ('1ST', 'FIRST_SEMESTER'))
-                                OR (UPPER(TRIM(fes.semester)) IN ('2ND', 'SECOND_SEMESTER') AND UPPER(TRIM(pc.semester)) IN ('2ND', 'SECOND_SEMESTER'))
-                                OR (UPPER(TRIM(fes.semester)) IN ('SUMMER', 'SUMMER_SEMESTER') AND UPPER(TRIM(pc.semester)) IN ('SUMMER', 'SUMMER_SEMESTER'))
-                           )
-                        WHERE fes.school_year = :schoolYear
-                          AND (
-                                LOWER(TRIM(fes.semester)) = LOWER(TRIM(:semester))
-                                OR (UPPER(TRIM(:semester)) IN ('1ST', 'FIRST_SEMESTER') AND UPPER(TRIM(fes.semester)) IN ('1ST', 'FIRST_SEMESTER'))
-                                OR (UPPER(TRIM(:semester)) IN ('2ND', 'SECOND_SEMESTER') AND UPPER(TRIM(fes.semester)) IN ('2ND', 'SECOND_SEMESTER'))
-                                OR (UPPER(TRIM(:semester)) IN ('SUMMER', 'SUMMER_SEMESTER') AND UPPER(TRIM(fes.semester)) IN ('SUMMER', 'SUMMER_SEMESTER'))
-                          )
-                          AND fes.evaluation_type IN ('ROLE_STUDENT', 'STUDENT_EVALUATION', 'ROLE_PROGRAM_CHAIR', 'SUPERVISOR_EVALUATION')
-                          AND UPPER(TRIM(pf.status)) = 'ACTIVE'
-                          AND (pf.college IS NULL OR UPPER(TRIM(pf.college)) <> 'FOR_MIGRATION')
-                          AND (:college IS NULL OR :college = '' OR UPPER(TRIM(pf.college)) = UPPER(TRIM(:college)))
-                          AND (:legacyDatabase IS NULL OR :legacyDatabase = '' OR UPPER(TRIM(pf.legacy_database)) = UPPER(TRIM(:legacyDatabase)))
-                          AND (:campus IS NULL OR :campus = '' OR UPPER(TRIM(COALESCE(pc.campus, pf.source_campus))) = UPPER(TRIM(:campus)))
-                          AND (
-                                :search IS NULL
-                                OR :search = ''
-                                OR LOWER(COALESCE(pf.faculty_id, '')) LIKE LOWER(CONCAT('%', :search, '%'))
-                                OR LOWER(COALESCE(pf.firstname, '')) LIKE LOWER(CONCAT('%', :search, '%'))
-                                OR LOWER(COALESCE(pf.lastname, '')) LIKE LOWER(CONCAT('%', :search, '%'))
-                                OR LOWER(COALESCE(pf.college, '')) LIKE LOWER(CONCAT('%', :search, '%'))
-                                OR LOWER(COALESCE(pf.position, '')) LIKE LOWER(CONCAT('%', :search, '%'))
-                                OR LOWER(COALESCE(fes.subject_code, '')) LIKE LOWER(CONCAT('%', :search, '%'))
-                          )
-                        GROUP BY pf.faculty_id
-                        HAVING studentEvaluationCount > 0 AND supervisorEvaluationCount > 0
-                    ) ready_faculty
+                    FROM faculty_evaluation_readiness_summary s
+                    INNER JOIN primary_faculty pf
+                        ON pf.faculty_id = s.faculty_id
+                    WHERE s.school_year = :schoolYear
+                      AND s.semester = CONVERT(:semester USING utf8mb4) COLLATE utf8mb4_unicode_ci
+                      AND s.student_evaluation_count > 0
+                      AND s.supervisor_evaluation_count > 0
+                      AND UPPER(TRIM(pf.status)) = 'ACTIVE'
+                      AND (
+                            pf.college IS NULL
+                            OR UPPER(TRIM(pf.college)) <> 'FOR_MIGRATION'
+                      )
+                      AND (
+                            :college IS NULL
+                            OR UPPER(TRIM(pf.college)) = UPPER(TRIM(CONVERT(:college USING utf8mb4) COLLATE utf8mb4_unicode_ci))
+                      )
+                      AND (
+                            :legacyDatabase IS NULL
+                            OR UPPER(TRIM(pf.legacy_database)) = UPPER(TRIM(CONVERT(:legacyDatabase USING utf8mb4) COLLATE utf8mb4_unicode_ci))
+                      )
+                      AND (
+                            :campus IS NULL
+                            OR UPPER(TRIM(COALESCE(s.campus, pf.source_campus))) = UPPER(TRIM(CONVERT(:campus USING utf8mb4) COLLATE utf8mb4_unicode_ci))
+                      )
+                      AND (
+                            :search IS NULL
+                            OR LOWER(COALESCE(pf.faculty_id, '')) LIKE LOWER(CONCAT('%', CONVERT(:search USING utf8mb4) COLLATE utf8mb4_unicode_ci, '%'))
+                            OR LOWER(COALESCE(pf.firstname, '')) LIKE LOWER(CONCAT('%', CONVERT(:search USING utf8mb4) COLLATE utf8mb4_unicode_ci, '%'))
+                            OR LOWER(COALESCE(pf.lastname, '')) LIKE LOWER(CONCAT('%', CONVERT(:search USING utf8mb4) COLLATE utf8mb4_unicode_ci, '%'))
+                            OR LOWER(COALESCE(pf.college, '')) LIKE LOWER(CONCAT('%', CONVERT(:search USING utf8mb4) COLLATE utf8mb4_unicode_ci, '%'))
+                            OR LOWER(COALESCE(pf.position, '')) LIKE LOWER(CONCAT('%', CONVERT(:search USING utf8mb4) COLLATE utf8mb4_unicode_ci, '%'))
+                            OR LOWER(COALESCE(s.subjects, '')) LIKE LOWER(CONCAT('%', CONVERT(:search USING utf8mb4) COLLATE utf8mb4_unicode_ci, '%'))
+                      )
                     """,
             nativeQuery = true
     )
@@ -804,49 +783,40 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
 
     @Query(
             value = """
-                    SELECT pf.faculty_id
-                    FROM primary_faculty pf
-                    INNER JOIN faculty_evaluation_score fes ON fes.faculty_id = pf.faculty_id
-                    LEFT JOIN (
-                        SELECT faculty_id, class_code, subject_code, school_year, semester, MAX(source_campus) AS campus
-                        FROM primary_class
-                        GROUP BY faculty_id, class_code, subject_code, school_year, semester
-                    ) pc ON pc.faculty_id = fes.faculty_id
-                       AND pc.class_code = fes.class_code
-                       AND pc.subject_code = fes.subject_code
-                       AND pc.school_year = fes.school_year
-                       AND (
-                            LOWER(TRIM(pc.semester)) = LOWER(TRIM(fes.semester))
-                            OR (UPPER(TRIM(fes.semester)) IN ('1ST', 'FIRST_SEMESTER') AND UPPER(TRIM(pc.semester)) IN ('1ST', 'FIRST_SEMESTER'))
-                            OR (UPPER(TRIM(fes.semester)) IN ('2ND', 'SECOND_SEMESTER') AND UPPER(TRIM(pc.semester)) IN ('2ND', 'SECOND_SEMESTER'))
-                            OR (UPPER(TRIM(fes.semester)) IN ('SUMMER', 'SUMMER_SEMESTER') AND UPPER(TRIM(pc.semester)) IN ('SUMMER', 'SUMMER_SEMESTER'))
-                       )
-                    WHERE fes.school_year = :schoolYear
-                      AND (
-                            LOWER(TRIM(fes.semester)) = LOWER(TRIM(:semester))
-                            OR (UPPER(TRIM(:semester)) IN ('1ST', 'FIRST_SEMESTER') AND UPPER(TRIM(fes.semester)) IN ('1ST', 'FIRST_SEMESTER'))
-                            OR (UPPER(TRIM(:semester)) IN ('2ND', 'SECOND_SEMESTER') AND UPPER(TRIM(fes.semester)) IN ('2ND', 'SECOND_SEMESTER'))
-                            OR (UPPER(TRIM(:semester)) IN ('SUMMER', 'SUMMER_SEMESTER') AND UPPER(TRIM(fes.semester)) IN ('SUMMER', 'SUMMER_SEMESTER'))
-                      )
-                      AND fes.evaluation_type IN ('ROLE_STUDENT', 'STUDENT_EVALUATION', 'ROLE_PROGRAM_CHAIR', 'SUPERVISOR_EVALUATION')
+                    SELECT s.faculty_id
+                    FROM faculty_evaluation_readiness_summary s
+                    INNER JOIN primary_faculty pf
+                        ON pf.faculty_id = s.faculty_id
+                    WHERE s.school_year = :schoolYear
+                      AND s.semester = CONVERT(:semester USING utf8mb4) COLLATE utf8mb4_unicode_ci
+                      AND s.student_evaluation_count > 0
+                      AND s.supervisor_evaluation_count > 0
                       AND UPPER(TRIM(pf.status)) = 'ACTIVE'
-                      AND (pf.college IS NULL OR UPPER(TRIM(pf.college)) <> 'FOR_MIGRATION')
-                      AND (:college IS NULL OR :college = '' OR UPPER(TRIM(pf.college)) = UPPER(TRIM(:college)))
-                      AND (:legacyDatabase IS NULL OR :legacyDatabase = '' OR UPPER(TRIM(pf.legacy_database)) = UPPER(TRIM(:legacyDatabase)))
-                      AND (:campus IS NULL OR :campus = '' OR UPPER(TRIM(COALESCE(pc.campus, pf.source_campus))) = UPPER(TRIM(:campus)))
+                      AND (
+                            pf.college IS NULL
+                            OR UPPER(TRIM(pf.college)) <> 'FOR_MIGRATION'
+                      )
+                      AND (
+                            :college IS NULL
+                            OR UPPER(TRIM(pf.college)) = UPPER(TRIM(CONVERT(:college USING utf8mb4) COLLATE utf8mb4_unicode_ci))
+                      )
+                      AND (
+                            :legacyDatabase IS NULL
+                            OR UPPER(TRIM(pf.legacy_database)) = UPPER(TRIM(CONVERT(:legacyDatabase USING utf8mb4) COLLATE utf8mb4_unicode_ci))
+                      )
+                      AND (
+                            :campus IS NULL
+                            OR UPPER(TRIM(COALESCE(s.campus, pf.source_campus))) = UPPER(TRIM(CONVERT(:campus USING utf8mb4) COLLATE utf8mb4_unicode_ci))
+                      )
                       AND (
                             :search IS NULL
-                            OR :search = ''
-                            OR LOWER(COALESCE(pf.faculty_id, '')) LIKE LOWER(CONCAT('%', :search, '%'))
-                            OR LOWER(COALESCE(pf.firstname, '')) LIKE LOWER(CONCAT('%', :search, '%'))
-                            OR LOWER(COALESCE(pf.lastname, '')) LIKE LOWER(CONCAT('%', :search, '%'))
-                            OR LOWER(COALESCE(pf.college, '')) LIKE LOWER(CONCAT('%', :search, '%'))
-                            OR LOWER(COALESCE(pf.position, '')) LIKE LOWER(CONCAT('%', :search, '%'))
-                            OR LOWER(COALESCE(fes.subject_code, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                            OR LOWER(COALESCE(pf.faculty_id, '')) LIKE LOWER(CONCAT('%', CONVERT(:search USING utf8mb4) COLLATE utf8mb4_unicode_ci, '%'))
+                            OR LOWER(COALESCE(pf.firstname, '')) LIKE LOWER(CONCAT('%', CONVERT(:search USING utf8mb4) COLLATE utf8mb4_unicode_ci, '%'))
+                            OR LOWER(COALESCE(pf.lastname, '')) LIKE LOWER(CONCAT('%', CONVERT(:search USING utf8mb4) COLLATE utf8mb4_unicode_ci, '%'))
+                            OR LOWER(COALESCE(pf.college, '')) LIKE LOWER(CONCAT('%', CONVERT(:search USING utf8mb4) COLLATE utf8mb4_unicode_ci, '%'))
+                            OR LOWER(COALESCE(pf.position, '')) LIKE LOWER(CONCAT('%', CONVERT(:search USING utf8mb4) COLLATE utf8mb4_unicode_ci, '%'))
+                            OR LOWER(COALESCE(s.subjects, '')) LIKE LOWER(CONCAT('%', CONVERT(:search USING utf8mb4) COLLATE utf8mb4_unicode_ci, '%'))
                       )
-                    GROUP BY pf.faculty_id, pf.firstname, pf.lastname
-                    HAVING COUNT(DISTINCT CASE WHEN fes.evaluation_type IN ('ROLE_STUDENT', 'STUDENT_EVALUATION') THEN fes.faculty_evaluation_score_id END) > 0
-                       AND COUNT(DISTINCT CASE WHEN fes.evaluation_type IN ('ROLE_PROGRAM_CHAIR', 'SUPERVISOR_EVALUATION') THEN fes.faculty_evaluation_score_id END) > 0
                     ORDER BY pf.lastname ASC, pf.firstname ASC, pf.faculty_id ASC
                     """,
             nativeQuery = true
@@ -865,48 +835,43 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
             value = """
                     SELECT
                         COUNT(*) AS totalReadyFacultyCount,
-                        COALESCE(SUM(ready.studentEvaluationCount), 0) AS totalStudentEvaluationCount,
-                        COALESCE(SUM(ready.supervisorEvaluationCount), 0) AS totalSupervisorEvaluationCount,
-                        COALESCE(SUM(ready.totalScoreRecords), 0) AS totalScoreRecordCount,
-                        ROUND(AVG(ready.overallAverage), 2) AS averageOverallScore
-                    FROM (
-                        SELECT
-                            pf.faculty_id,
-                            COUNT(DISTINCT CASE WHEN fes.evaluation_type IN ('ROLE_STUDENT', 'STUDENT_EVALUATION') THEN fes.faculty_evaluation_score_id END) AS studentEvaluationCount,
-                            COUNT(DISTINCT CASE WHEN fes.evaluation_type IN ('ROLE_PROGRAM_CHAIR', 'SUPERVISOR_EVALUATION') THEN fes.faculty_evaluation_score_id END) AS supervisorEvaluationCount,
-                            COUNT(DISTINCT fes.faculty_evaluation_score_id) AS totalScoreRecords,
-                            AVG(fes.overall_average_score) AS overallAverage
-                        FROM primary_faculty pf
-                        INNER JOIN faculty_evaluation_score fes ON fes.faculty_id = pf.faculty_id
-                        LEFT JOIN (
-                            SELECT faculty_id, class_code, subject_code, school_year, semester, MAX(source_campus) AS campus
-                            FROM primary_class
-                            GROUP BY faculty_id, class_code, subject_code, school_year, semester
-                        ) pc ON pc.faculty_id = fes.faculty_id
-                           AND pc.class_code = fes.class_code
-                           AND pc.subject_code = fes.subject_code
-                           AND pc.school_year = fes.school_year
-                        WHERE fes.school_year = :schoolYear
-                          AND LOWER(TRIM(fes.semester)) = LOWER(TRIM(:semester))
-                          AND fes.evaluation_type IN ('ROLE_STUDENT', 'STUDENT_EVALUATION', 'ROLE_PROGRAM_CHAIR', 'SUPERVISOR_EVALUATION')
-                          AND UPPER(TRIM(pf.status)) = 'ACTIVE'
-                          AND (pf.college IS NULL OR UPPER(TRIM(pf.college)) <> 'FOR_MIGRATION')
-                          AND (:college IS NULL OR :college = '' OR UPPER(TRIM(pf.college)) = UPPER(TRIM(:college)))
-                          AND (:legacyDatabase IS NULL OR :legacyDatabase = '' OR UPPER(TRIM(pf.legacy_database)) = UPPER(TRIM(:legacyDatabase)))
-                          AND (:campus IS NULL OR :campus = '' OR UPPER(TRIM(COALESCE(pc.campus, pf.source_campus))) = UPPER(TRIM(:campus)))
-                          AND (
-                                :search IS NULL
-                                OR :search = ''
-                                OR LOWER(COALESCE(pf.faculty_id, '')) LIKE LOWER(CONCAT('%', :search, '%'))
-                                OR LOWER(COALESCE(pf.firstname, '')) LIKE LOWER(CONCAT('%', :search, '%'))
-                                OR LOWER(COALESCE(pf.lastname, '')) LIKE LOWER(CONCAT('%', :search, '%'))
-                                OR LOWER(COALESCE(pf.college, '')) LIKE LOWER(CONCAT('%', :search, '%'))
-                                OR LOWER(COALESCE(pf.position, '')) LIKE LOWER(CONCAT('%', :search, '%'))
-                                OR LOWER(COALESCE(fes.subject_code, '')) LIKE LOWER(CONCAT('%', :search, '%'))
-                          )
-                        GROUP BY pf.faculty_id
-                        HAVING studentEvaluationCount > 0 AND supervisorEvaluationCount > 0
-                    ) ready
+                        COALESCE(SUM(s.student_evaluation_count), 0) AS totalStudentEvaluationCount,
+                        COALESCE(SUM(s.supervisor_evaluation_count), 0) AS totalSupervisorEvaluationCount,
+                        COALESCE(SUM(s.total_score_records), 0) AS totalScoreRecordCount,
+                        ROUND(AVG(s.overall_average), 2) AS averageOverallScore
+                    FROM faculty_evaluation_readiness_summary s
+                    INNER JOIN primary_faculty pf
+                        ON pf.faculty_id = s.faculty_id
+                    WHERE s.school_year = :schoolYear
+                      AND s.semester = CONVERT(:semester USING utf8mb4) COLLATE utf8mb4_unicode_ci
+                      AND s.student_evaluation_count > 0
+                      AND s.supervisor_evaluation_count > 0
+                      AND UPPER(TRIM(pf.status)) = 'ACTIVE'
+                      AND (
+                            pf.college IS NULL
+                            OR UPPER(TRIM(pf.college)) <> 'FOR_MIGRATION'
+                      )
+                      AND (
+                            :college IS NULL
+                            OR UPPER(TRIM(pf.college)) = UPPER(TRIM(CONVERT(:college USING utf8mb4) COLLATE utf8mb4_unicode_ci))
+                      )
+                      AND (
+                            :legacyDatabase IS NULL
+                            OR UPPER(TRIM(pf.legacy_database)) = UPPER(TRIM(CONVERT(:legacyDatabase USING utf8mb4) COLLATE utf8mb4_unicode_ci))
+                      )
+                      AND (
+                            :campus IS NULL
+                            OR UPPER(TRIM(COALESCE(s.campus, pf.source_campus))) = UPPER(TRIM(CONVERT(:campus USING utf8mb4) COLLATE utf8mb4_unicode_ci))
+                      )
+                      AND (
+                            :search IS NULL
+                            OR LOWER(COALESCE(pf.faculty_id, '')) LIKE LOWER(CONCAT('%', CONVERT(:search USING utf8mb4) COLLATE utf8mb4_unicode_ci, '%'))
+                            OR LOWER(COALESCE(pf.firstname, '')) LIKE LOWER(CONCAT('%', CONVERT(:search USING utf8mb4) COLLATE utf8mb4_unicode_ci, '%'))
+                            OR LOWER(COALESCE(pf.lastname, '')) LIKE LOWER(CONCAT('%', CONVERT(:search USING utf8mb4) COLLATE utf8mb4_unicode_ci, '%'))
+                            OR LOWER(COALESCE(pf.college, '')) LIKE LOWER(CONCAT('%', CONVERT(:search USING utf8mb4) COLLATE utf8mb4_unicode_ci, '%'))
+                            OR LOWER(COALESCE(pf.position, '')) LIKE LOWER(CONCAT('%', CONVERT(:search USING utf8mb4) COLLATE utf8mb4_unicode_ci, '%'))
+                            OR LOWER(COALESCE(s.subjects, '')) LIKE LOWER(CONCAT('%', CONVERT(:search USING utf8mb4) COLLATE utf8mb4_unicode_ci, '%'))
+                      )
                     """,
             nativeQuery = true
     )
@@ -917,6 +882,132 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
             @Param("college") String college,
             @Param("legacyDatabase") String legacyDatabase,
             @Param("campus") String campus
+    );
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+            value = """
+                    DELETE FROM faculty_evaluation_readiness_summary
+                    WHERE faculty_id = CONVERT(:facultyId USING utf8mb4) COLLATE utf8mb4_unicode_ci
+                      AND school_year = :schoolYear
+                      AND semester = CONVERT(:semester USING utf8mb4) COLLATE utf8mb4_unicode_ci
+                    """,
+            nativeQuery = true
+    )
+    void deleteFacultyEvaluationReadinessSummary(
+            @Param("facultyId") String facultyId,
+            @Param("schoolYear") Integer schoolYear,
+            @Param("semester") String semester
+    );
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+            value = """
+                    INSERT INTO faculty_evaluation_readiness_summary (
+                        faculty_id,
+                        school_year,
+                        semester,
+                        campus,
+                        subjects,
+                        student_evaluation_count,
+                        supervisor_evaluation_count,
+                        total_score_records,
+                        set_average,
+                        sef_average,
+                        overall_average,
+                        last_evaluated_at,
+                        created_at,
+                        updated_at
+                    )
+                    SELECT
+                        fes.faculty_id,
+                        :schoolYear,
+                        CONVERT(:semester USING utf8mb4) COLLATE utf8mb4_unicode_ci,
+                        COALESCE(MAX(pc.campus), MAX(pf.source_campus)) AS campus,
+                        GROUP_CONCAT(DISTINCT fes.subject_code ORDER BY fes.subject_code SEPARATOR ', ') AS subjects,
+                        COUNT(DISTINCT CASE
+                            WHEN fes.evaluation_type IN ('ROLE_STUDENT', 'STUDENT_EVALUATION')
+                            THEN fes.faculty_evaluation_score_id
+                        END) AS student_evaluation_count,
+                        COUNT(DISTINCT CASE
+                            WHEN fes.evaluation_type IN ('ROLE_PROGRAM_CHAIR', 'SUPERVISOR_EVALUATION')
+                            THEN fes.faculty_evaluation_score_id
+                        END) AS supervisor_evaluation_count,
+                        COUNT(DISTINCT fes.faculty_evaluation_score_id) AS total_score_records,
+                        ROUND(AVG(CASE
+                            WHEN fes.evaluation_type IN ('ROLE_STUDENT', 'STUDENT_EVALUATION')
+                            THEN fes.overall_average_score
+                        END), 2) AS set_average,
+                        ROUND(AVG(CASE
+                            WHEN fes.evaluation_type IN ('ROLE_PROGRAM_CHAIR', 'SUPERVISOR_EVALUATION')
+                            THEN fes.overall_average_score
+                        END), 2) AS sef_average,
+                        ROUND(AVG(fes.overall_average_score), 2) AS overall_average,
+                        MAX(fes.created_at) AS last_evaluated_at,
+                        NOW() AS created_at,
+                        NOW() AS updated_at
+                    FROM faculty_evaluation_score fes
+                    INNER JOIN primary_faculty pf
+                        ON pf.faculty_id = fes.faculty_id
+                    LEFT JOIN (
+                        SELECT
+                            faculty_id,
+                            class_code,
+                            subject_code,
+                            school_year,
+                            CASE
+                                WHEN UPPER(REPLACE(REPLACE(TRIM(semester), '_', ''), ' ', '')) IN ('1ST', 'FIRST', 'FIRSTSEMESTER') THEN '1st'
+                                WHEN UPPER(REPLACE(REPLACE(TRIM(semester), '_', ''), ' ', '')) IN ('2ND', 'SECOND', 'SECONDSEMESTER') THEN '2nd'
+                                WHEN UPPER(REPLACE(REPLACE(TRIM(semester), '_', ''), ' ', '')) IN ('SUMMER', 'SUMMERSEMESTER') THEN 'summer'
+                                ELSE TRIM(semester)
+                            END AS semester,
+                            MAX(source_campus) AS campus
+                        FROM primary_class
+                        WHERE faculty_id = CONVERT(:facultyId USING utf8mb4) COLLATE utf8mb4_unicode_ci
+                          AND school_year = :schoolYear
+                        GROUP BY
+                            faculty_id,
+                            class_code,
+                            subject_code,
+                            school_year,
+                            CASE
+                                WHEN UPPER(REPLACE(REPLACE(TRIM(semester), '_', ''), ' ', '')) IN ('1ST', 'FIRST', 'FIRSTSEMESTER') THEN '1st'
+                                WHEN UPPER(REPLACE(REPLACE(TRIM(semester), '_', ''), ' ', '')) IN ('2ND', 'SECOND', 'SECONDSEMESTER') THEN '2nd'
+                                WHEN UPPER(REPLACE(REPLACE(TRIM(semester), '_', ''), ' ', '')) IN ('SUMMER', 'SUMMERSEMESTER') THEN 'summer'
+                                ELSE TRIM(semester)
+                            END
+                    ) pc
+                        ON pc.faculty_id = fes.faculty_id
+                       AND pc.class_code = fes.class_code
+                       AND pc.subject_code = fes.subject_code
+                       AND pc.school_year = fes.school_year
+                       AND pc.semester = CONVERT(:semester USING utf8mb4) COLLATE utf8mb4_unicode_ci
+                    WHERE fes.faculty_id = CONVERT(:facultyId USING utf8mb4) COLLATE utf8mb4_unicode_ci
+                      AND fes.school_year = :schoolYear
+                      AND (
+                            LOWER(TRIM(fes.semester)) = LOWER(TRIM(CONVERT(:semester USING utf8mb4) COLLATE utf8mb4_unicode_ci))
+                            OR (
+                                UPPER(TRIM(CONVERT(:semester USING utf8mb4) COLLATE utf8mb4_unicode_ci)) IN ('1ST', 'FIRST_SEMESTER')
+                                AND UPPER(TRIM(fes.semester)) IN ('1ST', 'FIRST_SEMESTER')
+                            )
+                            OR (
+                                UPPER(TRIM(CONVERT(:semester USING utf8mb4) COLLATE utf8mb4_unicode_ci)) IN ('2ND', 'SECOND_SEMESTER')
+                                AND UPPER(TRIM(fes.semester)) IN ('2ND', 'SECOND_SEMESTER')
+                            )
+                            OR (
+                                UPPER(TRIM(CONVERT(:semester USING utf8mb4) COLLATE utf8mb4_unicode_ci)) IN ('SUMMER', 'SUMMER_SEMESTER')
+                                AND UPPER(TRIM(fes.semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
+                            )
+                      )
+                      AND fes.evaluation_type IN ('ROLE_STUDENT', 'STUDENT_EVALUATION', 'ROLE_PROGRAM_CHAIR', 'SUPERVISOR_EVALUATION')
+                    GROUP BY fes.faculty_id
+                    """,
+            nativeQuery = true
+    )
+    void insertFacultyEvaluationReadinessSummary(
+            @Param("facultyId") String facultyId,
+            @Param("schoolYear") Integer schoolYear,
+            @Param("semester") String semester
     );
 }
 

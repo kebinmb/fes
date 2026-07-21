@@ -104,6 +104,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/admin/dashboard/supervisor-evaluations",
                                 "/admin/dashboard/faculty-evaluation-readiness",
+                                "/admin/dashboard/faculty-evaluation-readiness/**",
                                 "/admin/faculties",
                                 "/admin/faculty-evaluation-score/**",
                                 "/admin/faculty-evaluation-reports/**"
