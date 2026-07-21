@@ -20,6 +20,7 @@ import com.faculty_evaluation_backend.fes.entities.evaluation.enums.RatingScale;
 import com.faculty_evaluation_backend.fes.entities.primary.FacultyWorkload;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryFaculty;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.College;
+import com.faculty_evaluation_backend.fes.entities.primary.enums.EvaluationType;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.Status;
 import com.faculty_evaluation_backend.fes.repositories.authentication.UserAccountsRepository;
 import com.faculty_evaluation_backend.fes.repositories.data.SchoolYearAndSemesterRepository;
@@ -253,17 +254,11 @@ public class EvaluationDataService {
             List<FacultyEvaluationScore> supervisorEvaluations = new ArrayList<>();
 
             for (FacultyEvaluationScore evaluation : evaluations) {
-
-                boolean isStudent =
-                        studentEvaluatorIds.contains(
-                                evaluation.getEvaluatorId()
-                        );
-
-                if (isStudent) {
+                if (isStudentEvaluation(evaluation, studentEvaluatorIds)) {
 
                     studentEvaluations.add(evaluation);
 
-                } else {
+                } else if (isSupervisorEvaluation(evaluation, studentEvaluatorIds)) {
 
                     supervisorEvaluations.add(evaluation);
                 }
@@ -295,11 +290,7 @@ public class EvaluationDataService {
                     .orElse("-");
 
             String evaluatorType;
-
-            boolean isStudent =
-                    studentEvaluatorIds.contains(first.getEvaluatorId());
-
-            if (isStudent) {
+            if (isStudentEvaluation(first, studentEvaluatorIds)) {
 
                 evaluatorType = "SET";
 
@@ -356,6 +347,8 @@ public class EvaluationDataService {
                     .overallInterpretation(determineInterpretation(setRating))
 
                     .numberOfStudents(studentEvaluations.size())
+
+                    .numberOfSupervisors(supervisorEvaluations.size())
 
                     .setRating(setRating)
 
@@ -607,6 +600,32 @@ public class EvaluationDataService {
         return primaryStudentLoadRepository.findTotalStudentsInClass(classCode);
     }
 
+    private boolean isStudentEvaluation(
+            FacultyEvaluationScore evaluation,
+            Set<String> studentEvaluatorIds
+    ) {
+        EvaluationType evaluationType = evaluation.getEvaluationType();
+
+        if (evaluationType != null) {
+            return evaluationType == EvaluationType.ROLE_STUDENT;
+        }
+
+        return studentEvaluatorIds.contains(evaluation.getEvaluatorId());
+    }
+
+    private boolean isSupervisorEvaluation(
+            FacultyEvaluationScore evaluation,
+            Set<String> studentEvaluatorIds
+    ) {
+        EvaluationType evaluationType = evaluation.getEvaluationType();
+
+        if (evaluationType != null) {
+            return evaluationType == EvaluationType.ROLE_DEAN
+                    || evaluationType == EvaluationType.ROLE_PROGRAM_CHAIR;
+        }
+
+        return !studentEvaluatorIds.contains(evaluation.getEvaluatorId());
+    }
     private double calculateAverage(List<FacultyEvaluationScore> evaluations) {
 
         if (evaluations.isEmpty()) {
@@ -679,8 +698,18 @@ public class EvaluationDataService {
                         .toList();
 
         if (regularWorkloads.isEmpty()) {
+            List<FacultyEvaluationPrintResponse> supervisorOnlyResponses =
+                    responses.stream()
+                            .filter(this::hasSupervisorEvaluation)
+                            .map(this::supervisorOnlyPrintResponse)
+                            .toList();
+
+            if (!supervisorOnlyResponses.isEmpty()) {
+                return supervisorOnlyResponses;
+            }
+
             throw new BadRequestException(
-                    "Faculty only has overload subjects, not allowed for printing"
+                    "Faculty only has overload subjects, not allowed for SET printing"
             );
         }
 
@@ -701,15 +730,63 @@ public class EvaluationDataService {
                                 this::preferWorkloadWithHours
                         ));
 
-        return responses.stream()
-                .filter(response ->
-                        findMatchingWorkload(
-                                response,
-                                workloadsByClassCode,
-                                workloadsByCourseSection
-                        ).isPresent()
-                )
-                .toList();
+        List<FacultyEvaluationPrintResponse> printableResponses =
+                new ArrayList<>();
+
+        for (FacultyEvaluationPrintResponse response : responses) {
+            boolean regularWorkloadMatch =
+                    findMatchingWorkload(
+                            response,
+                            workloadsByClassCode,
+                            workloadsByCourseSection
+                    ).isPresent();
+
+            if (regularWorkloadMatch) {
+                printableResponses.add(response);
+            } else if (hasSupervisorEvaluation(response)) {
+                printableResponses.add(supervisorOnlyPrintResponse(response));
+            }
+        }
+
+        return printableResponses;
+    }
+
+    private boolean hasSupervisorEvaluation(
+            FacultyEvaluationPrintResponse response
+    ) {
+        return response.getNumberOfSupervisors() != null
+                && response.getNumberOfSupervisors() > 0;
+    }
+
+    private FacultyEvaluationPrintResponse supervisorOnlyPrintResponse(
+            FacultyEvaluationPrintResponse response
+    ) {
+        return FacultyEvaluationPrintResponse.builder()
+                .facultyEvaluationScoreId(response.getFacultyEvaluationScoreId())
+                .facultyId(response.getFacultyId())
+                .facultyName(response.getFacultyName())
+                .evaluatorId(response.getEvaluatorId())
+                .evaluatorType("SEF")
+                .classCode(response.getClassCode())
+                .college(response.getCollege())
+                .sectionCode(response.getSectionCode())
+                .programCode(response.getProgramCode())
+                .position(response.getPosition())
+                .semester(response.getSemester())
+                .schoolYear(response.getSchoolYear())
+                .subjectCode(response.getSubjectCode())
+                .yearLevel(response.getYearLevel())
+                .overallAverageScore(0.0)
+                .overallInterpretation(determineInterpretation(0.0))
+                .numberOfStudents(0)
+                .numberOfSupervisors(response.getNumberOfSupervisors())
+                .setRating(0.0)
+                .sefRating(response.getSefRating())
+                .studentComments("-")
+                .supervisorComments(response.getSupervisorComments())
+                .supervisorName(response.getSupervisorName())
+                .supervisorDesignation(response.getSupervisorDesignation())
+                .build();
     }
 
     private boolean isRegularWorkload(FacultyWorkload workload) {
@@ -1029,3 +1106,4 @@ public class EvaluationDataService {
     }
 
 }
+

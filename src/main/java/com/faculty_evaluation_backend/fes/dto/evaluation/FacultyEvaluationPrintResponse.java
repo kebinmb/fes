@@ -12,6 +12,7 @@ public class FacultyEvaluationPrintResponse {
     private String evaluatorId;
     private String classCode;
     private Integer numberOfStudents;
+    private Integer numberOfSupervisors;
     private String college;
     private String sectionCode;
     private String programCode;
