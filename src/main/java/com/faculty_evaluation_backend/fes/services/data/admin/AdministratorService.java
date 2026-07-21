@@ -308,6 +308,7 @@ public class AdministratorService {
             transactionManager = "primaryTransactionManager",
             readOnly = true
     )
+    @Cacheable(value = "facultyEvaluationReadiness")
     public FacultyEvaluationReadinessPageResponse
     getFacultyEvaluationReadiness(
             int page,
@@ -319,6 +320,18 @@ public class AdministratorService {
             Integer schoolYear,
             String semester
     ) {
+        log.info(
+                "Faculty evaluation readiness cache miss | page={} size={} search={} college={} legacyDatabase={} campus={} schoolYear={} semester={}",
+                page,
+                size,
+                search,
+                college,
+                legacyDatabase,
+                campus,
+                schoolYear,
+                semester
+        );
+
         return adminDashboardService.getFacultyEvaluationReadiness(
                 page,
                 size,
@@ -335,6 +348,7 @@ public class AdministratorService {
             transactionManager = "primaryTransactionManager",
             readOnly = true
     )
+    @Cacheable(value = "facultyEvaluationReadinessFacultyIds")
     public List<String> findFacultyEvaluationReadinessFacultyIds(
             String search,
             College college,
@@ -343,6 +357,16 @@ public class AdministratorService {
             Integer schoolYear,
             String semester
     ) {
+        log.info(
+                "Faculty evaluation readiness faculty IDs cache miss | search={} college={} legacyDatabase={} campus={} schoolYear={} semester={}",
+                search,
+                college,
+                legacyDatabase,
+                campus,
+                schoolYear,
+                semester
+        );
+
         return adminDashboardService.findFacultyEvaluationReadinessFacultyIds(
                 search,
                 college,

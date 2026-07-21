@@ -98,11 +98,13 @@ public class EvaluationDataService {
             @CacheEvict(value = "adminDashboardSummary", allEntries = true),
             @CacheEvict(value = "adminDashboardPrograms", allEntries = true),
             @CacheEvict(value = "adminDashboardFacultyLoads", allEntries = true),
-            @CacheEvict(value = "facultyEvaluationReports", allEntries = true),
+            @CacheEvict(value = "facultyEvaluationReports", key = "#baseEvaluationDTO.facultyId"),
             @CacheEvict(value = "studentSections", allEntries = true),
             @CacheEvict(value = "studentEvaluationStatus", allEntries = true),
             @CacheEvict(value = "studentFacultyEvaluations", allEntries = true),
             @CacheEvict(value = "facultyEvaluationScores", allEntries = true),
+            @CacheEvict(value = "facultyEvaluationReadiness", allEntries = true),
+            @CacheEvict(value = "facultyEvaluationReadinessFacultyIds", allEntries = true),
             @CacheEvict(value = "studentFacultyClassEvaluationChecks", allEntries = true),
             @CacheEvict(value = "supervisorEvaluatedStudents", allEntries = true)
     })
