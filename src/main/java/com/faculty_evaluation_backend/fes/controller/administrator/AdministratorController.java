@@ -13,6 +13,7 @@ import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardProgramBre
 import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardResponse;
 import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardSummaryResponse;
 import com.faculty_evaluation_backend.fes.dto.dashboard.FacultyWorkloadCoverageResponse;
+import com.faculty_evaluation_backend.fes.dto.dashboard.FacultyEvaluationReadinessPageResponse;
 import com.faculty_evaluation_backend.fes.dto.dashboard.SupervisorEvaluationDashboardPageResponse;
 import com.faculty_evaluation_backend.fes.dto.dashboard.SupervisorEvaluationDashboardResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationPrintResponse;
@@ -133,6 +134,31 @@ public class AdministratorController {
         );
     }
 
+
+    @GetMapping("/dashboard/faculty-evaluation-readiness")
+    @AuditableAction(action = "FETCH", entity = "FACULTY_EVALUATION_READINESS")
+    public FacultyEvaluationReadinessPageResponse
+    getFacultyEvaluationReadiness(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) College college,
+            @RequestParam(required = false) String legacyDatabase,
+            @RequestParam(required = false) String campus,
+            @RequestParam(required = false) Integer schoolYear,
+            @RequestParam(required = false) String semester
+    ) {
+        return administratorService.getFacultyEvaluationReadiness(
+                page,
+                size,
+                search,
+                college,
+                legacyDatabase,
+                campus,
+                schoolYear,
+                semester
+        );
+    }
     @GetMapping("/faculties")
     @AuditableAction(action = "FETCH", entity = "FACULTY")
     public PageResponse<FetchFacultyResponse> getFacultyList(
@@ -413,6 +439,45 @@ public class AdministratorController {
         );
     }
 
+
+    @PostMapping("/faculty-evaluation-reports/readiness/bulk")
+    @AuditableAction(action = "GENERATE_BULK", entity = "FACULTY_EVALUATION_READINESS_REPORT")
+    public ResponseEntity<FacultyEvaluationBulkReportResponse>
+    generateFacultyEvaluationReadinessReports(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String legacyDatabase,
+            @RequestParam(required = false) String campus,
+            @RequestParam(required = false) College college,
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            HttpServletRequest request
+    ) {
+        String verificationBaseUrl =
+                request.getScheme()
+                        + "://"
+                        + request.getServerName()
+                        + (request.getServerPort() == 80
+                        || request.getServerPort() == 443
+                        ? ""
+                        : ":" + request.getServerPort());
+
+        List<String> facultyIds =
+                administratorService.findFacultyEvaluationReadinessFacultyIds(
+                        search,
+                        college,
+                        legacyDatabase,
+                        campus,
+                        null,
+                        null
+                );
+
+        return ResponseEntity.ok(
+                evaluationDataService.generateFacultyEvaluationReportsForFacultyIds(
+                        facultyIds,
+                        verificationBaseUrl,
+                        userDetails
+                )
+        );
+    }
     @PutMapping("/school-year-semester")
     @AuditableAction(action = "UPDATE", entity = "SCHOOL_YEAR_SEMESTER")
     public ResponseEntity<?> updateSchoolYearAndSemester(

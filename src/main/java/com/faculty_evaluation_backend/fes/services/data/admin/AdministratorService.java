@@ -6,6 +6,7 @@ import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardProgramBre
 import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardResponse;
 import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardSummaryResponse;
 import com.faculty_evaluation_backend.fes.dto.dashboard.FacultyWorkloadCoverageResponse;
+import com.faculty_evaluation_backend.fes.dto.dashboard.FacultyEvaluationReadinessPageResponse;
 import com.faculty_evaluation_backend.fes.dto.dashboard.SupervisorEvaluationDashboardPageResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.StudentEvaluationStatusResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.StudentFacultyEvaluationDTO;
@@ -302,6 +303,55 @@ public class AdministratorService {
         );
     }
 
+
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
+    public FacultyEvaluationReadinessPageResponse
+    getFacultyEvaluationReadiness(
+            int page,
+            int size,
+            String search,
+            College college,
+            String legacyDatabase,
+            String campus,
+            Integer schoolYear,
+            String semester
+    ) {
+        return adminDashboardService.getFacultyEvaluationReadiness(
+                page,
+                size,
+                search,
+                college,
+                legacyDatabase,
+                campus,
+                schoolYear,
+                semester
+        );
+    }
+
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
+    public List<String> findFacultyEvaluationReadinessFacultyIds(
+            String search,
+            College college,
+            String legacyDatabase,
+            String campus,
+            Integer schoolYear,
+            String semester
+    ) {
+        return adminDashboardService.findFacultyEvaluationReadinessFacultyIds(
+                search,
+                college,
+                legacyDatabase,
+                campus,
+                schoolYear,
+                semester
+        );
+    }
     @Transactional(
             transactionManager = "primaryTransactionManager",
             readOnly = true

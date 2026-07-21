@@ -501,6 +501,51 @@ public class EvaluationDataService {
                 .build();
     }
 
+
+    @Transactional(transactionManager = "primaryTransactionManager")
+    public FacultyEvaluationBulkReportResponse
+    generateFacultyEvaluationReportsForFacultyIds(
+            List<String> facultyIds,
+            String verificationBaseUrl,
+            CustomUserDetails generatedBy
+    ) {
+        if (facultyIds == null || facultyIds.isEmpty()) {
+            throw new BadRequestException(
+                    "No print-ready faculty records found for the selected filters."
+            );
+        }
+
+        List<FacultyEvaluationGeneratedReportResponse> reports =
+                new ArrayList<>();
+        List<String> skippedFacultyIds = new ArrayList<>();
+
+        for (String facultyId : facultyIds) {
+            try {
+                reports.add(
+                        generateFacultyEvaluationReport(
+                                facultyId,
+                                verificationBaseUrl,
+                                generatedBy
+                        )
+                );
+            } catch (BadRequestException ex) {
+                skippedFacultyIds.add(facultyId);
+            }
+        }
+
+        if (reports.isEmpty()) {
+            throw new BadRequestException(
+                    "No printable evaluated faculty reports found for the selected filters."
+            );
+        }
+
+        return FacultyEvaluationBulkReportResponse.builder()
+                .requestedCount(facultyIds.size())
+                .generatedCount(reports.size())
+                .skippedFacultyIds(skippedFacultyIds)
+                .reports(reports)
+                .build();
+    }
     @Transactional(
             transactionManager = "primaryTransactionManager",
             readOnly = true

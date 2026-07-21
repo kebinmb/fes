@@ -10,6 +10,10 @@ import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardSummaryRes
 import com.faculty_evaluation_backend.fes.dto.dashboard.FacultyWorkloadCoverageFacultyResponse;
 import com.faculty_evaluation_backend.fes.dto.dashboard.FacultyWorkloadCoverageProjection;
 import com.faculty_evaluation_backend.fes.dto.dashboard.FacultyWorkloadCoverageResponse;
+import com.faculty_evaluation_backend.fes.dto.dashboard.FacultyEvaluationReadinessMetricsProjection;
+import com.faculty_evaluation_backend.fes.dto.dashboard.FacultyEvaluationReadinessPageResponse;
+import com.faculty_evaluation_backend.fes.dto.dashboard.FacultyEvaluationReadinessProjection;
+import com.faculty_evaluation_backend.fes.dto.dashboard.FacultyEvaluationReadinessResponse;
 import com.faculty_evaluation_backend.fes.dto.dashboard.SupervisorEvaluationDashboardMetricsProjection;
 import com.faculty_evaluation_backend.fes.dto.dashboard.SupervisorEvaluationDashboardPageResponse;
 import com.faculty_evaluation_backend.fes.dto.dashboard.SupervisorEvaluationDashboardProjection;
@@ -31,6 +35,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
@@ -153,6 +158,101 @@ class AdminDashboardService {
                 .build();
     }
 
+
+    FacultyEvaluationReadinessPageResponse getFacultyEvaluationReadiness(
+            int page,
+            int size,
+            String search,
+            College college,
+            String legacyDatabase,
+            String campus,
+            Integer schoolYear,
+            String semester
+    ) {
+        DashboardTerm activeTerm = resolveDashboardTerm();
+        Integer resolvedSchoolYear =
+                schoolYear == null ? activeTerm.schoolYear() : schoolYear;
+        String resolvedSemester =
+                normalizeBlank(semester) == null
+                        ? activeTerm.semester()
+                        : normalizeSemester(semester);
+        String normalizedSearch = normalizeBlank(search);
+        String normalizedLegacyDatabase = normalizeLegacyDatabase(legacyDatabase);
+        String normalizedCampus = normalizeBlank(campus);
+        String normalizedCollege = college == null ? null : college.name();
+
+        Pageable pageable = PageRequest.of(safePage(page), safePageSize(size));
+
+        Page<FacultyEvaluationReadinessResponse> readinessPage =
+                facultyEvaluationScoreRepository
+                        .findFacultyEvaluationReadiness(
+                                resolvedSchoolYear,
+                                resolvedSemester,
+                                normalizedSearch,
+                                normalizedCollege,
+                                normalizedLegacyDatabase,
+                                normalizedCampus,
+                                pageable
+                        )
+                        .map(projection ->
+                                toFacultyEvaluationReadinessResponse(
+                                        projection,
+                                        resolvedSchoolYear,
+                                        resolvedSemester
+                                )
+                        );
+
+        FacultyEvaluationReadinessMetricsProjection metrics =
+                facultyEvaluationScoreRepository
+                        .findFacultyEvaluationReadinessMetrics(
+                                resolvedSchoolYear,
+                                resolvedSemester,
+                                normalizedSearch,
+                                normalizedCollege,
+                                normalizedLegacyDatabase,
+                                normalizedCampus
+                        );
+
+        return FacultyEvaluationReadinessPageResponse.builder()
+                .content(readinessPage.getContent())
+                .totalElements(readinessPage.getTotalElements())
+                .totalPages(readinessPage.getTotalPages())
+                .page(readinessPage.getNumber())
+                .size(readinessPage.getSize())
+                .totalReadyFacultyCount(metrics == null ? 0L : safeLong(metrics.getTotalReadyFacultyCount()))
+                .totalStudentEvaluationCount(metrics == null ? 0L : safeLong(metrics.getTotalStudentEvaluationCount()))
+                .totalSupervisorEvaluationCount(metrics == null ? 0L : safeLong(metrics.getTotalSupervisorEvaluationCount()))
+                .totalScoreRecordCount(metrics == null ? 0L : safeLong(metrics.getTotalScoreRecordCount()))
+                .averageOverallScore(metrics == null ? BigDecimal.ZERO : safeBigDecimal(metrics.getAverageOverallScore()))
+                .build();
+    }
+
+    List<String> findFacultyEvaluationReadinessFacultyIds(
+            String search,
+            College college,
+            String legacyDatabase,
+            String campus,
+            Integer schoolYear,
+            String semester
+    ) {
+        DashboardTerm activeTerm = resolveDashboardTerm();
+        Integer resolvedSchoolYear =
+                schoolYear == null ? activeTerm.schoolYear() : schoolYear;
+        String resolvedSemester =
+                normalizeBlank(semester) == null
+                        ? activeTerm.semester()
+                        : normalizeSemester(semester);
+
+        return facultyEvaluationScoreRepository
+                .findFacultyEvaluationReadinessFacultyIds(
+                        resolvedSchoolYear,
+                        resolvedSemester,
+                        normalizeBlank(search),
+                        college == null ? null : college.name(),
+                        normalizeLegacyDatabase(legacyDatabase),
+                        normalizeBlank(campus)
+                );
+    }
     FacultyWorkloadCoverageResponse getFacultyWorkloadCoverage() {
         DashboardTerm term = resolveDashboardTerm();
         List<FacultyWorkloadCoverageFacultyResponse> rows =
@@ -323,6 +423,43 @@ class AdminDashboardService {
                 .build();
     }
 
+
+    private FacultyEvaluationReadinessResponse
+    toFacultyEvaluationReadinessResponse(
+            FacultyEvaluationReadinessProjection projection,
+            Integer schoolYear,
+            String semester
+    ) {
+        return FacultyEvaluationReadinessResponse.builder()
+                .facultyId(projection.getFacultyId())
+                .facultyName(projection.getFacultyName())
+                .position(projection.getPosition())
+                .college(projection.getCollege())
+                .legacyDatabase(projection.getLegacyDatabase())
+                .campus(projection.getCampus())
+                .schoolYear(schoolYear)
+                .semester(semester)
+                .subjects(splitSubjects(projection.getSubjects()))
+                .studentEvaluationCount(safeLong(projection.getStudentEvaluationCount()))
+                .supervisorEvaluationCount(safeLong(projection.getSupervisorEvaluationCount()))
+                .totalScoreRecords(safeLong(projection.getTotalScoreRecords()))
+                .setAverage(safeBigDecimal(projection.getSetAverage()))
+                .sefAverage(safeBigDecimal(projection.getSefAverage()))
+                .overallAverage(safeBigDecimal(projection.getOverallAverage()))
+                .lastEvaluatedAt(projection.getLastEvaluatedAt())
+                .build();
+    }
+
+    private List<String> splitSubjects(String subjects) {
+        if (subjects == null || subjects.isBlank()) {
+            return List.of();
+        }
+
+        return Arrays.stream(subjects.split(","))
+                .map(String::trim)
+                .filter(subject -> !subject.isBlank())
+                .toList();
+    }
     private SupervisorEvaluationDashboardResponse
     toSupervisorEvaluationDashboardResponse(
             SupervisorEvaluationDashboardProjection projection,

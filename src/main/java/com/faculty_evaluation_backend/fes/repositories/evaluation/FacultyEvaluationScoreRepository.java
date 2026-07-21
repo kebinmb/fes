@@ -5,6 +5,8 @@ import com.faculty_evaluation_backend.fes.dto.evaluation.EvaluatedStudentsProjec
 import com.faculty_evaluation_backend.fes.dto.evaluation.StudentFacultyEvaluationProjection;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassDetailsProjection;
 import com.faculty_evaluation_backend.fes.dto.dashboard.SupervisorEvaluationDashboardProjection;
+import com.faculty_evaluation_backend.fes.dto.dashboard.FacultyEvaluationReadinessProjection;
+import com.faculty_evaluation_backend.fes.dto.dashboard.FacultyEvaluationReadinessMetricsProjection;
 import com.faculty_evaluation_backend.fes.dto.dashboard.SupervisorEvaluationDashboardMetricsProjection;
 import com.faculty_evaluation_backend.fes.entities.evaluation.FacultyEvaluationScore;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.EvaluationType;
@@ -677,6 +679,245 @@ public interface FacultyEvaluationScoreRepository extends JpaRepository<FacultyE
             @Param("campus") String campus
     );
 
+
+    @Query(
+            value = """
+                    SELECT
+                        pf.faculty_id AS facultyId,
+                        TRIM(CONCAT(COALESCE(pf.firstname, ''), ' ', COALESCE(pf.middlename, ''), ' ', COALESCE(pf.lastname, ''))) AS facultyName,
+                        pf.position AS position,
+                        pf.college AS college,
+                        pf.legacy_database AS legacyDatabase,
+                        COALESCE(MAX(pc.campus), MAX(pf.source_campus)) AS campus,
+                        GROUP_CONCAT(DISTINCT fes.subject_code ORDER BY fes.subject_code SEPARATOR ', ') AS subjects,
+                        COUNT(DISTINCT CASE WHEN fes.evaluation_type IN ('ROLE_STUDENT', 'STUDENT_EVALUATION') THEN fes.faculty_evaluation_score_id END) AS studentEvaluationCount,
+                        COUNT(DISTINCT CASE WHEN fes.evaluation_type IN ('ROLE_PROGRAM_CHAIR', 'SUPERVISOR_EVALUATION') THEN fes.faculty_evaluation_score_id END) AS supervisorEvaluationCount,
+                        COUNT(DISTINCT fes.faculty_evaluation_score_id) AS totalScoreRecords,
+                        ROUND(AVG(CASE WHEN fes.evaluation_type IN ('ROLE_STUDENT', 'STUDENT_EVALUATION') THEN fes.overall_average_score END), 2) AS setAverage,
+                        ROUND(AVG(CASE WHEN fes.evaluation_type IN ('ROLE_PROGRAM_CHAIR', 'SUPERVISOR_EVALUATION') THEN fes.overall_average_score END), 2) AS sefAverage,
+                        ROUND(AVG(fes.overall_average_score), 2) AS overallAverage,
+                        MAX(fes.created_at) AS lastEvaluatedAt
+                    FROM primary_faculty pf
+                    INNER JOIN faculty_evaluation_score fes ON fes.faculty_id = pf.faculty_id
+                    LEFT JOIN (
+                        SELECT faculty_id, class_code, subject_code, school_year, semester, MAX(source_campus) AS campus
+                        FROM primary_class
+                        GROUP BY faculty_id, class_code, subject_code, school_year, semester
+                    ) pc ON pc.faculty_id = fes.faculty_id
+                       AND pc.class_code = fes.class_code
+                       AND pc.subject_code = fes.subject_code
+                       AND pc.school_year = fes.school_year
+                       AND (
+                            LOWER(TRIM(pc.semester)) = LOWER(TRIM(fes.semester))
+                            OR (UPPER(TRIM(fes.semester)) IN ('1ST', 'FIRST_SEMESTER') AND UPPER(TRIM(pc.semester)) IN ('1ST', 'FIRST_SEMESTER'))
+                            OR (UPPER(TRIM(fes.semester)) IN ('2ND', 'SECOND_SEMESTER') AND UPPER(TRIM(pc.semester)) IN ('2ND', 'SECOND_SEMESTER'))
+                            OR (UPPER(TRIM(fes.semester)) IN ('SUMMER', 'SUMMER_SEMESTER') AND UPPER(TRIM(pc.semester)) IN ('SUMMER', 'SUMMER_SEMESTER'))
+                       )
+                    WHERE fes.school_year = :schoolYear
+                      AND (
+                            LOWER(TRIM(fes.semester)) = LOWER(TRIM(:semester))
+                            OR (UPPER(TRIM(:semester)) IN ('1ST', 'FIRST_SEMESTER') AND UPPER(TRIM(fes.semester)) IN ('1ST', 'FIRST_SEMESTER'))
+                            OR (UPPER(TRIM(:semester)) IN ('2ND', 'SECOND_SEMESTER') AND UPPER(TRIM(fes.semester)) IN ('2ND', 'SECOND_SEMESTER'))
+                            OR (UPPER(TRIM(:semester)) IN ('SUMMER', 'SUMMER_SEMESTER') AND UPPER(TRIM(fes.semester)) IN ('SUMMER', 'SUMMER_SEMESTER'))
+                      )
+                      AND fes.evaluation_type IN ('ROLE_STUDENT', 'STUDENT_EVALUATION', 'ROLE_PROGRAM_CHAIR', 'SUPERVISOR_EVALUATION')
+                      AND UPPER(TRIM(pf.status)) = 'ACTIVE'
+                      AND (pf.college IS NULL OR UPPER(TRIM(pf.college)) <> 'FOR_MIGRATION')
+                      AND (:college IS NULL OR :college = '' OR UPPER(TRIM(pf.college)) = UPPER(TRIM(:college)))
+                      AND (:legacyDatabase IS NULL OR :legacyDatabase = '' OR UPPER(TRIM(pf.legacy_database)) = UPPER(TRIM(:legacyDatabase)))
+                      AND (:campus IS NULL OR :campus = '' OR UPPER(TRIM(COALESCE(pc.campus, pf.source_campus))) = UPPER(TRIM(:campus)))
+                      AND (
+                            :search IS NULL
+                            OR :search = ''
+                            OR LOWER(COALESCE(pf.faculty_id, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                            OR LOWER(COALESCE(pf.firstname, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                            OR LOWER(COALESCE(pf.lastname, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                            OR LOWER(COALESCE(pf.college, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                            OR LOWER(COALESCE(pf.position, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                            OR LOWER(COALESCE(fes.subject_code, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                      )
+                    GROUP BY pf.faculty_id, pf.firstname, pf.middlename, pf.lastname, pf.position, pf.college, pf.legacy_database
+                    HAVING studentEvaluationCount > 0 AND supervisorEvaluationCount > 0
+                    ORDER BY pf.lastname ASC, pf.firstname ASC, pf.faculty_id ASC
+                    """,
+            countQuery = """
+                    SELECT COUNT(*)
+                    FROM (
+                        SELECT
+                            pf.faculty_id,
+                            COUNT(DISTINCT CASE WHEN fes.evaluation_type IN ('ROLE_STUDENT', 'STUDENT_EVALUATION') THEN fes.faculty_evaluation_score_id END) AS studentEvaluationCount,
+                            COUNT(DISTINCT CASE WHEN fes.evaluation_type IN ('ROLE_PROGRAM_CHAIR', 'SUPERVISOR_EVALUATION') THEN fes.faculty_evaluation_score_id END) AS supervisorEvaluationCount
+                        FROM primary_faculty pf
+                        INNER JOIN faculty_evaluation_score fes ON fes.faculty_id = pf.faculty_id
+                        LEFT JOIN (
+                            SELECT faculty_id, class_code, subject_code, school_year, semester, MAX(source_campus) AS campus
+                            FROM primary_class
+                            GROUP BY faculty_id, class_code, subject_code, school_year, semester
+                        ) pc ON pc.faculty_id = fes.faculty_id
+                           AND pc.class_code = fes.class_code
+                           AND pc.subject_code = fes.subject_code
+                           AND pc.school_year = fes.school_year
+                           AND (
+                                LOWER(TRIM(pc.semester)) = LOWER(TRIM(fes.semester))
+                                OR (UPPER(TRIM(fes.semester)) IN ('1ST', 'FIRST_SEMESTER') AND UPPER(TRIM(pc.semester)) IN ('1ST', 'FIRST_SEMESTER'))
+                                OR (UPPER(TRIM(fes.semester)) IN ('2ND', 'SECOND_SEMESTER') AND UPPER(TRIM(pc.semester)) IN ('2ND', 'SECOND_SEMESTER'))
+                                OR (UPPER(TRIM(fes.semester)) IN ('SUMMER', 'SUMMER_SEMESTER') AND UPPER(TRIM(pc.semester)) IN ('SUMMER', 'SUMMER_SEMESTER'))
+                           )
+                        WHERE fes.school_year = :schoolYear
+                          AND (
+                                LOWER(TRIM(fes.semester)) = LOWER(TRIM(:semester))
+                                OR (UPPER(TRIM(:semester)) IN ('1ST', 'FIRST_SEMESTER') AND UPPER(TRIM(fes.semester)) IN ('1ST', 'FIRST_SEMESTER'))
+                                OR (UPPER(TRIM(:semester)) IN ('2ND', 'SECOND_SEMESTER') AND UPPER(TRIM(fes.semester)) IN ('2ND', 'SECOND_SEMESTER'))
+                                OR (UPPER(TRIM(:semester)) IN ('SUMMER', 'SUMMER_SEMESTER') AND UPPER(TRIM(fes.semester)) IN ('SUMMER', 'SUMMER_SEMESTER'))
+                          )
+                          AND fes.evaluation_type IN ('ROLE_STUDENT', 'STUDENT_EVALUATION', 'ROLE_PROGRAM_CHAIR', 'SUPERVISOR_EVALUATION')
+                          AND UPPER(TRIM(pf.status)) = 'ACTIVE'
+                          AND (pf.college IS NULL OR UPPER(TRIM(pf.college)) <> 'FOR_MIGRATION')
+                          AND (:college IS NULL OR :college = '' OR UPPER(TRIM(pf.college)) = UPPER(TRIM(:college)))
+                          AND (:legacyDatabase IS NULL OR :legacyDatabase = '' OR UPPER(TRIM(pf.legacy_database)) = UPPER(TRIM(:legacyDatabase)))
+                          AND (:campus IS NULL OR :campus = '' OR UPPER(TRIM(COALESCE(pc.campus, pf.source_campus))) = UPPER(TRIM(:campus)))
+                          AND (
+                                :search IS NULL
+                                OR :search = ''
+                                OR LOWER(COALESCE(pf.faculty_id, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                                OR LOWER(COALESCE(pf.firstname, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                                OR LOWER(COALESCE(pf.lastname, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                                OR LOWER(COALESCE(pf.college, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                                OR LOWER(COALESCE(pf.position, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                                OR LOWER(COALESCE(fes.subject_code, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                          )
+                        GROUP BY pf.faculty_id
+                        HAVING studentEvaluationCount > 0 AND supervisorEvaluationCount > 0
+                    ) ready_faculty
+                    """,
+            nativeQuery = true
+    )
+    Page<FacultyEvaluationReadinessProjection> findFacultyEvaluationReadiness(
+            @Param("schoolYear") Integer schoolYear,
+            @Param("semester") String semester,
+            @Param("search") String search,
+            @Param("college") String college,
+            @Param("legacyDatabase") String legacyDatabase,
+            @Param("campus") String campus,
+            Pageable pageable
+    );
+
+    @Query(
+            value = """
+                    SELECT pf.faculty_id
+                    FROM primary_faculty pf
+                    INNER JOIN faculty_evaluation_score fes ON fes.faculty_id = pf.faculty_id
+                    LEFT JOIN (
+                        SELECT faculty_id, class_code, subject_code, school_year, semester, MAX(source_campus) AS campus
+                        FROM primary_class
+                        GROUP BY faculty_id, class_code, subject_code, school_year, semester
+                    ) pc ON pc.faculty_id = fes.faculty_id
+                       AND pc.class_code = fes.class_code
+                       AND pc.subject_code = fes.subject_code
+                       AND pc.school_year = fes.school_year
+                       AND (
+                            LOWER(TRIM(pc.semester)) = LOWER(TRIM(fes.semester))
+                            OR (UPPER(TRIM(fes.semester)) IN ('1ST', 'FIRST_SEMESTER') AND UPPER(TRIM(pc.semester)) IN ('1ST', 'FIRST_SEMESTER'))
+                            OR (UPPER(TRIM(fes.semester)) IN ('2ND', 'SECOND_SEMESTER') AND UPPER(TRIM(pc.semester)) IN ('2ND', 'SECOND_SEMESTER'))
+                            OR (UPPER(TRIM(fes.semester)) IN ('SUMMER', 'SUMMER_SEMESTER') AND UPPER(TRIM(pc.semester)) IN ('SUMMER', 'SUMMER_SEMESTER'))
+                       )
+                    WHERE fes.school_year = :schoolYear
+                      AND (
+                            LOWER(TRIM(fes.semester)) = LOWER(TRIM(:semester))
+                            OR (UPPER(TRIM(:semester)) IN ('1ST', 'FIRST_SEMESTER') AND UPPER(TRIM(fes.semester)) IN ('1ST', 'FIRST_SEMESTER'))
+                            OR (UPPER(TRIM(:semester)) IN ('2ND', 'SECOND_SEMESTER') AND UPPER(TRIM(fes.semester)) IN ('2ND', 'SECOND_SEMESTER'))
+                            OR (UPPER(TRIM(:semester)) IN ('SUMMER', 'SUMMER_SEMESTER') AND UPPER(TRIM(fes.semester)) IN ('SUMMER', 'SUMMER_SEMESTER'))
+                      )
+                      AND fes.evaluation_type IN ('ROLE_STUDENT', 'STUDENT_EVALUATION', 'ROLE_PROGRAM_CHAIR', 'SUPERVISOR_EVALUATION')
+                      AND UPPER(TRIM(pf.status)) = 'ACTIVE'
+                      AND (pf.college IS NULL OR UPPER(TRIM(pf.college)) <> 'FOR_MIGRATION')
+                      AND (:college IS NULL OR :college = '' OR UPPER(TRIM(pf.college)) = UPPER(TRIM(:college)))
+                      AND (:legacyDatabase IS NULL OR :legacyDatabase = '' OR UPPER(TRIM(pf.legacy_database)) = UPPER(TRIM(:legacyDatabase)))
+                      AND (:campus IS NULL OR :campus = '' OR UPPER(TRIM(COALESCE(pc.campus, pf.source_campus))) = UPPER(TRIM(:campus)))
+                      AND (
+                            :search IS NULL
+                            OR :search = ''
+                            OR LOWER(COALESCE(pf.faculty_id, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                            OR LOWER(COALESCE(pf.firstname, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                            OR LOWER(COALESCE(pf.lastname, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                            OR LOWER(COALESCE(pf.college, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                            OR LOWER(COALESCE(pf.position, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                            OR LOWER(COALESCE(fes.subject_code, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                      )
+                    GROUP BY pf.faculty_id, pf.firstname, pf.lastname
+                    HAVING COUNT(DISTINCT CASE WHEN fes.evaluation_type IN ('ROLE_STUDENT', 'STUDENT_EVALUATION') THEN fes.faculty_evaluation_score_id END) > 0
+                       AND COUNT(DISTINCT CASE WHEN fes.evaluation_type IN ('ROLE_PROGRAM_CHAIR', 'SUPERVISOR_EVALUATION') THEN fes.faculty_evaluation_score_id END) > 0
+                    ORDER BY pf.lastname ASC, pf.firstname ASC, pf.faculty_id ASC
+                    """,
+            nativeQuery = true
+    )
+    List<String> findFacultyEvaluationReadinessFacultyIds(
+            @Param("schoolYear") Integer schoolYear,
+            @Param("semester") String semester,
+            @Param("search") String search,
+            @Param("college") String college,
+            @Param("legacyDatabase") String legacyDatabase,
+            @Param("campus") String campus
+    );
+
+
+    @Query(
+            value = """
+                    SELECT
+                        COUNT(*) AS totalReadyFacultyCount,
+                        COALESCE(SUM(ready.studentEvaluationCount), 0) AS totalStudentEvaluationCount,
+                        COALESCE(SUM(ready.supervisorEvaluationCount), 0) AS totalSupervisorEvaluationCount,
+                        COALESCE(SUM(ready.totalScoreRecords), 0) AS totalScoreRecordCount,
+                        ROUND(AVG(ready.overallAverage), 2) AS averageOverallScore
+                    FROM (
+                        SELECT
+                            pf.faculty_id,
+                            COUNT(DISTINCT CASE WHEN fes.evaluation_type IN ('ROLE_STUDENT', 'STUDENT_EVALUATION') THEN fes.faculty_evaluation_score_id END) AS studentEvaluationCount,
+                            COUNT(DISTINCT CASE WHEN fes.evaluation_type IN ('ROLE_PROGRAM_CHAIR', 'SUPERVISOR_EVALUATION') THEN fes.faculty_evaluation_score_id END) AS supervisorEvaluationCount,
+                            COUNT(DISTINCT fes.faculty_evaluation_score_id) AS totalScoreRecords,
+                            AVG(fes.overall_average_score) AS overallAverage
+                        FROM primary_faculty pf
+                        INNER JOIN faculty_evaluation_score fes ON fes.faculty_id = pf.faculty_id
+                        LEFT JOIN (
+                            SELECT faculty_id, class_code, subject_code, school_year, semester, MAX(source_campus) AS campus
+                            FROM primary_class
+                            GROUP BY faculty_id, class_code, subject_code, school_year, semester
+                        ) pc ON pc.faculty_id = fes.faculty_id
+                           AND pc.class_code = fes.class_code
+                           AND pc.subject_code = fes.subject_code
+                           AND pc.school_year = fes.school_year
+                        WHERE fes.school_year = :schoolYear
+                          AND LOWER(TRIM(fes.semester)) = LOWER(TRIM(:semester))
+                          AND fes.evaluation_type IN ('ROLE_STUDENT', 'STUDENT_EVALUATION', 'ROLE_PROGRAM_CHAIR', 'SUPERVISOR_EVALUATION')
+                          AND UPPER(TRIM(pf.status)) = 'ACTIVE'
+                          AND (pf.college IS NULL OR UPPER(TRIM(pf.college)) <> 'FOR_MIGRATION')
+                          AND (:college IS NULL OR :college = '' OR UPPER(TRIM(pf.college)) = UPPER(TRIM(:college)))
+                          AND (:legacyDatabase IS NULL OR :legacyDatabase = '' OR UPPER(TRIM(pf.legacy_database)) = UPPER(TRIM(:legacyDatabase)))
+                          AND (:campus IS NULL OR :campus = '' OR UPPER(TRIM(COALESCE(pc.campus, pf.source_campus))) = UPPER(TRIM(:campus)))
+                          AND (
+                                :search IS NULL
+                                OR :search = ''
+                                OR LOWER(COALESCE(pf.faculty_id, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                                OR LOWER(COALESCE(pf.firstname, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                                OR LOWER(COALESCE(pf.lastname, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                                OR LOWER(COALESCE(pf.college, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                                OR LOWER(COALESCE(pf.position, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                                OR LOWER(COALESCE(fes.subject_code, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                          )
+                        GROUP BY pf.faculty_id
+                        HAVING studentEvaluationCount > 0 AND supervisorEvaluationCount > 0
+                    ) ready
+                    """,
+            nativeQuery = true
+    )
+    FacultyEvaluationReadinessMetricsProjection findFacultyEvaluationReadinessMetrics(
+            @Param("schoolYear") Integer schoolYear,
+            @Param("semester") String semester,
+            @Param("search") String search,
+            @Param("college") String college,
+            @Param("legacyDatabase") String legacyDatabase,
+            @Param("campus") String campus
+    );
 }
 
 
