@@ -29,8 +29,9 @@ class AdminUserAccountService {
     private final UserAccountsRepository userAccountsRepository;
     private final PasswordEncoder passwordEncoder;
 
-    PageResponse<FetchUserAccountsResponse> accountList(int page, int size) {
-        Page<UserAccounts> userAccountsPage = userAccountsRepository.findAll(
+    PageResponse<FetchUserAccountsResponse> accountList(int page, int size, String search) {
+        Page<UserAccounts> userAccountsPage = userAccountsRepository.searchUserAccounts(
+                normalizeOptional(search),
                 PageRequest.of(
                         safePage(page),
                         safePageSize(size),
@@ -52,6 +53,7 @@ class AdminUserAccountService {
                         .isEnabled(user.getIsEnabled())
                         .isLocked(user.getIsLocked())
                         .lastLoginAt(user.getLastLoginAt())
+                        .dataSource(user.getDataSource())
                         .build())
                 .toList();
 
@@ -83,6 +85,7 @@ class AdminUserAccountService {
                 .college(dto.getCollege())
                 .programs(dto.getPrograms())
                 .majors(dto.getMajors())
+                .dataSource(normalizeOptional(dto.getDataSource()))
                 .status(dto.getStatus())
                 .isEnabled(true)
                 .isLocked(false)
@@ -122,6 +125,7 @@ class AdminUserAccountService {
         existingUser.setCollege(dto.getCollege());
         existingUser.setPrograms(dto.getPrograms());
         existingUser.setMajors(dto.getMajors());
+        existingUser.setDataSource(normalizeOptional(dto.getDataSource()));
         existingUser.setStatus(dto.getStatus());
         existingUser.setIsEnabled(dto.getIsEnabled());
         existingUser.setIsLocked(dto.getIsLocked());
@@ -174,6 +178,8 @@ class AdminUserAccountService {
         if (dto.getPassword().length() < 8) {
             throw new BadRequestException("Password must be at least 8 characters.");
         }
+
+        validateDataSource(dto.getDataSource());
     }
 
     private void validateUpdateUser(UpdateUserAccountDTO dto) {
@@ -192,6 +198,23 @@ class AdminUserAccountService {
         if (!dto.getEmail().matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$")) {
             throw new BadRequestException("Invalid email address.");
         }
+
+        validateDataSource(dto.getDataSource());
+    }
+
+    private void validateDataSource(String dataSource) {
+        String normalized = normalizeOptional(dataSource);
+        if (normalized != null && normalized.length() > 100) {
+            throw new BadRequestException("Data source must not exceed 100 characters.");
+        }
+    }
+
+    private String normalizeOptional(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+
+        return value.trim();
     }
 
     private int safePage(int page) {

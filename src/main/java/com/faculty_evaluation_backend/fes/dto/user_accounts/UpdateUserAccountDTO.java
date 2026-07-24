@@ -27,6 +27,9 @@ public class UpdateUserAccountDTO {
 
     private Majors majors;
 
+    @Size(max = 100, message = "Data source must not exceed 100 characters.")
+    private String dataSource;
+
     private Status status;
 
     private Boolean isEnabled;

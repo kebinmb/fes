@@ -245,8 +245,12 @@ public class AdministratorController {
 
     @GetMapping("/user-accounts")
     @AuditableAction(action = "FETCH", entity = "USER_ACCOUNTS")
-    public PageResponse<FetchUserAccountsResponse> getAccounts(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
-        return administratorService.accountList(page, size);
+    public PageResponse<FetchUserAccountsResponse> getAccounts(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search
+    ) {
+        return administratorService.accountList(page, size, search);
     }
 
     @GetMapping("/faculty-evaluation-score")

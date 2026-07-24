@@ -4,6 +4,8 @@ package com.faculty_evaluation_backend.fes.repositories.authentication;
 import com.faculty_evaluation_backend.fes.entities.authentication.UserAccounts;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.Role;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.Status;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -31,6 +33,22 @@ public interface UserAccountsRepository extends JpaRepository<UserAccounts, Long
     Optional<UserAccounts> findUserByUserId(Long userId);
     Optional<UserAccounts> findByUsername(String username);
     Optional<UserAccounts> findByEmail(String email);
+
+    @Query("""
+            SELECT u
+            FROM UserAccounts u
+            WHERE :search IS NULL
+               OR LOWER(u.username) LIKE LOWER(CONCAT('%', :search, '%'))
+               OR LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%'))
+               OR LOWER(COALESCE(u.firstname, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+               OR LOWER(COALESCE(u.lastname, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+               OR LOWER(COALESCE(u.dataSource, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+            """)
+    Page<UserAccounts> searchUserAccounts(
+            @Param("search") String search,
+            Pageable pageable
+    );
+
     @Query("SELECT u FROM UserAccounts u WHERE u.username = :identifier OR u.email = :identifier")
     Optional<UserAccounts> findByUsernameOrEmail(@Param("identifier") String identifier);
     boolean existsByUsername(String username);

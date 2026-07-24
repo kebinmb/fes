@@ -33,6 +33,9 @@ public class CreateUserAccountDTO {
 
     private Majors majors;
 
+    @Size(max = 100, message = "Data source must not exceed 100 characters.")
+    private String dataSource;
+
     @NotNull(message = "Status is required.")
     private Status status;
 }

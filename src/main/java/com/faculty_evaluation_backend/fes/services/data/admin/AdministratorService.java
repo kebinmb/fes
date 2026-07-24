@@ -426,8 +426,8 @@ public class AdministratorService {
             transactionManager = "primaryTransactionManager",
             readOnly = true
     )
-    public PageResponse<FetchUserAccountsResponse> accountList(int page, int size) {
-        return adminUserAccountService.accountList(page, size);
+    public PageResponse<FetchUserAccountsResponse> accountList(int page, int size, String search) {
+        return adminUserAccountService.accountList(page, size, search);
     }
 
     @Transactional(
@@ -449,7 +449,7 @@ public class AdministratorService {
 
             PrimaryFaculty faculty = score.getFaculty();
 
-            return FetchFacultyEvaluationScoreResponse.builder().facultyEvaluationScoreId(score.getFacultyEvaluationScoreId()).facultyId(score.getFacultyId()).facultyName(faculty != null ? faculty.getFirstname() + " " + faculty.getLastname() : "N/A").position(faculty != null ? faculty.getPosition() : null).evaluatorId(score.getEvaluatorId()).classCode(score.getClassCode()).semester(score.getSemester()).schoolYear(String.valueOf(score.getSchoolYear())).subjectCode(score.getSubjectCode()).yearLevel(score.getYearLevel()).commentsOrFeedbacks(score.getCommentsOrFeedbacks()).overallAverageScore(score.getOverallAverageScore()).overallInterpretation(score.getOverallInterpretation()).build();
+            return FetchFacultyEvaluationScoreResponse.builder().facultyEvaluationScoreId(score.getFacultyEvaluationScoreId()).facultyId(score.getFacultyId()).facultyName(facultyDisplayName(faculty)).position(faculty != null ? faculty.getPosition() : null).evaluatorId(score.getEvaluatorId()).classCode(score.getClassCode()).semester(score.getSemester()).schoolYear(String.valueOf(score.getSchoolYear())).subjectCode(score.getSubjectCode()).yearLevel(score.getYearLevel()).commentsOrFeedbacks(score.getCommentsOrFeedbacks()).overallAverageScore(score.getOverallAverageScore()).overallInterpretation(score.getOverallInterpretation()).build();
         }).toList();
 
         return PageResponse.<FetchFacultyEvaluationScoreResponse>builder().content(responseList).page(scorePage.getNumber()).size(scorePage.getSize()).totalElements(scorePage.getTotalElements()).totalPages(scorePage.getTotalPages()).build();
@@ -981,6 +981,58 @@ public class AdministratorService {
         return value.trim();
     }
 
+    private String facultyDisplayName(PrimaryFaculty faculty) {
+        if (faculty == null) {
+            return "N/A";
+        }
+
+        String lastname = normalizeOptional(faculty.getLastname());
+        String firstname = normalizeOptional(faculty.getFirstname());
+        String middlename = middleNameOrInitial(faculty.getMiddlename());
+        StringBuilder givenName = new StringBuilder();
+
+        appendNamePart(givenName, firstname);
+        appendNamePart(givenName, middlename);
+
+        if (lastname != null && !givenName.isEmpty()) {
+            return lastname + ", " + givenName;
+        }
+
+        if (lastname != null) {
+            return lastname;
+        }
+
+        if (!givenName.isEmpty()) {
+            return givenName.toString();
+        }
+
+        String facultyId = normalizeOptional(faculty.getFacultyId());
+        return facultyId == null ? "N/A" : facultyId;
+    }
+
+    private String middleNameOrInitial(String value) {
+        String normalized = normalizeOptional(value);
+        if (normalized == null) {
+            return null;
+        }
+
+        return normalized.length() == 1
+                ? normalized + "."
+                : normalized;
+    }
+
+    private void appendNamePart(StringBuilder displayName, String value) {
+        String normalized = normalizeOptional(value);
+        if (normalized == null) {
+            return;
+        }
+
+        if (!displayName.isEmpty()) {
+            displayName.append(' ');
+        }
+        displayName.append(normalized);
+    }
+
     private Long safeLong(Long value) {
         return value == null ? 0L : value;
     }
@@ -1129,11 +1181,7 @@ public class AdministratorService {
         String facultyName = null;
 
         if (faculty != null) {
-            facultyName = String.format(
-                    "%s %s",
-                    faculty.getFirstname() == null ? "" : faculty.getFirstname(),
-                    faculty.getLastname() == null ? "" : faculty.getLastname()
-            ).trim();
+            facultyName = facultyDisplayName(faculty);
         }
 
         return FacultyWorkloadResponse.builder()

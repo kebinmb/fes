@@ -312,7 +312,7 @@ public class EvaluationDataService {
 
                     .facultyId(first.getFacultyId())
 
-                    .facultyName(first.getFaculty().getFirstname() + " " + first.getFaculty().getMiddlename() + " " + first.getFaculty().getLastname())
+                    .facultyName(facultyDisplayName(first.getFaculty()))
 
                     .evaluatorId(first.getEvaluatorId())
 
@@ -1057,19 +1057,37 @@ public class EvaluationDataService {
     }
 
     private String facultyDisplayName(PrimaryFaculty faculty) {
-        String displayName = java.util.stream.Stream
-                .of(
-                        normalizeNamePart(faculty.getFirstname()),
-                        normalizeNamePart(faculty.getMiddlename()),
-                        normalizeNamePart(faculty.getLastname())
-                )
+        if (faculty == null) {
+            return null;
+        }
+
+        String lastname = normalizeNamePart(faculty.getLastname());
+        String firstname = normalizeNamePart(faculty.getFirstname());
+        String middlename = middleNameOrInitial(faculty.getMiddlename());
+        String givenName = java.util.stream.Stream
+                .of(firstname, middlename)
                 .filter(value -> value != null && !value.isBlank())
-                .collect(Collectors.joining(" "))
-                .trim();
+                .collect(Collectors.joining(" "));
+        String displayName = lastname == null
+                ? givenName
+                : givenName.isBlank()
+                        ? lastname
+                        : lastname + ", " + givenName;
 
         return displayName.isBlank()
                 ? normalizeNamePart(faculty.getFacultyId())
                 : displayName;
+    }
+
+    private String middleNameOrInitial(String value) {
+        String normalized = normalizeNamePart(value);
+        if (normalized == null) {
+            return null;
+        }
+
+        return normalized.length() == 1
+                ? normalized + "."
+                : normalized;
     }
 
     private String normalizeNamePart(String value) {
