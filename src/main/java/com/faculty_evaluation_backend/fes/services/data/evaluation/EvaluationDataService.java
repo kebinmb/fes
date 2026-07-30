@@ -2,9 +2,13 @@ package com.faculty_evaluation_backend.fes.services.data.evaluation;
 
 import com.faculty_evaluation_backend.fes.dto.evaluation.BaseEvaluationDTO;
 import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationBulkReportResponse;
+import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationPrintEventResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationPrintResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationGeneratedReportResponse;
+import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationReportPrintTrackingProjection;
+import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationReportPrintTrackingResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationReportVerificationResponse;
+import com.faculty_evaluation_backend.fes.dto.student.PageResponse;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassDetailsDTO;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassDetailsProjection;
 import com.faculty_evaluation_backend.fes.entities.authentication.CustomUserDetails;
@@ -15,6 +19,7 @@ import com.faculty_evaluation_backend.fes.entities.evaluation.ContentKnowledgePe
 import com.faculty_evaluation_backend.fes.entities.evaluation.FacultyEvaluationReport;
 import com.faculty_evaluation_backend.fes.entities.evaluation.FacultyEvaluationScore;
 import com.faculty_evaluation_backend.fes.entities.evaluation.ManagementOfTeachingAndLearning;
+import com.faculty_evaluation_backend.fes.entities.evaluation.enums.FacultyEvaluationPrintEventType;
 import com.faculty_evaluation_backend.fes.entities.evaluation.enums.FacultyEvaluationReportStatus;
 import com.faculty_evaluation_backend.fes.entities.evaluation.enums.RatingScale;
 import com.faculty_evaluation_backend.fes.entities.primary.FacultyWorkload;
@@ -36,6 +41,7 @@ import com.faculty_evaluation_backend.fes.services.data.evaluation.strategies.Ev
 import com.faculty_evaluation_backend.fes.exceptions.BadRequestException;
 import com.faculty_evaluation_backend.fes.utilities.normalization.SemesterNormalizer;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.WriterException;
@@ -47,6 +53,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -60,6 +69,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -72,11 +82,25 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class EvaluationDataService {
+    private static final int DEFAULT_PRINT_TRACKING_PAGE_SIZE = 10;
+    private static final int MAX_PRINT_TRACKING_PAGE_SIZE = 100;
     private static final Set<String> ALLOWED_LEGACY_DATABASES = Set.of(
             "LEGACY_TALISAY",
             "LEGACY_ALIJIS",
             "LEGACY_FT",
             "LEGACY_BINALBAGAN"
+    );
+    private static final Set<String> ALLOWED_REPORT_STATUSES = Set.of(
+            "VALID",
+            "SUPERSEDED",
+            "REVOKED"
+    );
+    private static final Set<String> ALLOWED_PRINT_STATUS_FILTERS = Set.of(
+            "ALL",
+            "REPORT_PRINTED",
+            "REPORT_NOT_PRINTED",
+            "ANNEX_D_PRINTED",
+            "ANNEX_D_NOT_PRINTED"
     );
 
     private final EvaluationStrategyFactory factory;
@@ -389,18 +413,44 @@ public class EvaluationDataService {
             );
         }
 
-        facultyEvaluationReportRepository
+        List<FacultyEvaluationReport> currentValidReports =
+                facultyEvaluationReportRepository
                 .findByFacultyIdAndSchoolYearAndSemesterAndStatus(
                         facultyId,
                         term.getSchoolYear(),
                         term.getSemester().getValue(),
                         FacultyEvaluationReportStatus.VALID
-                )
-                .forEach(report ->
-                        report.setStatus(
-                                FacultyEvaluationReportStatus.SUPERSEDED
-                        )
                 );
+        String facultyName = items.getFirst().getFacultyName();
+        Optional<FacultyEvaluationReport> reusableReport =
+                currentValidReports.stream()
+                        .filter(report ->
+                                reportContentMatches(
+                                        report,
+                                        facultyId,
+                                        facultyName,
+                                        term.getSchoolYear(),
+                                        term.getSemester().getValue(),
+                                        items
+                                )
+                        )
+                        .max(Comparator.comparing(FacultyEvaluationReport::getGeneratedAt));
+
+        if (reusableReport.isPresent()) {
+            FacultyEvaluationReport report = reusableReport.get();
+
+            return toGeneratedReportResponse(
+                    report,
+                    items,
+                    qrCodeDataUri(report.getVerificationUrl())
+            );
+        }
+
+        currentValidReports.forEach(report ->
+                report.setStatus(
+                        FacultyEvaluationReportStatus.SUPERSEDED
+                )
+        );
 
         String reportId = UUID.randomUUID().toString();
         String verificationUrl =
@@ -416,7 +466,6 @@ public class EvaluationDataService {
                         )
                         + 1;
         Instant generatedAt = Instant.now();
-        String facultyName = items.getFirst().getFacultyName();
         Long generatedByUserId =
                 resolveGeneratedByUserId(generatedBy);
         String generatedByUsername =
@@ -563,6 +612,126 @@ public class EvaluationDataService {
                 .reports(reports)
                 .build();
     }
+
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
+    public PageResponse<FacultyEvaluationReportPrintTrackingResponse>
+    getFacultyEvaluationReportPrintTracking(
+            int page,
+            int size,
+            String search,
+            String status,
+            String printStatus,
+            Integer schoolYear,
+            String semester
+    ) {
+        SchoolYearAndSemester activeTerm =
+                schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "No active school year and semester found."
+                                )
+                        );
+        Integer resolvedSchoolYear =
+                schoolYear == null
+                        ? activeTerm.getSchoolYear()
+                        : schoolYear;
+        String resolvedSemester =
+                normalizeBlank(semester) == null
+                        ? activeTerm.getSemester().getValue()
+                        : SemesterNormalizer.toCanonicalValue(semester);
+        String normalizedStatus = normalizeReportStatus(status);
+        String normalizedPrintStatus = normalizePrintStatus(printStatus);
+        Pageable pageable =
+                PageRequest.of(
+                        Math.max(page, 0),
+                        safePrintTrackingPageSize(size)
+                );
+
+        Page<FacultyEvaluationReportPrintTrackingResponse> trackingPage =
+                facultyEvaluationReportRepository
+                        .findPrintTrackingReports(
+                                resolvedSchoolYear,
+                                resolvedSemester,
+                                normalizeBlank(search),
+                                normalizedStatus,
+                                normalizedPrintStatus,
+                                pageable
+                        )
+                        .map(this::toPrintTrackingResponse);
+
+        return PageResponse
+                .<FacultyEvaluationReportPrintTrackingResponse>builder()
+                .content(trackingPage.getContent())
+                .totalElements(trackingPage.getTotalElements())
+                .totalPages(trackingPage.getTotalPages())
+                .page(trackingPage.getNumber())
+                .size(trackingPage.getSize())
+                .build();
+    }
+
+    @Transactional(transactionManager = "primaryTransactionManager")
+    public FacultyEvaluationPrintEventResponse markFacultyEvaluationReportsPrinted(
+            List<String> reportIds,
+            FacultyEvaluationPrintEventType type,
+            CustomUserDetails printedBy
+    ) {
+        if (reportIds == null || reportIds.isEmpty()) {
+            throw new BadRequestException("No report IDs were provided.");
+        }
+
+        if (type == null) {
+            throw new BadRequestException("Print event type is required.");
+        }
+
+        List<String> normalizedReportIds =
+                reportIds.stream()
+                        .map(this::normalizeBlank)
+                        .filter(value -> value != null && !value.isBlank())
+                        .distinct()
+                        .toList();
+
+        if (normalizedReportIds.isEmpty()) {
+            throw new BadRequestException("No valid report IDs were provided.");
+        }
+
+        List<FacultyEvaluationReport> reports =
+                facultyEvaluationReportRepository.findAllById(normalizedReportIds);
+        Set<String> foundReportIds =
+                reports.stream()
+                        .map(FacultyEvaluationReport::getReportId)
+                        .collect(Collectors.toSet());
+        List<String> missingReportIds =
+                normalizedReportIds.stream()
+                        .filter(reportId -> !foundReportIds.contains(reportId))
+                        .toList();
+
+        Instant printedAt = Instant.now();
+        Long printedByUserId = resolveGeneratedByUserId(printedBy);
+        String printedByUsername = preparedByName(printedByUserId, printedBy);
+
+        reports.forEach(report ->
+                applyPrintEvent(
+                        report,
+                        type,
+                        printedAt,
+                        printedByUserId,
+                        printedByUsername
+                )
+        );
+
+        facultyEvaluationReportRepository.saveAll(reports);
+
+        return FacultyEvaluationPrintEventResponse.builder()
+                .type(type)
+                .requestedCount(normalizedReportIds.size())
+                .updatedCount(reports.size())
+                .missingReportIds(missingReportIds)
+                .build();
+    }
+
     @Transactional(
             transactionManager = "primaryTransactionManager",
             readOnly = true
@@ -862,6 +1031,98 @@ public class EvaluationDataService {
         return value == null ? BigDecimal.ZERO : value;
     }
 
+    private void applyPrintEvent(
+            FacultyEvaluationReport report,
+            FacultyEvaluationPrintEventType type,
+            Instant printedAt,
+            Long printedByUserId,
+            String printedByUsername
+    ) {
+        report.setPrintTrackingAvailable(true);
+
+        if (type == FacultyEvaluationPrintEventType.ANNEX_D) {
+            if (report.getAnnexDPrintedAt() == null) {
+                report.setAnnexDPrintedAt(printedAt);
+            }
+
+            report.setAnnexDPrintedByUserId(printedByUserId);
+            report.setAnnexDPrintedByUsername(printedByUsername);
+            report.setAnnexDPrintCount(safeInteger(report.getAnnexDPrintCount()) + 1);
+            return;
+        }
+
+        if (report.getPrintedAt() == null) {
+            report.setPrintedAt(printedAt);
+        }
+
+        report.setPrintedByUserId(printedByUserId);
+        report.setPrintedByUsername(printedByUsername);
+        report.setPrintCount(safeInteger(report.getPrintCount()) + 1);
+    }
+
+    private FacultyEvaluationReportPrintTrackingResponse toPrintTrackingResponse(
+            FacultyEvaluationReportPrintTrackingProjection projection
+    ) {
+        return FacultyEvaluationReportPrintTrackingResponse.builder()
+                .reportId(projection.getReportId())
+                .facultyId(projection.getFacultyId())
+                .facultyName(projection.getFacultyName())
+                .schoolYear(projection.getSchoolYear())
+                .semester(projection.getSemester())
+                .versionNumber(projection.getVersionNumber())
+                .status(projection.getStatus())
+                .generatedByUsername(projection.getGeneratedByUsername())
+                .generatedAt(projection.getGeneratedAt())
+                .printTrackingAvailable(projection.getPrintTrackingAvailable())
+                .printedAt(projection.getPrintedAt())
+                .printedByUsername(projection.getPrintedByUsername())
+                .printCount(safeInteger(projection.getPrintCount()))
+                .annexDPrintedAt(projection.getAnnexDPrintedAt())
+                .annexDPrintedByUsername(projection.getAnnexDPrintedByUsername())
+                .annexDPrintCount(safeInteger(projection.getAnnexDPrintCount()))
+                .build();
+    }
+
+    private int safePrintTrackingPageSize(int size) {
+        if (size <= 0) {
+            return DEFAULT_PRINT_TRACKING_PAGE_SIZE;
+        }
+
+        return Math.min(size, MAX_PRINT_TRACKING_PAGE_SIZE);
+    }
+
+    private Integer safeInteger(Integer value) {
+        return value == null ? 0 : value;
+    }
+
+    private String normalizeReportStatus(String status) {
+        String normalized = normalizeBlank(status);
+        if (normalized == null || normalized.equalsIgnoreCase("ALL")) {
+            return null;
+        }
+
+        normalized = normalized.toUpperCase();
+        if (!ALLOWED_REPORT_STATUSES.contains(normalized)) {
+            throw new BadRequestException("Invalid report status filter: " + status);
+        }
+
+        return normalized;
+    }
+
+    private String normalizePrintStatus(String printStatus) {
+        String normalized = normalizeBlank(printStatus);
+        if (normalized == null || normalized.equalsIgnoreCase("ALL")) {
+            return null;
+        }
+
+        normalized = normalized.toUpperCase();
+        if (!ALLOWED_PRINT_STATUS_FILTERS.contains(normalized)) {
+            throw new BadRequestException("Invalid print status filter: " + printStatus);
+        }
+
+        return normalized;
+    }
+
     private FacultyEvaluationGeneratedReportResponse toGeneratedReportResponse(
             FacultyEvaluationReport report,
             List<FacultyEvaluationPrintResponse> items,
@@ -881,6 +1142,13 @@ public class EvaluationDataService {
                 .generatedByUserId(report.getGeneratedByUserId())
                 .generatedByUsername(report.getGeneratedByUsername())
                 .generatedAt(report.getGeneratedAt())
+                .printTrackingAvailable(report.getPrintTrackingAvailable())
+                .printedAt(report.getPrintedAt())
+                .printedByUsername(report.getPrintedByUsername())
+                .printCount(report.getPrintCount())
+                .annexDPrintedAt(report.getAnnexDPrintedAt())
+                .annexDPrintedByUsername(report.getAnnexDPrintedByUsername())
+                .annexDPrintCount(report.getAnnexDPrintCount())
                 .items(items)
                 .build();
     }
@@ -922,6 +1190,62 @@ public class EvaluationDataService {
                     exception
             );
         }
+    }
+
+    private boolean reportContentMatches(
+            FacultyEvaluationReport report,
+            String facultyId,
+            String facultyName,
+            Integer schoolYear,
+            String semester,
+            List<FacultyEvaluationPrintResponse> items
+    ) {
+        if (report.getSnapshotJson() == null
+                || report.getSnapshotJson().isBlank()) {
+            return false;
+        }
+
+        try {
+            JsonNode snapshot = objectMapper.readTree(report.getSnapshotJson());
+
+            return textNodeEquals(snapshot, "facultyId", facultyId)
+                    && textNodeEquals(snapshot, "facultyName", facultyName)
+                    && intNodeEquals(snapshot, "schoolYear", schoolYear)
+                    && textNodeEquals(
+                            snapshot,
+                            "semester",
+                            SemesterNormalizer.toCanonicalValue(semester)
+                    )
+                    && snapshot.path("items").equals(objectMapper.valueToTree(items));
+        } catch (JsonProcessingException exception) {
+            log.warn(
+                    "Unable to compare faculty evaluation report snapshot | reportId={}",
+                    report.getReportId(),
+                    exception
+            );
+            return false;
+        }
+    }
+
+    private boolean textNodeEquals(
+            JsonNode node,
+            String fieldName,
+            String expected
+    ) {
+        String actual = node.path(fieldName).asText("");
+        String normalizedExpected = expected == null ? "" : expected;
+
+        return actual.equals(normalizedExpected);
+    }
+
+    private boolean intNodeEquals(
+            JsonNode node,
+            String fieldName,
+            Integer expected
+    ) {
+        return expected != null
+                && node.path(fieldName).canConvertToInt()
+                && node.path(fieldName).asInt() == expected;
     }
 
     private String sha256(String value) {
@@ -984,6 +1308,14 @@ public class EvaluationDataService {
         }
 
         return normalized;
+    }
+
+    private String normalizeBlank(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+
+        return value.trim();
     }
 
     private Long resolveGeneratedByUserId(CustomUserDetails generatedBy) {

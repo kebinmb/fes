@@ -1,24 +1,18 @@
 package com.faculty_evaluation_backend.fes.dto.evaluation;
 
-import com.faculty_evaluation_backend.fes.entities.evaluation.enums.FacultyEvaluationReportStatus;
 import lombok.Builder;
 
 import java.time.Instant;
-import java.util.List;
 
 @Builder
-public record FacultyEvaluationGeneratedReportResponse(
+public record FacultyEvaluationReportPrintTrackingResponse(
         String reportId,
         String facultyId,
         String facultyName,
         Integer schoolYear,
         String semester,
         Integer versionNumber,
-        FacultyEvaluationReportStatus status,
-        String reportHash,
-        String verificationUrl,
-        String qrCodeDataUri,
-        Long generatedByUserId,
+        String status,
         String generatedByUsername,
         Instant generatedAt,
         Boolean printTrackingAvailable,
@@ -27,7 +21,6 @@ public record FacultyEvaluationGeneratedReportResponse(
         Integer printCount,
         Instant annexDPrintedAt,
         String annexDPrintedByUsername,
-        Integer annexDPrintCount,
-        List<FacultyEvaluationPrintResponse> items
+        Integer annexDPrintCount
 ) {
 }
