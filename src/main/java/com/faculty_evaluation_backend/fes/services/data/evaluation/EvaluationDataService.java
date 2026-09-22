@@ -489,7 +489,6 @@ public class EvaluationDataService {
                         )
                         + 1;
         Instant generatedAt = Instant.now();
-        String facultyName = items.getFirst().getFacultyName();
         Map<String, Object> snapshot =
                 reportSnapshot(
                         reportId,
