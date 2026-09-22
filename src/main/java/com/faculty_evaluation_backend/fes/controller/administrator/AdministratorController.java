@@ -8,6 +8,9 @@ import com.faculty_evaluation_backend.fes.dto.audit.AuditLogResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationBulkReportResponse;
 import com.faculty_evaluation_backend.fes.dto.data.SchoolYearAndSemesterDTO;
 import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationGeneratedReportResponse;
+import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationPrintEventRequest;
+import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationPrintEventResponse;
+import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationReportPrintTrackingResponse;
 import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardFacultyLoadResponse;
 import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardProgramBreakdownResponse;
 import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardResponse;
@@ -245,8 +248,12 @@ public class AdministratorController {
 
     @GetMapping("/user-accounts")
     @AuditableAction(action = "FETCH", entity = "USER_ACCOUNTS")
-    public PageResponse<FetchUserAccountsResponse> getAccounts(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
-        return administratorService.accountList(page, size);
+    public PageResponse<FetchUserAccountsResponse> getAccounts(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search
+    ) {
+        return administratorService.accountList(page, size, search);
     }
 
     @GetMapping("/faculty-evaluation-score")
@@ -404,6 +411,45 @@ public class AdministratorController {
     }
 
     record ErrorResponse(String status, String message) {
+    }
+
+    @GetMapping("/faculty-evaluation-reports/print-tracking")
+    @AuditableAction(action = "FETCH", entity = "FACULTY_EVALUATION_REPORT_PRINT_TRACKING")
+    public PageResponse<FacultyEvaluationReportPrintTrackingResponse>
+    getFacultyEvaluationReportPrintTracking(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String printStatus,
+            @RequestParam(required = false) Integer schoolYear,
+            @RequestParam(required = false) String semester
+    ) {
+        return evaluationDataService.getFacultyEvaluationReportPrintTracking(
+                page,
+                size,
+                search,
+                status,
+                printStatus,
+                schoolYear,
+                semester
+        );
+    }
+
+    @PostMapping("/faculty-evaluation-reports/print-events")
+    @AuditableAction(action = "PRINT", entity = "FACULTY_EVALUATION_REPORT")
+    public ResponseEntity<FacultyEvaluationPrintEventResponse>
+    markFacultyEvaluationReportsPrinted(
+            @Valid @RequestBody FacultyEvaluationPrintEventRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        return ResponseEntity.ok(
+                evaluationDataService.markFacultyEvaluationReportsPrinted(
+                        request.reportIds(),
+                        request.type(),
+                        userDetails
+                )
+        );
     }
 
     @PostMapping("/faculty-evaluation-reports/{facultyId}")

@@ -84,9 +84,48 @@ public class FacultyEvaluationReport extends Auditable {
     @Column(name = "generated_at", nullable = false)
     private Instant generatedAt;
 
+    @Column(name = "print_tracking_available", nullable = false)
+    @Builder.Default
+    private Boolean printTrackingAvailable = true;
+
+    @Column(name = "printed_at")
+    private Instant printedAt;
+
+    @Column(name = "printed_by_user_id")
+    private Long printedByUserId;
+
+    @Column(name = "printed_by_username")
+    private String printedByUsername;
+
+    @Column(name = "print_count", nullable = false)
+    @Builder.Default
+    private Integer printCount = 0;
+
+    @Column(name = "annex_d_printed_at")
+    private Instant annexDPrintedAt;
+
+    @Column(name = "annex_d_printed_by_user_id")
+    private Long annexDPrintedByUserId;
+
+    @Column(name = "annex_d_printed_by_username")
+    private String annexDPrintedByUsername;
+
+    @Column(name = "annex_d_print_count", nullable = false)
+    @Builder.Default
+    private Integer annexDPrintCount = 0;
+
     @PrePersist
     @PreUpdate
     void prepareForSave() {
         semester = SemesterNormalizer.toCanonicalValue(semester);
+        if (printTrackingAvailable == null) {
+            printTrackingAvailable = true;
+        }
+        if (printCount == null) {
+            printCount = 0;
+        }
+        if (annexDPrintCount == null) {
+            annexDPrintCount = 0;
+        }
     }
 }

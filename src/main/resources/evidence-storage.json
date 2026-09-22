@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "alien-outlet-496610-i9",
+  "private_key_id": "0f9d0e058f34e8b4df1e6707bb69ca48df307a1f",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCnHLH5SAqNB2wy\nSOVU7nT1XvDVsgBuEc1f1NCAapLg3Cj0vN/eNIDlXqURzab0KeUwS4qaB3s8kyBy\nEGjHK5YJvi+1gskqoDkPZNmrl+t+Aqy+hU0U23FIbyns4RNawfMdoftUGSoiJSgC\nCWb+JAIY3T6szu+I/DK8LYiuCkA+gjHLuLol5APWg+v8kMktMwiCivKDYy2PIYyr\nd3d7SzBpfxZCHPHJ7NFmwrt2A9FJTAptB0lgxzdqhWIFx0RLbp4PqeVmkb/kO+lA\nZHsmi1WPqFBjZG6zIudFlzfeC8SbU5AKn9oHPFaXZttL93GhuatreEQooqtc6Nvc\nLUKSxliDAgMBAAECggEAASLPTOgB9lp2EFNxh6XFUsOt9G3s1dK2KDAcqLrQu8mT\nV7KO/QYzWBvQGHJi76b3QWBKFWj2m/9OCah15eC0eOV7korMjkcfjCy91A5I0gb3\noKXsU7d4KitjSBJxnLzTx8BJopU3NZs2Del9cz3Qa9XZLriLZU19lMzkcHZuYF5k\nY2D+8QR7nXHeWozxQM9joRl7nVnWW+JGP1TcC1Kfcuh2TPvCfJgv7PWYJBCHckln\nIDh1RPMiI/08ST+z5FL/OvsBdcdueSddoFv+3S6LfxJwfuty+26tFyARdS9o8JVd\nPC09LExCjoQJJ7pIJxfXZ3HaBitam9zHeSoAJcZSLQKBgQDPaBAYdHIGskYOMA8z\nOKECpL8OJnNM44tckKXTj1EwoV2kPyTOXnia3AJL1xdX+I/s9Vopwk5Ck1CLi48Q\nFrxPE1fibWH12YpplFjk1Egm5nSQY/LyljRqiM9jxeqQUKs/vFz4WvQflSwxlvKs\nPOFkdT6vY1saICRV1FrnnqFuvQKBgQDOQ9VE4cITBO74R07X5K+mxU9cRR4D4hm0\nNcPrpXzcIvljY8K25cBXNkTU899APrhuIgHjVdZIYTCoOnEDDx8rqJNEUXSZuTAL\nd2VjpslB2BJh1q0EFRVDGcfH4Z2KfaAV9OufkZmb/G3+mgwF0y2ctJHOONnwgKOT\nkSyuZ6n4PwKBgC85WIDY8qWHrd/JHYziFfcOH9pO8u3M2Yxn+vnipe/WrgWZwv2i\nEP/hnDw8azpChDLF4pOjhEIwXKSJUDevlYzDsL0DfsyFjbhgaKUhmJQS4POHbmfB\nv4mKQP5MsA3P8E4Ay4JY40DVrExWPEbvTbqb33v7uWCHdP597XzTZ5pZAoGBAJL8\nR8hUUKaZB2op9odm0b04MfuAzYja4JJJFhqgzT9aNPmcp68KPmxnodlXCCqSB3+E\nAHBuRMtDZxcavln9tqq38Gno2fyJuTESnk/LFPQ087SA9L5J/+LXRkSsBEYii6fZ\n5ubJLPu5gPDD+flUqdZX3udkH/qA0RBhjcOi376lAoGAFoGf1KhRwVlyYzfkT1/9\nuX5hkL2V8uruwevtPMWQOAv+tN1qgwSPrJjT1R+liEABxYYNDscc212yTO+opiLt\nU/3TJPAgza0OjYbPTMisKw6Kt4AJWh6pVhtbvi7PaGyKIrV2fp4Ul8SnCoLrA5zg\naY4/WKjjsu6TdYnYS7mbOtk=\n-----END PRIVATE KEY-----\n",
+  "client_email": "fes-storage@alien-outlet-496610-i9.iam.gserviceaccount.com",
+  "client_id": "107409806464945446159",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/fes-storage%40alien-outlet-496610-i9.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

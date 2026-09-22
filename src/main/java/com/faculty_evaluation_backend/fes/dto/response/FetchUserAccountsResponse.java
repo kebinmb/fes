@@ -24,6 +24,8 @@ public class FetchUserAccountsResponse {
 
     private Instant lastLoginAt;
 
+    private String dataSource;
+
     private College college;
 
     private Programs programs;
