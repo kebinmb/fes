@@ -1,20 +1,15 @@
 package com.faculty_evaluation_backend.fes.dto.evaluation;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.Builder;
 
-import java.time.LocalDateTime;
-
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class StudentEvaluationStatusResponse {
-    private String studentId;
-    private String programCode;
-    private String yearLevel;
-    private String sectionCode;
-    private String subjectCode;
-    private String createdAt;
-    private String evaluationStatus;
+@Builder
+public record StudentEvaluationStatusResponse(
+        String studentId,
+        String programCode,
+        String yearLevel,
+        String sectionCode,
+        String subjectCode,
+        String createdAt,
+        String evaluationStatus
+) {
 }

@@ -6,9 +6,9 @@ import com.faculty_evaluation_backend.fes.dto.authentication.ChangePasswordReque
 import com.faculty_evaluation_backend.fes.dto.authentication.LoginRequest;
 import com.faculty_evaluation_backend.fes.dto.authentication.StudentAccessCodeRequest;
 import com.faculty_evaluation_backend.fes.dto.authentication.StudentLoginRequest;
+import com.faculty_evaluation_backend.fes.dto.authentication.CurrentUserResponse;
+import com.faculty_evaluation_backend.fes.dto.authentication.StudentAccessCodeResponse;
 import com.faculty_evaluation_backend.fes.entities.authentication.CustomUserDetails;
-import com.faculty_evaluation_backend.fes.entities.authentication.StudentAccessCode;
-import com.faculty_evaluation_backend.fes.entities.authentication.UserAccounts;
 import com.faculty_evaluation_backend.fes.repositories.tokens.RefreshTokenRepository;
 import com.faculty_evaluation_backend.fes.services.authentication.AdministratorAccountsAuthenticationService;
 import com.faculty_evaluation_backend.fes.services.authentication.StudentAuthenticationService;
@@ -83,16 +83,12 @@ public class AuthenticationController {
 
     @PostMapping("/access-code/generate")
     @AuditableAction(action = "GENERATE_ACCESS_CODE", entity = "STUDENT_ACCESS_CODE")
-    public ResponseEntity<?> generateAccessCode(@Valid @RequestBody StudentAccessCodeRequest request) {
-        StudentAccessCode code = studentAuthenticationService.generateAccessCode(
+    public ResponseEntity<StudentAccessCodeResponse> generateAccessCode(@Valid @RequestBody StudentAccessCodeRequest request) {
+        StudentAccessCodeResponse response = studentAuthenticationService.generateAccessCodeResponse(
                 request.getStudentId(),
                 request.getPassword()
         );
-        return ResponseEntity.ok(Map.of(
-                "studentId", request.getStudentId(),
-                "expiresAt", code.getExpiresAt(),
-                "message", "Access code sent to your registered email."
-        ));
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/student/login")
@@ -125,7 +121,7 @@ public class AuthenticationController {
     }
 
     @GetMapping("/me")
-    public ResponseEntity<?> me(Authentication authentication) {
+    public ResponseEntity<CurrentUserResponse> me(Authentication authentication) {
 
         if (authentication == null || !authentication.isAuthenticated()) {
             return ResponseEntity.status(401).build();
@@ -135,25 +131,26 @@ public class AuthenticationController {
         String principal = authentication.getName();
 
         if (role.equals("ROLE_STUDENT")) {
-            return ResponseEntity.ok(Map.of(
-                    "authenticated", true,
-                    "studentId", principal,
-                    "userId", principal,
-                    "role", role
-            ));
+            return ResponseEntity.ok(CurrentUserResponse.builder()
+                    .authenticated(true)
+                    .studentId(principal)
+                    .userId(principal)
+                    .role(role)
+                    .build());
         }
 
         Long userId = Long.parseLong(principal);
 
         if (role.equals("ROLE_DEAN") || role.equals("ROLE_PROGRAM_CHAIR")) {
-
-            UserAccounts user = supervisorAccountsAuthenticationService.findByUserId(userId);
-
-            return ResponseEntity.ok(Map.of("authenticated", true, "userId", user.getUserId(), "role", role, "college", user.getCollege(), "program", user.getPrograms(),"requiresPasswordChange",
-                    user.getPasswordChangedAt() == null));
+            return ResponseEntity.ok(supervisorAccountsAuthenticationService.getSupervisorProfile(userId, role));
         }
 
-        return ResponseEntity.ok(Map.of("authenticated", true, "userId", userId, "role", role));
+        return ResponseEntity.ok(CurrentUserResponse.builder()
+                .authenticated(true)
+                .userId(String.valueOf(userId))
+                .administratorId(String.valueOf(userId))
+                .role(role)
+                .build());
     }
 
     @GetMapping("/csrf")

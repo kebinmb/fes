@@ -25,6 +25,8 @@ import org.springframework.util.StringUtils;
 import org.springframework.util.unit.DataSize;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -32,6 +34,12 @@ import java.util.UUID;
 
 @Service
 public class FacultyEvaluationEvidenceService {
+
+    private static final byte[] PDF_MAGIC = new byte[]{0x25, 0x50, 0x44, 0x46, 0x2D}; // %PDF-
+    private static final byte[] PNG_MAGIC = new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
+    private static final byte[] JPEG_MAGIC = new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF};
+    private static final byte[] OLE2_MAGIC = new byte[]{(byte) 0xD0, (byte) 0xCF, 0x11, (byte) 0xE0, (byte) 0xA1, (byte) 0xB1, (byte) 0x1A, (byte) 0xE1}; // .doc, .xls
+    private static final byte[] ZIP_MAGIC = new byte[]{0x50, 0x4B, 0x03, 0x04}; // .docx, .xlsx
 
     private static final long BYTES_PER_MEGABYTE = 1024L * 1024L;
     private static final int MAX_PAGE_SIZE = 50;
@@ -323,21 +331,58 @@ public class FacultyEvaluationEvidenceService {
         }
 
         String contentType = file.getContentType();
-        if (contentType == null || contentType.isBlank()) {
-            return;
+        if (contentType != null && !contentType.isBlank()) {
+            String normalizedContentType = contentType
+                    .split(";", 2)[0]
+                    .trim()
+                    .toLowerCase(Locale.ROOT);
+
+            if (!ALLOWED_CONTENT_TYPES.contains(normalizedContentType)
+                    && !GENERIC_CONTENT_TYPES.contains(normalizedContentType)) {
+                throw new BadRequestException(
+                        "Unsupported evidence content type: " + normalizedContentType
+                );
+            }
         }
 
-        String normalizedContentType = contentType
-                .split(";", 2)[0]
-                .trim()
-                .toLowerCase(Locale.ROOT);
+        validateFileSignature(file, extension);
+    }
 
-        if (!ALLOWED_CONTENT_TYPES.contains(normalizedContentType)
-                && !GENERIC_CONTENT_TYPES.contains(normalizedContentType)) {
-            throw new BadRequestException(
-                    "Unsupported evidence content type: " + normalizedContentType
-            );
+    private void validateFileSignature(MultipartFile file, String extension) {
+        try (InputStream is = file.getInputStream()) {
+            byte[] header = new byte[16];
+            int bytesRead = is.read(header);
+            if (bytesRead < 4) {
+                throw new BadRequestException("Evidence file is corrupted or empty.");
+            }
+            boolean valid = switch (extension) {
+                case ".pdf" -> startsWith(header, PDF_MAGIC);
+                case ".jpg", ".jpeg" -> startsWith(header, JPEG_MAGIC);
+                case ".png" -> startsWith(header, PNG_MAGIC);
+                case ".doc", ".xls" -> startsWith(header, OLE2_MAGIC);
+                case ".docx", ".xlsx" -> startsWith(header, ZIP_MAGIC);
+                default -> false;
+            };
+            if (!valid) {
+                throw new BadRequestException(
+                        "Evidence file content does not match the expected " + extension + " signature."
+                );
+            }
+        } catch (IOException ex) {
+            throw new BadRequestException("Unable to verify evidence file signature: " + ex.getMessage());
         }
+    }
+
+    private static boolean startsWith(byte[] source, byte[] match) {
+        if (source.length < match.length) {
+            return false;
+        }
+        for (int i = 0; i < match.length; i++) {
+            if (source[i] != match[i]) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private EvaluationEvidenceCriterion parseCriterion(String criterionValue) {

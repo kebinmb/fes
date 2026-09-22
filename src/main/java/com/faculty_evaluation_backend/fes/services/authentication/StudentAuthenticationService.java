@@ -3,6 +3,7 @@ package com.faculty_evaluation_backend.fes.services.authentication;
 import com.faculty_evaluation_backend.fes.audit.AuditableAction;
 import com.faculty_evaluation_backend.fes.config.jwt.JwtConfig;
 import com.faculty_evaluation_backend.fes.dto.authentication.AuthenticationResponse;
+import com.faculty_evaluation_backend.fes.dto.authentication.StudentAccessCodeResponse;
 import com.faculty_evaluation_backend.fes.dto.authentication.StudentAuthenticationDTO;
 import com.faculty_evaluation_backend.fes.entities.authentication.StudentAccessCode;
 import com.faculty_evaluation_backend.fes.exceptions.BadRequestException;
@@ -44,6 +45,20 @@ public class StudentAuthenticationService {
     private static final int ACCESS_CODE_EXPIRY_MINUTES = 15;
     private final StudentAuthenticationLookUpService studentAuthenticationLookupService;
     private final PasswordEncoder passwordEncoder;
+
+    @Transactional(transactionManager = "primaryTransactionManager")
+    public StudentAccessCodeResponse generateAccessCodeResponse(
+            String studentId,
+            String password
+    ) {
+        StudentAccessCode code = generateAccessCode(studentId, password);
+        return StudentAccessCodeResponse.builder()
+                .studentId(studentId)
+                .expiresAt(code.getExpiresAt())
+                .message("Access code sent to your registered email.")
+                .build();
+    }
+
     @Transactional(transactionManager = "primaryTransactionManager")
     public StudentAccessCode generateAccessCode(
             String studentId,

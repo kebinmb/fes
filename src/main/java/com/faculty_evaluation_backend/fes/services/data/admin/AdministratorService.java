@@ -946,16 +946,22 @@ public class AdministratorService {
         DashboardTerm term = resolveDashboardTerm();
 
         return primaryStudentLoadRepository.fetchStudentEvaluationStatus(
-
                 programCode,
-
                 yearLevel,
-
                 sectionCode,
-
                 term.schoolYear(),
-
-                term.semester());
+                term.semester()
+        ).stream()
+         .map(p -> StudentEvaluationStatusResponse.builder()
+                 .studentId(p.getStudentId())
+                 .programCode(p.getProgramCode())
+                 .yearLevel(p.getYearLevel())
+                 .sectionCode(p.getSectionCode())
+                 .subjectCode(p.getSubjectCode())
+                 .createdAt(p.getCreatedAt())
+                 .evaluationStatus(p.getEvaluationStatus())
+                 .build())
+         .toList();
     }
 
     private DashboardTerm resolveDashboardTerm() {

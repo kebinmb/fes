@@ -3,32 +3,31 @@ package com.faculty_evaluation_backend.fes.dto.faculty;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.College;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.FacultyWorkloadSource;
 import lombok.Builder;
-import lombok.Getter;
 
 import java.math.BigDecimal;
 
-@Getter
 @Builder
-public class FacultyWorkloadResponse {
-    private Long facultyWorkloadId;
-    private String facultyId;
-    private String facultyName;
-    private College college;
-    private Double loadLimit;
-    private Integer schoolYear;
-    private String semester;
-    private String classCode;
-    private String courseCode;
-    private String programCode;
-    private String yearLevel;
-    private String sectionCode;
-    private BigDecimal totalHoursPerWeek;
-    private BigDecimal totalTeachingLoad;
-    private Integer numberOfPreparations;
-    private BigDecimal designationEtu;
-    private BigDecimal totalWorkload;
-    private BigDecimal overloadHours;
-    private String loadStatus;
-    private FacultyWorkloadSource source;
-    private String remarks;
+public record FacultyWorkloadResponse(
+        Long facultyWorkloadId,
+        String facultyId,
+        String facultyName,
+        College college,
+        Double loadLimit,
+        Integer schoolYear,
+        String semester,
+        String classCode,
+        String courseCode,
+        String programCode,
+        String yearLevel,
+        String sectionCode,
+        BigDecimal totalHoursPerWeek,
+        BigDecimal totalTeachingLoad,
+        Integer numberOfPreparations,
+        BigDecimal designationEtu,
+        BigDecimal totalWorkload,
+        BigDecimal overloadHours,
+        String loadStatus,
+        FacultyWorkloadSource source,
+        String remarks
+) {
 }

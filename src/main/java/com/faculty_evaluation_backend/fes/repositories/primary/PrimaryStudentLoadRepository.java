@@ -1,7 +1,7 @@
 package com.faculty_evaluation_backend.fes.repositories.primary;
 
 
-import com.faculty_evaluation_backend.fes.dto.evaluation.StudentEvaluationStatusResponse;
+import com.faculty_evaluation_backend.fes.dto.evaluation.StudentEvaluationStatusProjection;
 import com.faculty_evaluation_backend.fes.dto.student.StudentClassLoadDTO;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryStudentLoad;
 import org.springframework.data.domain.Page;
@@ -157,7 +157,7 @@ public interface PrimaryStudentLoadRepository extends JpaRepository<PrimaryStude
         psl.student_id,
         pc.subject_code
     """, nativeQuery = true)
-    List<StudentEvaluationStatusResponse>
+    List<StudentEvaluationStatusProjection>
     fetchStudentEvaluationStatus(
             @Param("programCode") String programCode,
             @Param("yearLevel") String yearLevel,

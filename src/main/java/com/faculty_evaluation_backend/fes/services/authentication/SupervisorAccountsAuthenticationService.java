@@ -2,6 +2,7 @@ package com.faculty_evaluation_backend.fes.services.authentication;
 
 import com.faculty_evaluation_backend.fes.config.jwt.JwtConfig;
 import com.faculty_evaluation_backend.fes.dto.authentication.ChangePasswordRequest;
+import com.faculty_evaluation_backend.fes.dto.authentication.CurrentUserResponse;
 import com.faculty_evaluation_backend.fes.dto.authentication.UserAuthenticationResponse;
 import com.faculty_evaluation_backend.fes.dto.authentication.LoginRequest;
 import com.faculty_evaluation_backend.fes.entities.authentication.CustomUserDetails;
@@ -77,6 +78,19 @@ public class SupervisorAccountsAuthenticationService {
             log.warn("Login attempt for locked account: {}", identifier);
             throw new LockedException("Account is locked");
         }
+    }
+
+    public CurrentUserResponse getSupervisorProfile(Long userId, String role) {
+        UserAccounts user = findByUserId(userId);
+        return CurrentUserResponse.builder()
+                .authenticated(true)
+                .userId(String.valueOf(user.getUserId()))
+                .evaluatorId(String.valueOf(user.getUserId()))
+                .role(role)
+                .college(user.getCollege() != null ? user.getCollege().name() : null)
+                .program(user.getPrograms() != null ? user.getPrograms().name() : null)
+                .requiresPasswordChange(user.getPasswordChangedAt() == null)
+                .build();
     }
 
     public UserAccounts findByUserId(Long userId) {

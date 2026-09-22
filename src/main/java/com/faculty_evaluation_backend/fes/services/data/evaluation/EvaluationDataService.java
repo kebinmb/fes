@@ -1,6 +1,7 @@
 package com.faculty_evaluation_backend.fes.services.data.evaluation;
 
 import com.faculty_evaluation_backend.fes.dto.evaluation.BaseEvaluationDTO;
+import com.faculty_evaluation_backend.fes.dto.evaluation.EvaluationSubmissionResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationBulkReportResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationPrintResponse;
 import com.faculty_evaluation_backend.fes.dto.evaluation.FacultyEvaluationGeneratedReportResponse;
@@ -95,21 +96,19 @@ public class EvaluationDataService {
     @Caching(evict = {
             @CacheEvict(value = "evaluatedCount", key = "#baseEvaluationDTO.evaluatorId"),
             @CacheEvict(value = "activeAccessCode", key = "#baseEvaluationDTO.evaluatorId"),
-            @CacheEvict(value = "adminDashboard", allEntries = true),
-            @CacheEvict(value = "adminDashboardSummary", allEntries = true),
-            @CacheEvict(value = "adminDashboardPrograms", allEntries = true),
-            @CacheEvict(value = "adminDashboardFacultyLoads", allEntries = true),
             @CacheEvict(value = "facultyEvaluationReports", key = "#baseEvaluationDTO.facultyId"),
-            @CacheEvict(value = "studentSections", allEntries = true),
-            @CacheEvict(value = "studentEvaluationStatus", allEntries = true),
-            @CacheEvict(value = "studentFacultyEvaluations", allEntries = true),
-            @CacheEvict(value = "facultyEvaluationScores", allEntries = true),
-            @CacheEvict(value = "facultyEvaluationReadiness", allEntries = true),
-            @CacheEvict(value = "facultyEvaluationReadinessFacultyIds", allEntries = true),
-            @CacheEvict(value = "studentFacultyClassEvaluationChecks", allEntries = true),
-            @CacheEvict(value = "supervisorEvaluatedStudents", allEntries = true)
+            @CacheEvict(
+                    value = "studentFacultyClassEvaluationChecks",
+                    key = "(#baseEvaluationDTO.facultyId == null ? '' : #baseEvaluationDTO.facultyId.trim()) + ':' + "
+                            + "(#baseEvaluationDTO.evaluatorId == null ? '' : #baseEvaluationDTO.evaluatorId.trim()) + ':' + "
+                            + "(#baseEvaluationDTO.classCode == null ? '' : #baseEvaluationDTO.classCode.trim()) + ':' + "
+                            + "(#baseEvaluationDTO.subjectCode == null ? '' : #baseEvaluationDTO.subjectCode.trim()) + ':' + "
+                            + "(#baseEvaluationDTO.yearLevel == null ? '' : #baseEvaluationDTO.yearLevel.trim()) + ':' + "
+                            + "(#baseEvaluationDTO.semester == null ? '' : #baseEvaluationDTO.semester.trim()) + ':' + "
+                            + "#baseEvaluationDTO.schoolYear"
+            )
     })
-    public FacultyEvaluationScore submit(BaseEvaluationDTO baseEvaluationDTO) {
+    public EvaluationSubmissionResponse submit(BaseEvaluationDTO baseEvaluationDTO) {
         normalizeEvaluationTerm(baseEvaluationDTO);
         log.info("Submitting {} evaluation", baseEvaluationDTO.getEvaluationType());
         primaryFacultyRepository.findByFacultyId(baseEvaluationDTO.getFacultyId()).orElseThrow(() -> new RuntimeException("Faculty not found"));
@@ -128,7 +127,7 @@ public class EvaluationDataService {
 
         refreshFacultyEvaluationReadinessSummary(savedEvaluationScore);
 
-        return savedEvaluationScore;
+        return EvaluationSubmissionResponse.from(savedEvaluationScore);
     }
 
 
@@ -160,9 +159,15 @@ public class EvaluationDataService {
 
     @Cacheable(value = "facultyEvaluationReports", key = "#facultyId")
     public List<FacultyEvaluationPrintResponse> getSumOfAllFacultyEvaluationPerSubject(String facultyId) {
+        SchoolYearAndSemester schoolYearAndSemester = schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE)
+                .orElseThrow(() -> new RuntimeException("No active school year and semester found."));
+        return getSumOfAllFacultyEvaluationPerSubject(facultyId, schoolYearAndSemester);
+    }
 
-        SchoolYearAndSemester schoolYearAndSemester = schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE).orElseThrow(() -> new RuntimeException("No active school year and semester found."));
-
+    public List<FacultyEvaluationPrintResponse> getSumOfAllFacultyEvaluationPerSubject(
+            String facultyId,
+            SchoolYearAndSemester schoolYearAndSemester
+    ) {
         List<FacultyClassDetailsDTO> facultyClassDetails =
                 facultyEvaluationScoreRepository
                         .findDistinctClassDetailsByFacultyIdAndSchoolYearAndSemester(
@@ -380,8 +385,26 @@ public class EvaluationDataService {
                                         "No active school year and semester found."
                                 )
                         );
+        Long generatedByUserId = resolveGeneratedByUserId(generatedBy);
+        String generatedByUsername = preparedByName(generatedByUserId, generatedBy);
+        return generateFacultyEvaluationReportInternal(
+                facultyId,
+                verificationBaseUrl,
+                term,
+                generatedByUserId,
+                generatedByUsername
+        );
+    }
+
+    private FacultyEvaluationGeneratedReportResponse generateFacultyEvaluationReportInternal(
+            String facultyId,
+            String verificationBaseUrl,
+            SchoolYearAndSemester term,
+            Long generatedByUserId,
+            String generatedByUsername
+    ) {
         List<FacultyEvaluationPrintResponse> items =
-                getSumOfAllFacultyEvaluationPerSubject(facultyId);
+                getSumOfAllFacultyEvaluationPerSubject(facultyId, term);
 
         if (items.isEmpty()) {
             throw new BadRequestException(
@@ -417,10 +440,6 @@ public class EvaluationDataService {
                         + 1;
         Instant generatedAt = Instant.now();
         String facultyName = items.getFirst().getFacultyName();
-        Long generatedByUserId =
-                resolveGeneratedByUserId(generatedBy);
-        String generatedByUsername =
-                preparedByName(generatedByUserId, generatedBy);
         Map<String, Object> snapshot =
                 reportSnapshot(
                         reportId,
@@ -486,38 +505,8 @@ public class EvaluationDataService {
             );
         }
 
-        List<FacultyEvaluationGeneratedReportResponse> reports =
-                new ArrayList<>();
-        List<String> skippedFacultyIds = new ArrayList<>();
-
-        for (String facultyId : facultyIds) {
-            try {
-                reports.add(
-                        generateFacultyEvaluationReport(
-                                facultyId,
-                                verificationBaseUrl,
-                                generatedBy
-                        )
-                );
-            } catch (BadRequestException ex) {
-                skippedFacultyIds.add(facultyId);
-            }
-        }
-
-        if (reports.isEmpty()) {
-            throw new BadRequestException(
-                    "No printable evaluated faculty reports found for the selected filters."
-            );
-        }
-
-        return FacultyEvaluationBulkReportResponse.builder()
-                .requestedCount(facultyIds.size())
-                .generatedCount(reports.size())
-                .skippedFacultyIds(skippedFacultyIds)
-                .reports(reports)
-                .build();
+        return generateBulkReportsForFacultyIds(facultyIds, verificationBaseUrl, generatedBy);
     }
-
 
     @Transactional(transactionManager = "primaryTransactionManager")
     public FacultyEvaluationBulkReportResponse
@@ -532,6 +521,24 @@ public class EvaluationDataService {
             );
         }
 
+        return generateBulkReportsForFacultyIds(facultyIds, verificationBaseUrl, generatedBy);
+    }
+
+    private FacultyEvaluationBulkReportResponse generateBulkReportsForFacultyIds(
+            List<String> facultyIds,
+            String verificationBaseUrl,
+            CustomUserDetails generatedBy
+    ) {
+        SchoolYearAndSemester term =
+                schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "No active school year and semester found."
+                                )
+                        );
+        Long generatedByUserId = resolveGeneratedByUserId(generatedBy);
+        String generatedByUsername = preparedByName(generatedByUserId, generatedBy);
+
         List<FacultyEvaluationGeneratedReportResponse> reports =
                 new ArrayList<>();
         List<String> skippedFacultyIds = new ArrayList<>();
@@ -539,10 +546,12 @@ public class EvaluationDataService {
         for (String facultyId : facultyIds) {
             try {
                 reports.add(
-                        generateFacultyEvaluationReport(
+                        generateFacultyEvaluationReportInternal(
                                 facultyId,
                                 verificationBaseUrl,
-                                generatedBy
+                                term,
+                                generatedByUserId,
+                                generatedByUsername
                         )
                 );
             } catch (BadRequestException ex) {
