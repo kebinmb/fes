@@ -42,4 +42,21 @@ public class PrimaryFaculty extends MigratableEntity {
     @Column(name = "status")
     @Enumerated(EnumType.STRING)
     private Status status;
+
+    @Column(name = "campus")
+    private String campus;
+
+    @PrePersist
+    @PreUpdate
+    public void syncCampusIfActive() {
+        if (this.status == Status.ACTIVE && this.getLegacyDatabase() != null) {
+            this.campus = switch (this.getLegacyDatabase()) {
+                case "LEGACY_TALISAY" -> "TALISAY";
+                case "LEGACY_ALIJIS" -> "ALIJIS";
+                case "LEGACY_BINALBAGAN" -> "BINALBAGAN";
+                case "LEGACY_FT" -> "FT";
+                default -> this.campus;
+            };
+        }
+    }
 }

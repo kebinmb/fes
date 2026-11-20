@@ -9,6 +9,7 @@ import com.faculty_evaluation_backend.fes.migration.engine.ParallelMigrationExec
 import com.faculty_evaluation_backend.fes.repositories.data.SchoolYearAndSemesterRepository;
 import com.faculty_evaluation_backend.fes.repositories.legacy.LegacyClassRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryClassRepository;
+import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryFacultyRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,7 @@ public class ClassMigration extends BaseMigrationService {
     private static final int BATCH_SIZE = 500;
     private final LegacyClassRepository legacyClassRepository;
     private final PrimaryClassRepository primaryClassRepository;
+    private final PrimaryFacultyRepository primaryFacultyRepository;
     private final ParallelMigrationExecutor parallelMigrationExecutor;
     private final SchoolYearAndSemesterRepository schoolYearAndSemesterRepository;
 
@@ -58,6 +60,10 @@ public class ClassMigration extends BaseMigrationService {
                     primaryClassRepository
                             .findLegacyIdsByDatabase(database.name());
 
+            Set<String> validFacultyIds =
+                    primaryFacultyRepository
+                            .findFacultyIdsByLegacyDatabase(database.name());
+
             parallelMigrationExecutor.processInParallel(
                     data,
                     BATCH_SIZE,
@@ -65,6 +71,17 @@ public class ClassMigration extends BaseMigrationService {
 
                         List<PrimaryClass> toSave = batch.stream()
                                 .filter(lc -> lc != null && lc.getId() != null)
+                                .filter(lc -> {
+                                    if (lc.getFacultyId() == null || lc.getFacultyId().trim().isEmpty()) {
+                                        return true;
+                                    }
+                                    String generatedFacultyId =
+                                            MigrationIdGenerator.generateStringId(
+                                                    database,
+                                                    lc.getFacultyId().trim()
+                                            );
+                                    return validFacultyIds.contains(generatedFacultyId);
+                                })
                                 .filter(lc ->
                                         !existingLegacyIds.contains(
                                                 lc.getId()
@@ -86,6 +103,16 @@ public class ClassMigration extends BaseMigrationService {
                             );
                         }
                     });
+
+            int activatedFacultyCount =
+                    primaryFacultyRepository
+                            .activateFacultyWithClassesByDatabase(database.name());
+
+            log.info(
+                    "Activated {} faculty records with class assignments for {}",
+                    activatedFacultyCount,
+                    database.name()
+            );
 
             log.info(
                     "Class Migration Completed : {}",

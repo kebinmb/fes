@@ -4,6 +4,8 @@ package com.faculty_evaluation_backend.fes.repositories.primary;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassDTO;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyLoadDTO;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyProgramLoadsDTO;
+import com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassHoursProjection;
+import com.faculty_evaluation_backend.fes.dto.faculty.FacultySubjectLoadProjection;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadClassOptionProjection;
 import com.faculty_evaluation_backend.fes.dto.dashboard.ClassStudentEvaluationStatProjection;
 import com.faculty_evaluation_backend.fes.dto.dashboard.ClassStudentEvaluationTotalsProjection;
@@ -217,10 +219,18 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
                 ps.section_id AS sectionId,
                 ps.program_code AS programCode,
                 ps.year_level AS yearLevel,
-                ps.section_code AS sectionCode
+                ps.section_code AS sectionCode,
+                COALESCE(psub.lec_units, 0.0) AS lecUnits,
+                COALESCE(psub.lab_units, 0.0) AS labUnits,
+                COALESCE(psub.lec_hours, 0.0) AS lecHours,
+                COALESCE(psub.lab_hours, 0.0) AS labHours,
+                (COALESCE(psub.lec_hours, 0.0) + COALESCE(psub.lab_hours, 0.0)) AS totalHoursPerWeek,
+                (COALESCE(psub.lec_units, 0.0) + COALESCE(psub.lab_units, 0.0)) AS totalTeachingLoad
             FROM primary_class pc
             INNER JOIN primary_section ps
                 ON ps.section_id = pc.section_id
+            LEFT JOIN primary_subject psub
+                ON psub.subject_code = pc.subject_code
             LEFT JOIN faculty_workload fw
                 ON (fw.faculty_id) =
                    (pc.faculty_id)
@@ -289,6 +299,61 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
             @Param("facultyId") String facultyId,
             @Param("schoolYear") Integer schoolYear,
             @Param("semester") String semester
+    );
+
+    @Query(value = """
+            SELECT
+                COALESCE(SUM(COALESCE(ps.lec_units, 0.0) + COALESCE(ps.lab_units, 0.0)), 0.0) AS totalTeachingLoad,
+                COALESCE(SUM(COALESCE(ps.lec_hours, 0.0) + COALESCE(ps.lab_hours, 0.0)), 0.0) AS totalHoursPerWeek
+            FROM primary_class pc
+            INNER JOIN primary_subject ps
+                ON ps.subject_code = pc.subject_code
+            WHERE (pc.faculty_id) = (:facultyId)
+              AND pc.school_year = :schoolYear
+              AND (
+                    LOWER(TRIM(pc.semester)) = LOWER(TRIM(:semester))
+                    OR (
+                        UPPER(TRIM(:semester)) IN ('1ST', 'FIRST_SEMESTER')
+                        AND UPPER(TRIM(pc.semester)) IN ('1ST', 'FIRST_SEMESTER')
+                    )
+                    OR (
+                        UPPER(TRIM(:semester)) IN ('2ND', 'SECOND_SEMESTER')
+                        AND UPPER(TRIM(pc.semester)) IN ('2ND', 'SECOND_SEMESTER')
+                    )
+                    OR (
+                        UPPER(TRIM(:semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
+                        AND UPPER(TRIM(pc.semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
+                    )
+              )
+            """, nativeQuery = true)
+    Optional<FacultySubjectLoadProjection> calculateFacultySubjectTotals(
+            @Param("facultyId") String facultyId,
+            @Param("schoolYear") Integer schoolYear,
+            @Param("semester") String semester
+    );
+
+    @Query(value = """
+            SELECT
+                COALESCE(ps.lec_units, 0.0) AS lecUnits,
+                COALESCE(ps.lab_units, 0.0) AS labUnits,
+                COALESCE(ps.lec_hours, 0.0) AS lecHours,
+                COALESCE(ps.lab_hours, 0.0) AS labHours,
+                (COALESCE(ps.lec_hours, 0.0) + COALESCE(ps.lab_hours, 0.0)) AS totalHoursPerWeek,
+                (COALESCE(ps.lec_units, 0.0) + COALESCE(ps.lab_units, 0.0)) AS totalTeachingLoad
+            FROM primary_class pc
+            INNER JOIN primary_subject ps
+                ON ps.subject_code = pc.subject_code
+            WHERE (pc.faculty_id) = (:facultyId)
+              AND (
+                  (:classCode IS NOT NULL AND pc.class_code = :classCode)
+                  OR (:classCode IS NULL AND pc.subject_code = :subjectCode)
+              )
+            LIMIT 1
+            """, nativeQuery = true)
+    Optional<FacultyClassHoursProjection> findClassSubjectHours(
+            @Param("facultyId") String facultyId,
+            @Param("classCode") String classCode,
+            @Param("subjectCode") String subjectCode
     );
 
     boolean existsByLegacyDatabaseAndLegacyId(String legacyDatabase, String legacyId);

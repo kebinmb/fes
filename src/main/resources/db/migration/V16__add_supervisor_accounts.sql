@@ -1,4 +1,4 @@
-INSERT INTO user_accounts (
+INSERT IGNORE INTO user_accounts (
     username,
     lastname,
     firstname,

@@ -13,6 +13,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -195,4 +196,38 @@ public interface PrimaryFacultyRepository extends JpaRepository<PrimaryFaculty, 
                 WHERE f.legacyDatabase = :database
             """)
     Set<String> findLegacyIdsByDatabase(@Param("database") String database);
+
+    @Query("""
+                SELECT f.facultyId
+                FROM PrimaryFaculty f
+                WHERE f.legacyDatabase = :database
+            """)
+    Set<String> findFacultyIdsByLegacyDatabase(@Param("database") String database);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Transactional
+    @Query(value = """
+            UPDATE primary_faculty pf
+            INNER JOIN primary_class pc
+                ON pf.faculty_id = pc.faculty_id
+               AND pf.legacy_database = pc.legacy_database
+            SET pf.status = 'ACTIVE',
+                pf.campus = CASE
+                    WHEN pf.legacy_database = 'LEGACY_TALISAY' THEN 'TALISAY'
+                    WHEN pf.legacy_database = 'LEGACY_ALIJIS' THEN 'ALIJIS'
+                    WHEN pf.legacy_database = 'LEGACY_BINALBAGAN' THEN 'BINALBAGAN'
+                    WHEN pf.legacy_database = 'LEGACY_FT' THEN 'FT'
+                    ELSE pf.campus
+                END
+            WHERE pf.legacy_database = :database
+            """, nativeQuery = true)
+    int activateFacultyWithClassesByDatabase(@Param("database") String database);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Transactional
+    @Query("UPDATE PrimaryFaculty f SET f.college = :college WHERE f.facultyId IN :facultyIds")
+    int updateCollegeByFacultyIds(
+            @Param("college") College college,
+            @Param("facultyIds") Collection<String> facultyIds
+    );
 }

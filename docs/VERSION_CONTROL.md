@@ -16,7 +16,8 @@ Use short, scoped commits:
 - `feat(admin): add faculty workload lookup by id`
 - `fix(auth): normalize student access code input`
 - `docs(release): add integration changelog`
-- `refactor(frontend): remove unused student evaluation calls`
+- `refactor(frontend): remove unused 
+- student evaluation calls`
 
 ## Release Tags
 

@@ -100,6 +100,22 @@ public class SubjectMigrationService extends BaseMigrationService {
                 legacySubject.getId().getDescriptiveTitle()
         );
 
+        primarySubject.setLecUnits(
+                legacySubject.getId().getLecUnits()
+        );
+
+        primarySubject.setLabUnits(
+                legacySubject.getId().getLabUnits()
+        );
+
+        primarySubject.setLecHours(
+                legacySubject.getId().getLecHours()
+        );
+
+        primarySubject.setLabHours(
+                legacySubject.getId().getLabHours()
+        );
+
         // MIGRATION METADATA
 
         primarySubject.setSourceCampus(database);

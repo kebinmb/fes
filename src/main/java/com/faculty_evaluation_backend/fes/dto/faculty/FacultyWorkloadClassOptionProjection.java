@@ -12,4 +12,16 @@ public interface FacultyWorkloadClassOptionProjection {
     String getYearLevel();
 
     String getSectionCode();
+
+    Double getLecUnits();
+
+    Double getLabUnits();
+
+    Double getLecHours();
+
+    Double getLabHours();
+
+    Double getTotalHoursPerWeek();
+
+    Double getTotalTeachingLoad();
 }

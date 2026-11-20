@@ -89,7 +89,9 @@ public class SecurityConfig {
                                 "/auth/access-code/generate",
                                 "/auth/student/login",
                                 "/auth/supervisor/login",
-                                "/auth/administrator/login"
+                                "/auth/administrator/login",
+                                "/auth/google",
+                                "/auth/config"
                         )
                 ).sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)).authorizeHttpRequests(auth -> auth.requestMatchers("/auth/**", "/oauth2/**", "/login/**", "/verify-report/**").permitAll()
 

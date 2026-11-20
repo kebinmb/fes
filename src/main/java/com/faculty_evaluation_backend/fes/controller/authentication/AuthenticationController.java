@@ -3,16 +3,20 @@ package com.faculty_evaluation_backend.fes.controller.authentication;
 import com.faculty_evaluation_backend.fes.audit.AuditableAction;
 import com.faculty_evaluation_backend.fes.config.jwt.JwtConfig;
 import com.faculty_evaluation_backend.fes.dto.authentication.ChangePasswordRequest;
+import com.faculty_evaluation_backend.fes.dto.authentication.GoogleLoginRequest;
 import com.faculty_evaluation_backend.fes.dto.authentication.LoginRequest;
 import com.faculty_evaluation_backend.fes.dto.authentication.StudentAccessCodeRequest;
 import com.faculty_evaluation_backend.fes.dto.authentication.StudentLoginRequest;
 import com.faculty_evaluation_backend.fes.dto.authentication.CurrentUserResponse;
 import com.faculty_evaluation_backend.fes.dto.authentication.StudentAccessCodeResponse;
 import com.faculty_evaluation_backend.fes.entities.authentication.CustomUserDetails;
+import com.faculty_evaluation_backend.fes.entities.authentication.UserAccounts;
 import com.faculty_evaluation_backend.fes.repositories.tokens.RefreshTokenRepository;
 import com.faculty_evaluation_backend.fes.services.authentication.AdministratorAccountsAuthenticationService;
+import com.faculty_evaluation_backend.fes.services.authentication.GoogleAuthenticationService;
 import com.faculty_evaluation_backend.fes.services.authentication.StudentAuthenticationService;
 import com.faculty_evaluation_backend.fes.services.authentication.SupervisorAccountsAuthenticationService;
+import com.faculty_evaluation_backend.fes.services.oauth.GoogleTokenVerifierService;
 import com.faculty_evaluation_backend.fes.utilities.token.TokenHashUtil;
 import jakarta.validation.Valid;
 import org.springframework.cache.Cache;
@@ -22,6 +26,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.CacheManager;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -39,6 +44,8 @@ public class AuthenticationController {
     private final StudentAuthenticationService studentAuthenticationService;
     private final SupervisorAccountsAuthenticationService supervisorAccountsAuthenticationService;
     private final AdministratorAccountsAuthenticationService administratorAccountsAuthenticationService;
+    private final GoogleAuthenticationService googleAuthenticationService;
+    private final GoogleTokenVerifierService googleTokenVerifierService;
     private final JwtConfig jwtConfig;
     private final RefreshTokenRepository refreshTokenRepository;
     private final CacheManager cacheManager;
@@ -118,6 +125,43 @@ public class AuthenticationController {
         var response = administratorAccountsAuthenticationService.login(loginRequest, request);
 
         return ResponseEntity.ok().header("Set-Cookie", buildAdministratorAccessTokenCookie(response.getAccessToken()).toString()).header("Set-Cookie", buildAdministratorRefreshTokenCookie(response.getRefreshToken()).toString()).body(Map.of("message", "Authentication successful", "administratorId", response.getEvaluatorId(), "role", response.getRole()));
+    }
+
+    @GetMapping("/config")
+    public ResponseEntity<Map<String, String>> getAuthConfig() {
+        return ResponseEntity.ok(Map.of("googleClientId", googleTokenVerifierService.getGoogleClientId() != null ? googleTokenVerifierService.getGoogleClientId() : ""));
+    }
+
+    @PostMapping("/google")
+    @AuditableAction(action = "AUTHENTICATE_GOOGLE", entity = "GOOGLE_AUTHENTICATION")
+    public ResponseEntity<?> googleLogin(@Valid @RequestBody GoogleLoginRequest request, HttpServletRequest httpRequest) {
+        var result = googleAuthenticationService.authenticate(request, httpRequest);
+        UserAccounts user = result.user();
+
+        ResponseCookie accessCookie;
+        ResponseCookie refreshCookie;
+
+        if (result.isAdminRole()) {
+            accessCookie = buildAdministratorAccessTokenCookie(result.accessToken());
+            refreshCookie = buildAdministratorRefreshTokenCookie(result.refreshToken());
+        } else {
+            accessCookie = buildSupervisorAccessTokenCookie(result.accessToken());
+            refreshCookie = buildSupervisorRefreshTokenCookie(result.refreshToken());
+        }
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, accessCookie.toString())
+                .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
+                .body(Map.of(
+                        "message", "Authentication successful",
+                        "userId", user.getUserId().toString(),
+                        "evaluatorId", user.getUserId().toString(),
+                        "email", user.getEmail(),
+                        "role", "ROLE_" + user.getRole().name(),
+                        "college", user.getCollege() != null ? user.getCollege().name() : "",
+                        "program", user.getPrograms() != null ? user.getPrograms().name() : "",
+                        "requiresPasswordChange", user.getPasswordChangedAt() == null
+                ));
     }
 
     @GetMapping("/me")

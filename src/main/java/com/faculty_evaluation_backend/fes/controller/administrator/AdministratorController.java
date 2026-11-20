@@ -55,6 +55,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/admin")
@@ -382,6 +383,20 @@ public class AdministratorController {
                         semester
                 )
         );
+    }
+
+    @PostMapping("/faculty-workloads/sync")
+    @AuditableAction(action = "SYNC", entity = "FACULTY_WORKLOAD")
+    public ResponseEntity<Map<String, Object>> syncFacultyWorkloads(
+            @RequestParam(required = false) Integer schoolYear,
+            @RequestParam(required = false) String semester
+    ) {
+        int updated = administratorService.syncFacultyWorkloadsFromPrimaryClasses(schoolYear, semester);
+        return ResponseEntity.ok(Map.of(
+                "status", "SUCCESS",
+                "message", "Synchronized faculty workloads from primary classes and subjects.",
+                "updatedCount", updated
+        ));
     }
 
     @GetMapping("/faculty-evaluation-score/{facultyId}")

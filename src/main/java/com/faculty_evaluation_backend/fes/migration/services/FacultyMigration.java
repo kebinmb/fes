@@ -66,6 +66,23 @@ public class FacultyMigration extends BaseMigrationService {
 
             log.info("Faculty Migration Completed : {}", database.name());
         });
+
+        syncFacultyColleges();
+    }
+
+    public void syncFacultyColleges() {
+        log.info("Starting post-migration Faculty College Mapping sync...");
+        int totalUpdated = 0;
+        for (var entry : FacultyCollegeMapping.getFacultyIdsByCollege().entrySet()) {
+            College college = entry.getKey();
+            List<String> facultyIds = entry.getValue();
+            if (!facultyIds.isEmpty()) {
+                int updated = primaryFacultyRepository.updateCollegeByFacultyIds(college, facultyIds);
+                log.info("Updated {} faculty records to college {}", updated, college);
+                totalUpdated += updated;
+            }
+        }
+        log.info("Finished Faculty College Mapping sync. Total updated: {}", totalUpdated);
     }
 
     private PrimaryFaculty map(
@@ -75,12 +92,12 @@ public class FacultyMigration extends BaseMigrationService {
 
         PrimaryFaculty primaryFaculty = new PrimaryFaculty();
 
-        primaryFaculty.setFacultyId(
-                MigrationIdGenerator.generateStringId(
-                        database,
-                        legacyFaculty.getId().getFacultyId()
-                )
+        String facultyId = MigrationIdGenerator.generateStringId(
+                database,
+                legacyFaculty.getId().getFacultyId()
         );
+
+        primaryFaculty.setFacultyId(facultyId);
 
         primaryFaculty.setFirstname(
                 legacyFaculty.getId().getFirstname()
@@ -102,7 +119,7 @@ public class FacultyMigration extends BaseMigrationService {
                 legacyFaculty.getLoadLimit()
         );
 
-        primaryFaculty.setCollege(College.FOR_MIGRATION);
+        primaryFaculty.setCollege(FacultyCollegeMapping.getCollege(facultyId));
 
         primaryFaculty.setStatus(Status.INACTIVE);
 

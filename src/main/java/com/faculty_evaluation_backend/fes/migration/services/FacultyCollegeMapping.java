@@ -1,0 +1,355 @@
+package com.faculty_evaluation_backend.fes.migration.services;
+
+import com.faculty_evaluation_backend.fes.entities.primary.enums.College;
+
+import java.util.*;
+
+public final class FacultyCollegeMapping {
+
+    private static final Map<String, College> MAPPING = new HashMap<>(350);
+    private static final Map<College, List<String>> BY_COLLEGE = new EnumMap<>(College.class);
+
+    static {
+        List<String> listCAS = List.of(
+                "FT-JPT011383",
+                "TAL-002-2023-02",
+                "TAL-003-2023-03",
+                "TAL-ALAVEALFREDOD",
+                "TAL-BACM2025",
+                "TAL-CAS MARIVIC 20-21",
+                "TAL-CAS PT 12",
+                "TAL-CAS PT2022- 15",
+                "TAL-CAS002",
+                "TAL-CAS003",
+                "TAL-CAS004",
+                "TAL-CAS005",
+                "TAL-CAS007",
+                "TAL-CAS008",
+                "TAL-CAS009",
+                "TAL-CAS011",
+                "TAL-CAS012",
+                "TAL-CAS014",
+                "TAL-CAS017",
+                "TAL-CAS019",
+                "TAL-CAS020",
+                "TAL-CAS022",
+                "TAL-CAS023",
+                "TAL-CAS026",
+                "TAL-CAS028",
+                "TAL-CAS029",
+                "TAL-CAS031",
+                "TAL-CAS032",
+                "TAL-CAS033",
+                "TAL-CAS034",
+                "TAL-CAS036",
+                "TAL-CAS037",
+                "TAL-CAS040",
+                "TAL-CAS041",
+                "TAL-CAS042",
+                "TAL-CAS045",
+                "TAL-CAS046",
+                "TAL-CAS047",
+                "TAL-CAS048",
+                "TAL-CAS049",
+                "TAL-CAS050",
+                "TAL-CAS052",
+                "TAL-CAS053",
+                "TAL-CAS060",
+                "TAL-CAS061",
+                "TAL-CAS062",
+                "TAL-CAS064",
+                "TAL-CAS065",
+                "TAL-CAS066",
+                "TAL-CAS068",
+                "TAL-CAS217",
+                "TAL-CAS218",
+                "TAL-CAS220",
+                "TAL-CAS221",
+                "TAL-CASDNMSLD",
+                "TAL-CASFIL001",
+                "TAL-CASGONZALES",
+                "TAL-CASPEPT002",
+                "TAL-CASPSYC002",
+                "TAL-CASPT007",
+                "TAL-COED0052",
+                "TAL-COEDMANALO",
+                "TAL-JVP011-2023",
+                "TAL-JVT091624",
+                "TAL-LLG07051980",
+                "TAL-MAMACNOELB",
+                "TAL-MLD091624",
+                "TAL-PAC120394",
+                "TAL-SDE12101975",
+                "TAL-T21800048",
+                "TAL-T21800136",
+                "TAL-T21800172"
+        );
+        BY_COLLEGE.put(College.CAS, listCAS);
+        for (String id : listCAS) {
+            MAPPING.put(id, College.CAS);
+        }
+
+        List<String> listCIT = List.of(
+                "ALI-MJL022964",
+                "ALI-NBE010685",
+                "TAL-00",
+                "TAL-032526",
+                "TAL-1",
+                "TAL-151155",
+                "TAL-151656",
+                "TAL-262615",
+                "TAL-541152",
+                "TAL-AAD100925",
+                "TAL-ACT100925",
+                "TAL-BENEDICTOVV",
+                "TAL-BIBANGCOELJIREH",
+                "TAL-BSIS2021",
+                "TAL-BSIS_CHAIRPERSON2",
+                "TAL-BSIS_FACULTY1",
+                "TAL-CASBRNJJ",
+                "TAL-CASPT002",
+                "TAL-CIT100",
+                "TAL-CIT600",
+                "TAL-CIT610",
+                "TAL-CIT616",
+                "TAL-CIT634",
+                "TAL-CIT635",
+                "TAL-COED PT",
+                "TAL-JAI100925",
+                "TAL-JAL100925",
+                "TAL-MLCIT20241112",
+                "TAL-REB091924",
+                "TAL-RJPA060488",
+                "TAL-T21800003",
+                "TAL-T21800018",
+                "TAL-T21800021",
+                "TAL-T21800024",
+                "TAL-T21800030",
+                "TAL-T21800031",
+                "TAL-T21800036",
+                "TAL-T21800042",
+                "TAL-T21800054",
+                "TAL-T21800055",
+                "TAL-T21800057",
+                "TAL-T21800061",
+                "TAL-T21800090",
+                "TAL-T21800092",
+                "TAL-T21800094",
+                "TAL-T21800101",
+                "TAL-T21800110",
+                "TAL-T21800118",
+                "TAL-T21800124",
+                "TAL-T21800125",
+                "TAL-T21800131",
+                "TAL-T21800133",
+                "TAL-T21800142",
+                "TAL-T21800143",
+                "TAL-T21800151",
+                "TAL-T21800155",
+                "TAL-T21800156",
+                "TAL-T21800157",
+                "TAL-T21800159",
+                "TAL-T21800161",
+                "TAL-T21800169",
+                "TAL-T21800170",
+                "TAL-T21800175",
+                "TAL-T21800177",
+                "TAL-T21800178",
+                "TAL-T21800179",
+                "TAL-T21800182",
+                "TAL-T21800184",
+                "TAL-T21800193"
+        );
+        BY_COLLEGE.put(College.CIT, listCIT);
+        for (String id : listCIT) {
+            MAPPING.put(id, College.CIT);
+        }
+
+        List<String> listCCS = List.of(
+                "ALI-ABB031483",
+                "ALI-ACB092081",
+                "ALI-AED042567",
+                "ALI-AGD031277",
+                "ALI-AMD092990",
+                "ALI-AMM010475",
+                "ALI-BER121290",
+                "ALI-CAS121686",
+                "ALI-CDB020673",
+                "ALI-CTR0000",
+                "ALI-DAB011193",
+                "ALI-DFP082787",
+                "ALI-DMF090994",
+                "ALI-EBV061577",
+                "ALI-EDL110390",
+                "ALI-EMP031981",
+                "ALI-ESB082283",
+                "ALI-FVD123077",
+                "ALI-GGG082670",
+                "ALI-HDP000000",
+                "ALI-JBS111785",
+                "ALI-JDD071780",
+                "ALI-JDR062589",
+                "ALI-JEC011691",
+                "ALI-JGG100677",
+                "ALI-JMB030991",
+                "ALI-JQS112876",
+                "ALI-JST100976",
+                "ALI-JTS102788",
+                "ALI-KAA070276",
+                "ALI-KES082885",
+                "ALI-LBL000000",
+                "ALI-LJM000000",
+                "ALI-MAD091376",
+                "ALI-MAG021889",
+                "ALI-MAM060783",
+                "ALI-MBT102694",
+                "ALI-MCD031565",
+                "ALI-MDM012486",
+                "ALI-MJS070968",
+                "ALI-MLN080181",
+                "ALI-MMR122972",
+                "ALI-MPS111186",
+                "ALI-MRF060192",
+                "ALI-MSS062982",
+                "ALI-MTT041290",
+                "ALI-NCM111184",
+                "ALI-NJJ031168",
+                "ALI-NPS111287",
+                "ALI-RAS101485",
+                "ALI-RBM020471",
+                "ALI-RBO101187",
+                "ALI-RBS091572",
+                "ALI-RCB042079",
+                "ALI-RCS112680",
+                "ALI-REGP070179",
+                "ALI-RGE112772",
+                "ALI-RMP060789",
+                "ALI-RMR100890",
+                "ALI-SDF052585",
+                "ALI-SDS041874",
+                "ALI-SSG071979",
+                "ALI-WGA082478",
+                "TAL-JMB030991"
+        );
+        BY_COLLEGE.put(College.CCS, listCCS);
+        for (String id : listCCS) {
+            MAPPING.put(id, College.CCS);
+        }
+
+        List<String> listCOF = List.of(
+                "ALI-0000",
+                "BIN-000001HGLGUIDANCE",
+                "BIN-0000034GMA",
+                "BIN-00000BRIONES",
+                "BIN-000010",
+                "BIN-0000DD",
+                "BIN-0000EG",
+                "BIN-0000JC",
+                "BIN-0002021RJ",
+                "BIN-000KJKT",
+                "BIN-0909033kbm",
+                "BIN-321654EJA",
+                "BIN-AAB05016600",
+                "BIN-ARD12236700",
+                "BIN-CHMSC 00001",
+                "BIN-CHMSC 00002",
+                "BIN-CHMSC 00003",
+                "BIN-CHMSC 00004",
+                "BIN-CHMSC-F0001",
+                "BIN-CHMSC-F0025",
+                "BIN-CHMSC-F0029",
+                "BIN-CHMSC-F0048",
+                "BIN-CHMSC-F0050",
+                "BIN-CHMSC-F0051",
+                "BIN-CHMSCADC",
+                "BIN-CHMSCADO",
+                "BIN-CHMSCDYS",
+                "BIN-CHMSCGEJ33",
+                "BIN-CHMSCGRAG",
+                "BIN-CHMSCMFA",
+                "BIN-CHMSCMLM",
+                "BIN-CHMSCRBE",
+                "BIN-CHMSCRJP",
+                "BIN-CMC03178800",
+                "BIN-DGC04167800",
+                "BIN-DTG09047600",
+                "BIN-FP08192025",
+                "BIN-GG053221",
+                "BIN-GMEG03252024",
+                "BIN-IRP05198100",
+                "BIN-JBV04086700",
+                "BIN-JCB06157100",
+                "BIN-JET12126200",
+                "BIN-JOL03077200",
+                "BIN-JPJ11098000",
+                "BIN-JRT03307800",
+                "BIN-MDE080580",
+                "BIN-MPG02248300",
+                "BIN-MRP023351",
+                "BIN-RAS072865",
+                "BIN-RFR11187700",
+                "BIN-RPT04088200",
+                "BIN-RSM03127600",
+                "BIN-SVT03076300",
+                "BIN-VCM08248900",
+                "BIN-VDG01267100",
+                "BIN-fil20000",
+                "TAL-PARTIMEPERANTE"
+        );
+        BY_COLLEGE.put(College.COF, listCOF);
+        for (String id : listCOF) {
+            MAPPING.put(id, College.COF);
+        }
+
+        List<String> listCCJ = List.of(
+                "BIN-2023PJA",
+                "BIN-AGE06297200",
+                "BIN-BSFT20070101",
+                "BIN-CHMSCNAR",
+                "BIN-ETG01228500",
+                "BIN-FGS05318400",
+                "BIN-FRB03048900",
+                "BIN-GFB03202024",
+                "BIN-LFD10099100",
+                "BIN-PGG12039200",
+                "BIN-RRD12048500",
+                "BIN-RSS06059000",
+                "BIN-TW032624"
+        );
+        BY_COLLEGE.put(College.CCJ, listCCJ);
+        for (String id : listCCJ) {
+            MAPPING.put(id, College.CCJ);
+        }
+
+        List<String> listCOENG = List.of(
+                "TAL-T21800045",
+                "TAL-T21800075",
+                "TAL-T21800080",
+                "TAL-T21800081",
+                "TAL-T21800084",
+                "TAL-T21800122",
+                "TAL-T21800153",
+                "TAL-T21800158",
+                "TAL-T21800176"
+        );
+        BY_COLLEGE.put(College.COENG, listCOENG);
+        for (String id : listCOENG) {
+            MAPPING.put(id, College.COENG);
+        }
+
+    }
+
+    private FacultyCollegeMapping() {
+    }
+
+    public static College getCollege(String facultyId) {
+        if (facultyId == null) {
+            return College.FOR_MIGRATION;
+        }
+        return MAPPING.getOrDefault(facultyId, College.FOR_MIGRATION);
+    }
+
+    public static Map<College, List<String>> getFacultyIdsByCollege() {
+        return Collections.unmodifiableMap(BY_COLLEGE);
+    }
+}

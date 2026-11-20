@@ -25,4 +25,16 @@ public class PrimarySubject extends MigratableEntity {
 
     @Column(name = "descriptive_title")
     private String descriptiveTitle;
+
+    @Column(name = "lec_units")
+    private Double lecUnits;
+
+    @Column(name = "lab_units")
+    private Double labUnits;
+
+    @Column(name = "lec_hours")
+    private Double lecHours;
+
+    @Column(name = "lab_hours")
+    private Double labHours;
 }

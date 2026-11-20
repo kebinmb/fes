@@ -12,6 +12,8 @@ import com.faculty_evaluation_backend.fes.dto.evaluation.StudentEvaluationStatus
 import com.faculty_evaluation_backend.fes.dto.evaluation.StudentFacultyEvaluationDTO;
 import com.faculty_evaluation_backend.fes.dto.evaluation.StudentFacultyEvaluationProjection;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadClassOptionResponse;
+import com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassHoursProjection;
+import com.faculty_evaluation_backend.fes.dto.faculty.FacultySubjectLoadProjection;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadClassOptionProjection;
 import com.faculty_evaluation_backend.fes.dto.faculty.ClassFacultyAssignmentResponse;
 import com.faculty_evaluation_backend.fes.dto.faculty.ClassFacultyReassignmentRequest;
@@ -57,7 +59,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -567,7 +571,18 @@ public class AdministratorService {
         workload.setProgramCode(request.getProgramCode().trim());
         workload.setYearLevel(request.getYearLevel().trim());
         workload.setSectionCode(request.getSectionCode().trim());
-        workload.setTotalHoursPerWeek(safeBigDecimal(request.getTotalHoursPerWeek()));
+        BigDecimal hoursPerWeek = safeBigDecimal(request.getTotalHoursPerWeek());
+        if (hoursPerWeek.compareTo(BigDecimal.ZERO) == 0) {
+            var classHours = primaryClassRepository.findClassSubjectHours(
+                    facultyId,
+                    normalizeBlank(request.getClassCode()),
+                    request.getCourseCode().trim()
+            );
+            if (classHours.isPresent() && classHours.get().getTotalHoursPerWeek() != null) {
+                hoursPerWeek = BigDecimal.valueOf(classHours.get().getTotalHoursPerWeek());
+            }
+        }
+        workload.setTotalHoursPerWeek(hoursPerWeek);
         workload.setTotalTeachingLoad(BigDecimal.ZERO);
         workload.setNumberOfPreparations(request.getNumberOfPreparations());
         workload.setDesignationEtu(safeBigDecimal(request.getDesignationEtu()));
@@ -824,7 +839,17 @@ public class AdministratorService {
                 row.getSectionId(),
                 emptyIfNull(row.getProgramCode()),
                 emptyIfNull(row.getYearLevel()),
-                emptyIfNull(row.getSectionCode())
+                emptyIfNull(row.getSectionCode()),
+                row.getLecUnits() != null ? row.getLecUnits() : 0.0,
+                row.getLabUnits() != null ? row.getLabUnits() : 0.0,
+                row.getLecHours() != null ? row.getLecHours() : 0.0,
+                row.getLabHours() != null ? row.getLabHours() : 0.0,
+                row.getTotalHoursPerWeek() != null
+                        ? BigDecimal.valueOf(row.getTotalHoursPerWeek())
+                        : BigDecimal.ZERO,
+                row.getTotalTeachingLoad() != null
+                        ? BigDecimal.valueOf(row.getTotalTeachingLoad())
+                        : BigDecimal.ZERO
         );
     }
 
@@ -1280,11 +1305,35 @@ public class AdministratorService {
                         semester
                 );
 
-        BigDecimal totalTeachingLoad = termWorkloads
-                .stream()
-                .map(FacultyWorkload::getTotalHoursPerWeek)
-                .map(this::safeBigDecimal)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        // Map through primary_class and primary_subject to get accurate teaching load from units
+        BigDecimal calculatedTeachingLoad = primaryClassRepository.calculateFacultySubjectTotals(
+                facultyId,
+                schoolYear,
+                semester
+        ).map(FacultySubjectLoadProjection::getTotalTeachingLoad)
+         .filter(Objects::nonNull)
+         .map(BigDecimal::valueOf)
+         .orElse(BigDecimal.ZERO);
+
+        BigDecimal totalTeachingLoad = calculatedTeachingLoad.compareTo(BigDecimal.ZERO) > 0
+                ? calculatedTeachingLoad
+                : termWorkloads
+                        .stream()
+                        .map(FacultyWorkload::getTotalHoursPerWeek)
+                        .map(this::safeBigDecimal)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // Ensure any termWorkload with 0 totalHoursPerWeek is populated from primary_class + primary_subject
+        termWorkloads.forEach(tw -> {
+            if (tw.getTotalHoursPerWeek() == null || tw.getTotalHoursPerWeek().compareTo(BigDecimal.ZERO) == 0) {
+                primaryClassRepository.findClassSubjectHours(facultyId, tw.getClassCode(), tw.getCourseCode())
+                        .ifPresent(ch -> {
+                            if (ch.getTotalHoursPerWeek() != null && ch.getTotalHoursPerWeek() > 0) {
+                                tw.setTotalHoursPerWeek(BigDecimal.valueOf(ch.getTotalHoursPerWeek()));
+                            }
+                        });
+            }
+        });
 
         Integer effectiveNumberOfPreparations =
                 safeNumberOfPreparations(numberOfPreparations);
@@ -1410,5 +1459,66 @@ public class AdministratorService {
             String workloadSemester
     ) {
     }
-}
+    @Transactional(
+            transactionManager = "primaryTransactionManager"
+    )
+    @CacheEvict(
+            value = {
+                    "adminDashboard",
+                    "adminDashboardSummary",
+                    "adminDashboardPrograms",
+                    "adminDashboardFacultyLoads",
+                    "facultyWorkloadCoverage",
+                    "facultyWorkloadClassOptions",
+                    "facultyEvaluationReports",
+                    "supervisorFacultyLoads",
+                    "supervisorFacultyProgramLoads"
+            },
+            allEntries = true
+    )
+    public int syncFacultyWorkloadsFromPrimaryClasses(Integer schoolYear, String semester) {
+        log.info("Starting synchronization of faculty workloads from primary classes (year: {}, semester: {})",
+                schoolYear, semester);
 
+        List<FacultyWorkload> allWorkloads;
+        if (schoolYear != null && semester != null && !semester.isBlank()) {
+            allWorkloads = facultyWorkloadRepository.searchWorkloads(
+                    null,
+                    schoolYear,
+                    normalizeSemester(semester),
+                    PageRequest.of(0, 5000)
+            ).getContent();
+        } else {
+            allWorkloads = facultyWorkloadRepository.findAll();
+        }
+
+        int updatedCount = 0;
+        Set<String> processedFacultyTerms = new HashSet<>();
+
+        for (FacultyWorkload fw : allWorkloads) {
+            var classHours = primaryClassRepository.findClassSubjectHours(
+                    fw.getFacultyId(),
+                    fw.getClassCode(),
+                    fw.getCourseCode()
+            );
+            if (classHours.isPresent() && classHours.get().getTotalHoursPerWeek() != null) {
+                fw.setTotalHoursPerWeek(BigDecimal.valueOf(classHours.get().getTotalHoursPerWeek()));
+                updatedCount++;
+            }
+
+            String termKey = fw.getFacultyId() + "|" + fw.getSchoolYear() + "|" + fw.getSemester();
+            if (processedFacultyTerms.add(termKey)) {
+                updateFacultyTermTeachingLoad(
+                        fw.getFacultyId(),
+                        fw.getSchoolYear(),
+                        fw.getSemester(),
+                        fw.getNumberOfPreparations(),
+                        fw.getDesignationEtu()
+                );
+            }
+        }
+
+        log.info("Finished faculty workload synchronization. Updated {} workload records.", updatedCount);
+        return updatedCount;
+    }
+}
