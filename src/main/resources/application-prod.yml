@@ -4,13 +4,13 @@ spring:
 
   datasource:
     primary:
-      jdbc-url: jdbc:mysql://${DB_HOST:68.178.161.177}:${DB_PORT:3306}/${DB_NAME:syndicateadmin_faculty_evaluation_db_prod}?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&connectionCollation=utf8mb4_unicode_ci&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=true&tcpKeepAlive=true&connectTimeout=3000&socketTimeout=600000
-      username: ${DB_USERNAME:syndicateadmin_faculty_evaluation_db_prod}
+      jdbc-url: jdbc:mysql://${DB_HOST}:${DB_PORT:3306}/${DB_NAME}?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&connectionCollation=utf8mb4_unicode_ci&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=true&tcpKeepAlive=true&connectTimeout=3000&socketTimeout=600000
+      username: ${DB_USERNAME}
       password: ${DB_PASSWORD}
       driver-class-name: com.mysql.cj.jdbc.Driver
 
     legacy-talisay:
-      jdbc-url: jdbc:mysql://${LEGACY_TALISAY_DB_HOST:${LEGACY_DB_HOST:119.92.126.122}}:${LEGACY_TALISAY_DB_PORT:${LEGACY_DB_PORT:3306}}/${LEGACY_TALISAY_DB_NAME:sisdatabase}?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=false&tcpKeepAlive=true&connectTimeout=3000&socketTimeout=600000
+      jdbc-url: jdbc:mysql://${LEGACY_TALISAY_DB_HOST:${LEGACY_DB_HOST}}:${LEGACY_TALISAY_DB_PORT:${LEGACY_DB_PORT:3306}}/${LEGACY_TALISAY_DB_NAME:sisdatabase}?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=false&tcpKeepAlive=true&connectTimeout=3000&socketTimeout=600000
       username: ${LEGACY_TALISAY_DB_USERNAME:${LEGACY_DB_USERNAME:ict}}
       password: ${LEGACY_TALISAY_DB_PASSWORD:${LEGACY_DB_PASSWORD}}
       driver-class-name: com.mysql.cj.jdbc.Driver
@@ -26,7 +26,7 @@ spring:
         keepalive-time: 15000
 
     legacy-alijis:
-      jdbc-url: jdbc:mysql://${LEGACY_ALIJIS_DB_HOST:${LEGACY_DB_HOST:119.92.126.122}}:${LEGACY_ALIJIS_DB_PORT:${LEGACY_DB_PORT:3306}}/${LEGACY_ALIJIS_DB_NAME:sisdatabase_alijis}?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=false&tcpKeepAlive=true&connectTimeout=3000&socketTimeout=600000
+      jdbc-url: jdbc:mysql://${LEGACY_ALIJIS_DB_HOST:${LEGACY_DB_HOST}}:${LEGACY_ALIJIS_DB_PORT:${LEGACY_DB_PORT:3306}}/${LEGACY_ALIJIS_DB_NAME:sisdatabase_alijis}?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=false&tcpKeepAlive=true&connectTimeout=3000&socketTimeout=600000
       username: ${LEGACY_ALIJIS_DB_USERNAME:${LEGACY_DB_USERNAME:ict}}
       password: ${LEGACY_ALIJIS_DB_PASSWORD:${LEGACY_DB_PASSWORD}}
       driver-class-name: com.mysql.cj.jdbc.Driver
@@ -42,7 +42,7 @@ spring:
         keepalive-time: 15000
 
     legacy-binalbagan:
-      jdbc-url: jdbc:mysql://${LEGACY_BINALBAGAN_DB_HOST:${LEGACY_DB_HOST:119.92.126.122}}:${LEGACY_BINALBAGAN_DB_PORT:${LEGACY_DB_PORT:3306}}/${LEGACY_BINALBAGAN_DB_NAME:sisdatabase_binalbagan}?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=false&tcpKeepAlive=true&connectTimeout=3000&socketTimeout=600000
+      jdbc-url: jdbc:mysql://${LEGACY_BINALBAGAN_DB_HOST:${LEGACY_DB_HOST}}:${LEGACY_BINALBAGAN_DB_PORT:${LEGACY_DB_PORT:3306}}/${LEGACY_BINALBAGAN_DB_NAME:sisdatabase_binalbagan}?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=false&tcpKeepAlive=true&connectTimeout=3000&socketTimeout=600000
       username: ${LEGACY_BINALBAGAN_DB_USERNAME:${LEGACY_DB_USERNAME:ict}}
       password: ${LEGACY_BINALBAGAN_DB_PASSWORD:${LEGACY_DB_PASSWORD}}
       driver-class-name: com.mysql.cj.jdbc.Driver
@@ -58,7 +58,7 @@ spring:
         keepalive-time: 15000
 
     legacy-ft:
-      jdbc-url: jdbc:mysql://${LEGACY_FT_DB_HOST:${LEGACY_DB_HOST:119.92.126.122}}:${LEGACY_FT_DB_PORT:${LEGACY_DB_PORT:3306}}/${LEGACY_FT_DB_NAME:sisdatabase_ft}?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=false&tcpKeepAlive=true&connectTimeout=3000&socketTimeout=600000
+      jdbc-url: jdbc:mysql://${LEGACY_FT_DB_HOST:${LEGACY_DB_HOST}}:${LEGACY_FT_DB_PORT:${LEGACY_DB_PORT:3306}}/${LEGACY_FT_DB_NAME:sisdatabase_ft}?useSSL=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=false&tcpKeepAlive=true&connectTimeout=3000&socketTimeout=600000
       username: ${LEGACY_FT_DB_USERNAME:${LEGACY_DB_USERNAME:ict}}
       password: ${LEGACY_FT_DB_PASSWORD:${LEGACY_DB_PASSWORD}}
       driver-class-name: com.mysql.cj.jdbc.Driver
@@ -74,8 +74,8 @@ spring:
         keepalive-time: 15000
 
     authentication:
-      jdbc-url: jdbc:mysql://${AUTH_DB_HOST:localhost}:${AUTH_DB_PORT:3306}/${AUTH_DB_NAME:syndicateadmin_sis}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&connectionCollation=utf8mb4_unicode_ci&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true
-      username: ${AUTH_DB_USERNAME:syndicateadmin_sis}
+      jdbc-url: jdbc:mysql://${AUTH_DB_HOST}:${AUTH_DB_PORT:3306}/${AUTH_DB_NAME}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&connectionCollation=utf8mb4_unicode_ci&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true
+      username: ${AUTH_DB_USERNAME}
       password: ${AUTHENTICATION_DB_PASSWORD}
       driver-class-name: com.mysql.cj.jdbc.Driver
 
