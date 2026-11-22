@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -250,6 +251,28 @@ public interface FacultyWorkloadRepository
     )
     Page<FacultyWorkload> searchWorkloads(
             @Param("search") String search,
+            @Param("schoolYear") Integer schoolYear,
+            @Param("semester") String semester,
+            Pageable pageable
+    );
+
+    @Query("""
+            SELECT fw.designationEtu
+            FROM FacultyWorkload fw
+            WHERE fw.facultyId = :facultyId
+              AND fw.designationEtu IS NOT NULL
+              AND fw.designationEtu > 0
+              AND (
+                    fw.schoolYear < :schoolYear
+                    OR (
+                        fw.schoolYear = :schoolYear
+                        AND LOWER(TRIM(fw.semester)) <> LOWER(TRIM(:semester))
+                    )
+              )
+            ORDER BY fw.schoolYear DESC, fw.facultyWorkloadId DESC
+            """)
+    List<BigDecimal> findPriorDesignationEtus(
+            @Param("facultyId") String facultyId,
             @Param("schoolYear") Integer schoolYear,
             @Param("semester") String semester,
             Pageable pageable

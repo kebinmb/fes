@@ -7,10 +7,8 @@ import com.faculty_evaluation_backend.fes.services.data.evaluation.EvaluationDat
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.ErrorResponse;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/evaluation")
@@ -30,6 +28,8 @@ public class EvaluationController {
 
             return ResponseEntity.ok(saved);
 
+        } catch (AccessDeniedException ex) {
+            throw ex;
         } catch (RuntimeException ex) {
 
             log.error("❌ Submission failed: {}", ex.getMessage());

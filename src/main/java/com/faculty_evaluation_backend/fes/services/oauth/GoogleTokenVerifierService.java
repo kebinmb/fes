@@ -31,6 +31,7 @@ public class GoogleTokenVerifierService {
     );
 
     private final JWKSource<SecurityContext> keySource;
+    private final ConfigurableJWTProcessor<SecurityContext> jwtProcessor;
 
     public GoogleTokenVerifierService() {
         try {
@@ -38,43 +39,48 @@ public class GoogleTokenVerifierService {
                     .cache(true)
                     .rateLimited(true)
                     .build();
+            this.jwtProcessor = new DefaultJWTProcessor<>();
+            JWSKeySelector<SecurityContext> keySelector = new JWSVerificationKeySelector<>(JWSAlgorithm.RS256, keySource);
+            this.jwtProcessor.setJWSKeySelector(keySelector);
         } catch (Exception e) {
             throw new IllegalStateException("Failed to initialize Google JWK source", e);
         }
     }
 
+    GoogleTokenVerifierService(String googleClientId, ConfigurableJWTProcessor<SecurityContext> jwtProcessor) {
+        this.googleClientId = googleClientId;
+        this.keySource = null;
+        this.jwtProcessor = jwtProcessor;
+    }
+
     public record GoogleUserInfo(String email, String name, String sub, boolean emailVerified) {}
 
     public GoogleUserInfo verifyToken(String idTokenString) {
+        // 0. Verify server configuration
+        if (googleClientId == null || googleClientId.isBlank()) {
+            log.error("Google OAuth Client ID is not configured on the backend! Please set GOOGLE_CLIENT_ID in your .env or application.yaml");
+            throw new IllegalStateException("Google OAuth client ID is not configured on the server (check GOOGLE_CLIENT_ID in .env)");
+        }
+
         try {
-            // 0. Verify server configuration
-            if (googleClientId == null || googleClientId.isBlank()) {
-                log.error(">>> [GOOGLE VERIFIER] Google OAuth Client ID is not configured on the backend! Please set GOOGLE_CLIENT_ID in your .env or application.yaml");
-                throw new IllegalStateException("Google OAuth client ID is not configured on the server (check GOOGLE_CLIENT_ID in .env)");
-            }
-
-            ConfigurableJWTProcessor<SecurityContext> jwtProcessor = new DefaultJWTProcessor<>();
-            JWSKeySelector<SecurityContext> keySelector = new JWSVerificationKeySelector<>(JWSAlgorithm.RS256, keySource);
-            jwtProcessor.setJWSKeySelector(keySelector);
-
             JWTClaimsSet claims = jwtProcessor.process(idTokenString, null);
 
             // 1. Verify Issuer
             if (!GOOGLE_ISSUERS.contains(claims.getIssuer())) {
-                log.error(">>> [GOOGLE VERIFIER] Invalid issuer: {}", claims.getIssuer());
+                log.error("Invalid issuer: {}", claims.getIssuer());
                 throw new IllegalArgumentException("Invalid Google token issuer: " + claims.getIssuer());
             }
 
-            // 2. Verify Audience (strictly mandatory)
-            if (!claims.getAudience().contains(googleClientId)) {
-                log.error(">>> [GOOGLE VERIFIER] Audience mismatch! Token audience: {}, Configured client ID: {}",
+            // 2. Verify Audience (strictly mandatory, null-safe)
+            if (claims.getAudience() == null || !claims.getAudience().contains(googleClientId)) {
+                log.error("Audience mismatch! Token audience: {}, Configured client ID: {}",
                         claims.getAudience(), googleClientId);
                 throw new IllegalArgumentException("Google token audience mismatch. Expected: " + googleClientId + ", but token was issued for: " + claims.getAudience());
             }
 
             // 3. Verify Expiration
             if (claims.getExpirationTime() != null && claims.getExpirationTime().before(new Date())) {
-                log.error(">>> [GOOGLE VERIFIER] Token has expired at {}", claims.getExpirationTime());
+                log.error("Token has expired at {}", claims.getExpirationTime());
                 throw new IllegalArgumentException("Google token has expired");
             }
 
@@ -84,13 +90,15 @@ public class GoogleTokenVerifierService {
             String sub = claims.getSubject();
 
             if (email == null || !Boolean.TRUE.equals(emailVerified)) {
-                log.error(">>> [GOOGLE VERIFIER] Email missing or unverified. Email: {}, Verified: {}", email, emailVerified);
+                log.error("Email missing or unverified. Email: {}, Verified: {}", email, emailVerified);
                 throw new IllegalArgumentException("Google account email is missing or not verified");
             }
 
             return new GoogleUserInfo(email, name, sub, emailVerified);
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
-            log.error(">>> [GOOGLE VERIFIER] Google token verification failed: {}", e.getMessage());
+            log.error("Google token verification failed: {}", e.getMessage());
             throw new IllegalArgumentException("Failed to verify Google token: " + e.getMessage(), e);
         }
     }

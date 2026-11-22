@@ -24,24 +24,38 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
+
+    private static final List<Role> ALLOWED_ROLES = List.of(
+            Role.DEAN,
+            Role.PROGRAM_CHAIR,
+            Role.ADMIN,
+            Role.HR
+    );
+
     private final UserAccountsRepository userAccountsRepository;
     private final JwtService jwtService;
     private final JwtConfig jwtConfig;
     private final RefreshTokenService refreshTokenService;
 
-    @Value("${app.oauth2.redirect-url-success}")
+    @Value("${app.oauth2.redirect-url-success:http://localhost:4200/oauth-success}")
     private String successRedirectUrl;
+
+    private ResponseCookie deleteCookie(String name) {
+        return ResponseCookie.from(name, "")
+                .httpOnly(true)
+                .secure(jwtConfig.isCookieSecure())
+                .path("/")
+                .sameSite(jwtConfig.getCookieSameSite())
+                .maxAge(0)
+                .build();
+    }
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException {
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
         String email = oAuth2User.getAttribute("email");
-        List<Role> allowedRoles = List.of(
-                Role.DEAN,
-                Role.PROGRAM_CHAIR,
-                Role.ADMIN,
-                Role.HR
-        );
-        UserAccounts user = userAccountsRepository.findByEmailAndRoleInAndStatus(email, allowedRoles, Status.ACTIVE).orElseThrow(() -> new UnauthorizedException("Unauthorized Google Account"));
+        UserAccounts user = userAccountsRepository.findByEmailAndRoleInAndStatus(email, ALLOWED_ROLES, Status.ACTIVE)
+                .orElseThrow(() -> new UnauthorizedException("Unauthorized Google Account"));
+
         if (!Boolean.TRUE.equals(user.getIsEnabled())) {
             throw new UnauthorizedException("Account disabled");
         }
@@ -49,30 +63,22 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         if (Boolean.TRUE.equals(user.getIsLocked())) {
             throw new UnauthorizedException("Account locked");
         }
+
         String accessToken;
         String refreshToken;
-
         String accessCookieName;
         String refreshCookieName;
+        boolean isAdmin = (user.getRole() == Role.ADMIN || user.getRole() == Role.HR);
 
-        if (user.getRole() == Role.ADMIN || user.getRole() == Role.HR) {
-
+        if (isAdmin) {
             accessToken = jwtService.generateAccessTokenForAdministrator(user.getUserId());
-
             refreshToken = jwtService.generateRefreshTokenForAdministrator(user.getUserId());
-
             accessCookieName = "administrator_access";
-
             refreshCookieName = "administrator_refresh";
-
         } else {
-
             accessToken = jwtService.generateAccessTokenForSupervisor(user.getUserId());
-
             refreshToken = jwtService.generateRefreshTokenForSupervisor(user.getUserId());
-
             accessCookieName = "supervisor_access";
-
             refreshCookieName = "supervisor_refresh";
         }
 
@@ -81,6 +87,9 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                 refreshToken,
                 request
         );
+
+        user.lastLoginNow();
+        userAccountsRepository.save(user);
 
         ResponseCookie accessCookie = ResponseCookie.from(accessCookieName, accessToken)
                 .httpOnly(true)
@@ -99,8 +108,19 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                 .build();
 
         response.addHeader("Set-Cookie", accessCookie.toString());
-
         response.addHeader("Set-Cookie", refreshCookie.toString());
+
+        if (isAdmin) {
+            response.addHeader("Set-Cookie", deleteCookie("supervisor_access").toString());
+            response.addHeader("Set-Cookie", deleteCookie("supervisor_refresh").toString());
+            response.addHeader("Set-Cookie", deleteCookie("student_access").toString());
+            response.addHeader("Set-Cookie", deleteCookie("student_refresh").toString());
+        } else {
+            response.addHeader("Set-Cookie", deleteCookie("administrator_access").toString());
+            response.addHeader("Set-Cookie", deleteCookie("administrator_refresh").toString());
+            response.addHeader("Set-Cookie", deleteCookie("student_access").toString());
+            response.addHeader("Set-Cookie", deleteCookie("student_refresh").toString());
+        }
 
         response.sendRedirect(successRedirectUrl);
     }

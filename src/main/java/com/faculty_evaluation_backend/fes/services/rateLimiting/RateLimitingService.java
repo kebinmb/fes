@@ -127,7 +127,7 @@ public class RateLimitingService {
     private Bucket createBucket(String endpoint) {
         return switch (endpoint) {
             case "GENERATE_ACCESS_CODE" -> newBucket(3, 1, Duration.ofMinutes(1));
-            case "AUTHENTICATE_STUDENT", "AUTHENTICATE_SUPERVISOR", "AUTHENTICATE_ADMINISTRATOR" ->
+            case "AUTHENTICATE_STUDENT", "AUTHENTICATE_SUPERVISOR", "AUTHENTICATE_ADMINISTRATOR", "AUTHENTICATE_GOOGLE" ->
                     newBucket(10, 5, Duration.ofMinutes(1));
             default -> newBucket(20, 10, Duration.ofMinutes(1));
         };

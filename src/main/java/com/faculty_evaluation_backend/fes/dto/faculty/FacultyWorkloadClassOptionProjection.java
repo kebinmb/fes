@@ -1,6 +1,8 @@
 package com.faculty_evaluation_backend.fes.dto.faculty;
 
 public interface FacultyWorkloadClassOptionProjection {
+    String getFacultyId();
+
     String getClassCode();
 
     String getCourseCode();

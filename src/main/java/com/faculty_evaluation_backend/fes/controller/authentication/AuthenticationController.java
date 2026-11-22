@@ -108,14 +108,28 @@ public class AuthenticationController {
                 request
         );
 
-        return ResponseEntity.ok().header("Set-Cookie", buildStudentAccessTokenCookie(response.getAccessToken()).toString()).header("Set-Cookie", buildStudentRefreshTokenCookie(response.getRefreshToken()).toString()).body(Map.of("message", "Authentication successful", "studentId", response.getStudentId()));
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, buildStudentAccessTokenCookie(response.getAccessToken()).toString())
+                .header(HttpHeaders.SET_COOKIE, buildStudentRefreshTokenCookie(response.getRefreshToken()).toString())
+                .header(HttpHeaders.SET_COOKIE, deleteCookie("supervisor_access").toString())
+                .header(HttpHeaders.SET_COOKIE, deleteCookie("supervisor_refresh").toString())
+                .header(HttpHeaders.SET_COOKIE, deleteCookie("administrator_access").toString())
+                .header(HttpHeaders.SET_COOKIE, deleteCookie("administrator_refresh").toString())
+                .body(Map.of("message", "Authentication successful", "studentId", response.getStudentId()));
     }
 
     @PostMapping("/supervisor/login")
     @AuditableAction(action = "AUTHENTICATE_SUPERVISOR", entity = "SUPERVISOR_AUTHENTICATION")
     public ResponseEntity<?> supervisorLogin(@Valid @RequestBody LoginRequest loginRequest, HttpServletRequest request) {
         var response = supervisorAccountsAuthenticationService.login(loginRequest, request);
-        return ResponseEntity.ok().header("Set-Cookie", buildSupervisorAccessTokenCookie(response.getAccessToken()).toString()).header("Set-Cookie", buildSupervisorRefreshTokenCookie(response.getRefreshToken()).toString()).body(Map.of("message", "Authentication successful", "evaluatorId", response.getEvaluatorId(), "college", response.getCollege(), "program", response.getPrograms(), "requiresPasswordChange",
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, buildSupervisorAccessTokenCookie(response.getAccessToken()).toString())
+                .header(HttpHeaders.SET_COOKIE, buildSupervisorRefreshTokenCookie(response.getRefreshToken()).toString())
+                .header(HttpHeaders.SET_COOKIE, deleteCookie("administrator_access").toString())
+                .header(HttpHeaders.SET_COOKIE, deleteCookie("administrator_refresh").toString())
+                .header(HttpHeaders.SET_COOKIE, deleteCookie("student_access").toString())
+                .header(HttpHeaders.SET_COOKIE, deleteCookie("student_refresh").toString())
+                .body(Map.of("message", "Authentication successful", "evaluatorId", response.getEvaluatorId(), "college", response.getCollege(), "program", response.getPrograms(), "requiresPasswordChange",
                 response.getRequiresPasswordChange()));
     }
 
@@ -124,7 +138,14 @@ public class AuthenticationController {
     public ResponseEntity<?> administratorLogin(@Valid @RequestBody LoginRequest loginRequest, HttpServletRequest request) {
         var response = administratorAccountsAuthenticationService.login(loginRequest, request);
 
-        return ResponseEntity.ok().header("Set-Cookie", buildAdministratorAccessTokenCookie(response.getAccessToken()).toString()).header("Set-Cookie", buildAdministratorRefreshTokenCookie(response.getRefreshToken()).toString()).body(Map.of("message", "Authentication successful", "administratorId", response.getEvaluatorId(), "role", response.getRole()));
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, buildAdministratorAccessTokenCookie(response.getAccessToken()).toString())
+                .header(HttpHeaders.SET_COOKIE, buildAdministratorRefreshTokenCookie(response.getRefreshToken()).toString())
+                .header(HttpHeaders.SET_COOKIE, deleteCookie("supervisor_access").toString())
+                .header(HttpHeaders.SET_COOKIE, deleteCookie("supervisor_refresh").toString())
+                .header(HttpHeaders.SET_COOKIE, deleteCookie("student_access").toString())
+                .header(HttpHeaders.SET_COOKIE, deleteCookie("student_refresh").toString())
+                .body(Map.of("message", "Authentication successful", "administratorId", response.getEvaluatorId(), "role", response.getRole()));
     }
 
     @GetMapping("/config")
@@ -149,19 +170,34 @@ public class AuthenticationController {
             refreshCookie = buildSupervisorRefreshTokenCookie(result.refreshToken());
         }
 
-        return ResponseEntity.ok()
+        var responseBuilder = ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, accessCookie.toString())
-                .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
-                .body(Map.of(
-                        "message", "Authentication successful",
-                        "userId", user.getUserId().toString(),
-                        "evaluatorId", user.getUserId().toString(),
-                        "email", user.getEmail(),
-                        "role", "ROLE_" + user.getRole().name(),
-                        "college", user.getCollege() != null ? user.getCollege().name() : "",
-                        "program", user.getPrograms() != null ? user.getPrograms().name() : "",
-                        "requiresPasswordChange", user.getPasswordChangedAt() == null
-                ));
+                .header(HttpHeaders.SET_COOKIE, refreshCookie.toString());
+
+        if (result.isAdminRole()) {
+            responseBuilder
+                    .header(HttpHeaders.SET_COOKIE, deleteCookie("supervisor_access").toString())
+                    .header(HttpHeaders.SET_COOKIE, deleteCookie("supervisor_refresh").toString())
+                    .header(HttpHeaders.SET_COOKIE, deleteCookie("student_access").toString())
+                    .header(HttpHeaders.SET_COOKIE, deleteCookie("student_refresh").toString());
+        } else {
+            responseBuilder
+                    .header(HttpHeaders.SET_COOKIE, deleteCookie("administrator_access").toString())
+                    .header(HttpHeaders.SET_COOKIE, deleteCookie("administrator_refresh").toString())
+                    .header(HttpHeaders.SET_COOKIE, deleteCookie("student_access").toString())
+                    .header(HttpHeaders.SET_COOKIE, deleteCookie("student_refresh").toString());
+        }
+
+        return responseBuilder.body(Map.of(
+                "message", "Authentication successful",
+                "userId", user.getUserId().toString(),
+                "evaluatorId", user.getUserId().toString(),
+                "email", user.getEmail(),
+                "role", "ROLE_" + user.getRole().name(),
+                "college", user.getCollege() != null ? user.getCollege().name() : "",
+                "program", user.getPrograms() != null ? user.getPrograms().name() : "",
+                "requiresPasswordChange", user.getPasswordChangedAt() == null
+        ));
     }
 
     @GetMapping("/me")

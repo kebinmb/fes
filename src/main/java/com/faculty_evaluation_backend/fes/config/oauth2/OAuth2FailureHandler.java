@@ -11,7 +11,7 @@ import java.io.IOException;
 
 @Component
 public class OAuth2FailureHandler extends SimpleUrlAuthenticationFailureHandler {
-    @Value("${app.oauth2.redirect-url-failure}")
+    @Value("${app.oauth2.redirect-url-failure:http://localhost:4200/oauth-failure}")
     private String failureRedirectUrl;
     @Override
     public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response, org.springframework.security.core.AuthenticationException exception) throws IOException, ServletException {

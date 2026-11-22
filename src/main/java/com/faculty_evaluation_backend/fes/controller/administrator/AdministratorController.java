@@ -391,12 +391,8 @@ public class AdministratorController {
             @RequestParam(required = false) Integer schoolYear,
             @RequestParam(required = false) String semester
     ) {
-        int updated = administratorService.syncFacultyWorkloadsFromPrimaryClasses(schoolYear, semester);
-        return ResponseEntity.ok(Map.of(
-                "status", "SUCCESS",
-                "message", "Synchronized faculty workloads from primary classes and subjects.",
-                "updatedCount", updated
-        ));
+        Map<String, Object> result = administratorService.autoPopulateAndSyncFacultyWorkloads(schoolYear, semester);
+        return ResponseEntity.ok(result);
     }
 
     @GetMapping("/faculty-evaluation-score/{facultyId}")

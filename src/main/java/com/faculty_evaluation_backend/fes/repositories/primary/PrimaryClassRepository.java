@@ -214,6 +214,7 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
 
     @Query(value = """
             SELECT
+                pc.faculty_id AS facultyId,
                 pc.class_code AS classCode,
                 pc.subject_code AS courseCode,
                 ps.section_id AS sectionId,
@@ -297,6 +298,96 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
             """, nativeQuery = true)
     List<FacultyWorkloadClassOptionProjection> findFacultyWorkloadClassOptionRows(
             @Param("facultyId") String facultyId,
+            @Param("schoolYear") Integer schoolYear,
+            @Param("semester") String semester
+    );
+
+    @Query(value = """
+            SELECT
+                pc.faculty_id AS facultyId,
+                pc.class_code AS classCode,
+                pc.subject_code AS courseCode,
+                ps.section_id AS sectionId,
+                ps.program_code AS programCode,
+                ps.year_level AS yearLevel,
+                ps.section_code AS sectionCode,
+                COALESCE(psub.lec_units, 0.0) AS lecUnits,
+                COALESCE(psub.lab_units, 0.0) AS labUnits,
+                COALESCE(psub.lec_hours, 0.0) AS lecHours,
+                COALESCE(psub.lab_hours, 0.0) AS labHours,
+                (COALESCE(psub.lec_hours, 0.0) + COALESCE(psub.lab_hours, 0.0)) AS totalHoursPerWeek,
+                (COALESCE(psub.lec_units, 0.0) + COALESCE(psub.lab_units, 0.0)) AS totalTeachingLoad
+            FROM primary_class pc
+            INNER JOIN primary_section ps
+                ON ps.section_id = pc.section_id
+            LEFT JOIN primary_subject psub
+                ON psub.subject_code = pc.subject_code
+            LEFT JOIN faculty_workload fw
+                ON (fw.faculty_id) =
+                   (pc.faculty_id)
+               AND fw.school_year = pc.school_year
+               AND (
+                    (LOWER(TRIM(fw.semester))) =
+                    (LOWER(TRIM(pc.semester)))
+                    OR (
+                        UPPER(TRIM(fw.semester)) = 'FIRST_SEMESTER'
+                        AND LOWER(TRIM(pc.semester)) = '1st'
+                    )
+                    OR (
+                        UPPER(TRIM(fw.semester)) = 'SECOND_SEMESTER'
+                        AND LOWER(TRIM(pc.semester)) = '2nd'
+                    )
+                    OR (
+                        UPPER(TRIM(fw.semester)) = 'SUMMER_SEMESTER'
+                        AND LOWER(TRIM(pc.semester)) = 'summer'
+                    )
+               )
+               AND (
+                    (fw.class_code) =
+                    (pc.class_code)
+                    OR (
+                        fw.class_code IS NULL
+                        AND (fw.course_code) =
+                            (pc.subject_code)
+                        AND (fw.program_code) =
+                            (ps.program_code)
+                        AND (fw.year_level) =
+                            (ps.year_level)
+                        AND (fw.section_code) =
+                            (ps.section_code)
+                    )
+               )
+            WHERE pc.school_year = :schoolYear
+              AND (
+                    LOWER(TRIM(pc.semester)) = LOWER(TRIM(:semester))
+                    OR (
+                        UPPER(TRIM(:semester)) IN ('1ST', 'FIRST_SEMESTER')
+                        AND UPPER(TRIM(pc.semester)) IN ('1ST', 'FIRST_SEMESTER')
+                    )
+                    OR (
+                        UPPER(TRIM(:semester)) IN ('2ND', 'SECOND_SEMESTER')
+                        AND UPPER(TRIM(pc.semester)) IN ('2ND', 'SECOND_SEMESTER')
+                    )
+                    OR (
+                        UPPER(TRIM(:semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
+                        AND UPPER(TRIM(pc.semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
+                    )
+              )
+              AND pc.faculty_id IS NOT NULL
+              AND TRIM(pc.faculty_id) != ''
+              AND pc.subject_code IS NOT NULL
+              AND pc.section_id IS NOT NULL
+              AND pc.class_code IS NOT NULL
+              AND fw.faculty_workload_id IS NULL
+            ORDER BY
+                pc.faculty_id ASC,
+                pc.subject_code ASC,
+                ps.program_code ASC,
+                ps.year_level ASC,
+                ps.section_code ASC,
+                pc.class_code ASC
+            """, nativeQuery = true)
+    List<FacultyWorkloadClassOptionProjection> findUnpopulatedClassOptionsForTerm(
             @Param("schoolYear") Integer schoolYear,
             @Param("semester") String semester
     );

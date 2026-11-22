@@ -59,8 +59,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -1335,13 +1338,40 @@ public class AdministratorService {
             }
         });
 
-        Integer effectiveNumberOfPreparations =
-                safeNumberOfPreparations(numberOfPreparations);
-        BigDecimal effectiveDesignationEtu = safeBigDecimal(designationEtu);
+        Integer effectiveNumberOfPreparations = numberOfPreparations;
+        if (effectiveNumberOfPreparations == null) {
+            effectiveNumberOfPreparations = termWorkloads.stream()
+                    .map(FacultyWorkload::getNumberOfPreparations)
+                    .filter(n -> n != null && n > 0)
+                    .findFirst()
+                    .orElseGet(() -> {
+                        long distinctCourses = termWorkloads.stream()
+                                .map(FacultyWorkload::getCourseCode)
+                                .filter(Objects::nonNull)
+                                .map(String::trim)
+                                .filter(s -> !s.isEmpty())
+                                .distinct()
+                                .count();
+                        return (int) Math.max(distinctCourses, 1);
+                    });
+        }
+        effectiveNumberOfPreparations = safeNumberOfPreparations(effectiveNumberOfPreparations);
+
+        BigDecimal effectiveDesignationEtu = designationEtu;
+        if (effectiveDesignationEtu == null) {
+            effectiveDesignationEtu = termWorkloads.stream()
+                    .map(FacultyWorkload::getDesignationEtu)
+                    .filter(d -> d != null && d.compareTo(BigDecimal.ZERO) > 0)
+                    .findFirst()
+                    .orElse(BigDecimal.ZERO);
+        }
+        effectiveDesignationEtu = safeBigDecimal(effectiveDesignationEtu);
+
         BigDecimal loadLimit =
                 effectiveLoadLimit(effectiveNumberOfPreparations);
 
-        termWorkloads.forEach(termWorkload -> {
+        BigDecimal cumulativeLoad = BigDecimal.ZERO;
+        for (FacultyWorkload termWorkload : termWorkloads) {
             BigDecimal totalWorkload =
                     totalTeachingLoad.add(effectiveDesignationEtu);
             BigDecimal overloadHours = totalWorkload.subtract(loadLimit);
@@ -1355,7 +1385,15 @@ public class AdministratorService {
                             ? overloadHours
                             : BigDecimal.ZERO
             );
-        });
+
+            BigDecimal classHours = safeBigDecimal(termWorkload.getTotalHoursPerWeek());
+            cumulativeLoad = cumulativeLoad.add(classHours);
+            if (cumulativeLoad.compareTo(loadLimit) > 0 && overloadHours.compareTo(BigDecimal.ZERO) > 0) {
+                termWorkload.setLoadStatus("Overload");
+            } else {
+                termWorkload.setLoadStatus("Regular");
+            }
+        }
 
         facultyWorkloadRepository.saveAll(termWorkloads);
     }
@@ -1476,49 +1514,157 @@ public class AdministratorService {
             },
             allEntries = true
     )
-    public int syncFacultyWorkloadsFromPrimaryClasses(Integer schoolYear, String semester) {
-        log.info("Starting synchronization of faculty workloads from primary classes (year: {}, semester: {})",
-                schoolYear, semester);
+    public Map<String, Object> autoPopulateAndSyncFacultyWorkloads(Integer schoolYear, String semester) {
+        Integer resolvedYear = schoolYear;
+        String resolvedSemester = semester;
 
-        List<FacultyWorkload> allWorkloads;
-        if (schoolYear != null && semester != null && !semester.isBlank()) {
-            allWorkloads = facultyWorkloadRepository.searchWorkloads(
-                    null,
-                    schoolYear,
-                    normalizeSemester(semester),
-                    PageRequest.of(0, 5000)
-            ).getContent();
-        } else {
-            allWorkloads = facultyWorkloadRepository.findAll();
+        if (resolvedYear == null || resolvedSemester == null || resolvedSemester.isBlank()) {
+            SchoolYearAndSemester activeTerm = schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE)
+                    .orElseThrow(() -> new ResourceNotFoundException("No active school year and semester found."));
+            resolvedYear = activeTerm.getSchoolYear();
+            resolvedSemester = activeTerm.getSemester().getValue();
         }
+
+        final Integer targetYear = resolvedYear;
+        final String canonicalSemester = normalizeSemester(resolvedSemester);
+
+        log.info("Starting auto-population and synchronization of faculty workloads for year: {}, semester: {}",
+                targetYear, canonicalSemester);
+
+        // Step 1: Find all unpopulated class assignments in primary_class for this term
+        List<FacultyWorkloadClassOptionProjection> unpopulated =
+                primaryClassRepository.findUnpopulatedClassOptionsForTerm(targetYear, canonicalSemester);
+
+        int createdCount = 0;
+        Set<String> affectedFacultyIds = new HashSet<>();
+
+        if (!unpopulated.isEmpty()) {
+            List<FacultyWorkload> newWorkloads = new ArrayList<>();
+            Map<String, BigDecimal> facultyDesignationCache = new HashMap<>();
+
+            for (FacultyWorkloadClassOptionProjection opt : unpopulated) {
+                if (opt.getFacultyId() == null || opt.getFacultyId().isBlank()) {
+                    continue;
+                }
+
+                String facultyId = opt.getFacultyId().trim();
+                FacultyWorkload fw = new FacultyWorkload();
+                fw.setFacultyId(facultyId);
+                fw.setSchoolYear(targetYear);
+                fw.setSemester(canonicalSemester);
+                fw.setClassCode(normalizeBlank(opt.getClassCode()));
+                fw.setCourseCode(opt.getCourseCode() != null ? opt.getCourseCode().trim() : "");
+                fw.setProgramCode(opt.getProgramCode() != null ? opt.getProgramCode().trim() : "");
+                fw.setYearLevel(opt.getYearLevel() != null ? opt.getYearLevel().trim() : "");
+                fw.setSectionCode(opt.getSectionCode() != null ? opt.getSectionCode().trim() : "");
+
+                // Calculate hours: prefer explicit totalHours, then lec+lab formula (lec*1 + lab*3), fallback 3.0
+                double hours = 0.0;
+                if (opt.getTotalHoursPerWeek() != null && opt.getTotalHoursPerWeek() > 0) {
+                    hours = opt.getTotalHoursPerWeek();
+                } else if (opt.getLecHours() != null || opt.getLabHours() != null) {
+                    hours = (opt.getLecHours() != null ? opt.getLecHours() : 0.0)
+                            + (opt.getLabHours() != null ? opt.getLabHours() : 0.0);
+                } else if (opt.getLecUnits() != null || opt.getLabUnits() != null) {
+                    double lecU = opt.getLecUnits() != null ? opt.getLecUnits() : 0.0;
+                    double labU = opt.getLabUnits() != null ? opt.getLabUnits() : 0.0;
+                    hours = (lecU * 1.0) + (labU * 3.0);
+                }
+                if (hours <= 0.0) {
+                    hours = 3.0; // standard collegiate course default
+                }
+
+                BigDecimal inheritedDesignation = facultyDesignationCache.computeIfAbsent(facultyId, fid -> {
+                    List<FacultyWorkload> currentWorkloads = facultyWorkloadRepository
+                            .findAllByFacultyIdAndSchoolYearAndEquivalentSemester(fid, targetYear, canonicalSemester);
+                    for (FacultyWorkload existing : currentWorkloads) {
+                        if (existing.getDesignationEtu() != null && existing.getDesignationEtu().compareTo(BigDecimal.ZERO) > 0) {
+                            return existing.getDesignationEtu();
+                        }
+                    }
+                    List<BigDecimal> priorEtus = facultyWorkloadRepository.findPriorDesignationEtus(
+                            fid,
+                            targetYear,
+                            canonicalSemester,
+                            PageRequest.of(0, 1)
+                    );
+                    return (priorEtus != null && !priorEtus.isEmpty() && priorEtus.get(0) != null)
+                            ? priorEtus.get(0)
+                            : BigDecimal.ZERO;
+                });
+
+                fw.setTotalHoursPerWeek(BigDecimal.valueOf(hours));
+                fw.setTotalTeachingLoad(BigDecimal.ZERO);
+                fw.setNumberOfPreparations(1);
+                fw.setDesignationEtu(inheritedDesignation);
+                fw.setTotalWorkload(BigDecimal.ZERO);
+                fw.setOverloadHours(BigDecimal.ZERO);
+                fw.setLoadStatus("Regular");
+                fw.setSource(FacultyWorkloadSource.SYSTEM);
+
+                newWorkloads.add(fw);
+                affectedFacultyIds.add(fw.getFacultyId());
+            }
+
+            if (!newWorkloads.isEmpty()) {
+                facultyWorkloadRepository.saveAll(newWorkloads);
+                createdCount = newWorkloads.size();
+                log.info("Auto-created {} new faculty workload assignments.", createdCount);
+            }
+        }
+
+        // Step 2: Synchronize and repair hours for all existing workloads in this term
+        List<FacultyWorkload> allWorkloads = facultyWorkloadRepository.searchWorkloads(
+                null,
+                targetYear,
+                canonicalSemester,
+                PageRequest.of(0, 10000)
+        ).getContent();
 
         int updatedCount = 0;
-        Set<String> processedFacultyTerms = new HashSet<>();
-
         for (FacultyWorkload fw : allWorkloads) {
-            var classHours = primaryClassRepository.findClassSubjectHours(
-                    fw.getFacultyId(),
-                    fw.getClassCode(),
-                    fw.getCourseCode()
-            );
-            if (classHours.isPresent() && classHours.get().getTotalHoursPerWeek() != null) {
-                fw.setTotalHoursPerWeek(BigDecimal.valueOf(classHours.get().getTotalHoursPerWeek()));
-                updatedCount++;
-            }
+            affectedFacultyIds.add(fw.getFacultyId());
 
-            String termKey = fw.getFacultyId() + "|" + fw.getSchoolYear() + "|" + fw.getSemester();
-            if (processedFacultyTerms.add(termKey)) {
-                updateFacultyTermTeachingLoad(
+            if (fw.getTotalHoursPerWeek() == null || fw.getTotalHoursPerWeek().compareTo(BigDecimal.ZERO) == 0) {
+                var classHours = primaryClassRepository.findClassSubjectHours(
                         fw.getFacultyId(),
-                        fw.getSchoolYear(),
-                        fw.getSemester(),
-                        fw.getNumberOfPreparations(),
-                        fw.getDesignationEtu()
+                        fw.getClassCode(),
+                        fw.getCourseCode()
                 );
+                if (classHours.isPresent() && classHours.get().getTotalHoursPerWeek() != null && classHours.get().getTotalHoursPerWeek() > 0) {
+                    fw.setTotalHoursPerWeek(BigDecimal.valueOf(classHours.get().getTotalHoursPerWeek()));
+                    updatedCount++;
+                } else {
+                    fw.setTotalHoursPerWeek(BigDecimal.valueOf(3.0));
+                    updatedCount++;
+                }
             }
         }
 
-        log.info("Finished faculty workload synchronization. Updated {} workload records.", updatedCount);
-        return updatedCount;
+        // Step 3: Recalculate teaching load, preparations, overload hours and loadStatus for all affected faculty
+        for (String facultyId : affectedFacultyIds) {
+            updateFacultyTermTeachingLoad(
+                    facultyId,
+                    targetYear,
+                    canonicalSemester,
+                    null,
+                    null
+            );
+        }
+
+        log.info("Finished faculty workload auto-population. Created: {}, Updated: {}", createdCount, updatedCount);
+
+        return Map.of(
+                "status", "SUCCESS",
+                "message", String.format("Auto-populated %d new assignments and synchronized %d workload records.",
+                        createdCount, updatedCount),
+                "createdCount", createdCount,
+                "updatedCount", updatedCount
+        );
+    }
+
+    public int syncFacultyWorkloadsFromPrimaryClasses(Integer schoolYear, String semester) {
+        Map<String, Object> result = autoPopulateAndSyncFacultyWorkloads(schoolYear, semester);
+        return (Integer) result.getOrDefault("createdCount", 0) + (Integer) result.getOrDefault("updatedCount", 0);
     }
 }

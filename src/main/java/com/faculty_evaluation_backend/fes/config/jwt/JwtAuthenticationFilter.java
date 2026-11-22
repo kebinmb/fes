@@ -133,7 +133,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 path.equals("/auth/supervisor/login") ||
                 path.equals("/auth/access-code/generate") ||
                 path.equals("/auth/csrf") ||
-                path.equals("/auth/administrator/login");
+                path.equals("/auth/administrator/login") ||
+                path.equals("/auth/google") ||
+                path.equals("/auth/config") ||
+                path.startsWith("/verify-report") ||
+                path.startsWith("/oauth2");
     }
     private String extractAccessToken(HttpServletRequest request) {
 
