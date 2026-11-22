@@ -137,6 +137,38 @@ public interface PrimaryFacultyRepository extends JpaRepository<PrimaryFaculty, 
     @Query("""
                 SELECT f
                 FROM PrimaryFaculty f
+                WHERE (
+                        :college IS NULL
+                        OR f.college = :college
+                  )
+                  AND (
+                        :legacyDatabase IS NULL
+                        OR :legacyDatabase = ''
+                        OR f.legacyDatabase = :legacyDatabase
+                  )
+                  AND (
+                        :search IS NULL
+                        OR :search = ''
+                        OR LOWER(COALESCE(f.firstname, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                        OR LOWER(COALESCE(f.lastname, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                        OR LOWER(COALESCE(f.facultyId, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                        OR LOWER(COALESCE(f.position, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+                        OR LOWER(CONCAT(COALESCE(f.firstname, ''), ' ', COALESCE(f.lastname, '')))
+                           LIKE LOWER(CONCAT('%', :search, '%'))
+                        OR LOWER(CONCAT(COALESCE(f.lastname, ''), ', ', COALESCE(f.firstname, '')))
+                           LIKE LOWER(CONCAT('%', :search, '%'))
+                  )
+            """)
+    Page<PrimaryFaculty> searchFaculties(
+            @Param("search") String search,
+            @Param("college") College college,
+            @Param("legacyDatabase") String legacyDatabase,
+            Pageable pageable
+    );
+
+    @Query("""
+                SELECT f
+                FROM PrimaryFaculty f
                 WHERE (f.college IS NULL OR f.college <> :excludedCollege)
                   AND (
                         :legacyDatabase IS NULL

@@ -1,5 +1,6 @@
 package com.faculty_evaluation_backend.fes.dto.response;
 
+import com.faculty_evaluation_backend.fes.config.database.LegacyDatabase;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.College;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.Status;
 import lombok.Builder;
@@ -17,4 +18,6 @@ public class FetchFacultyResponse {
     private Status status;
     private College college;
     private String legacyDatabase;
+    private LegacyDatabase sourceCampus;
+    private String campus;
 }

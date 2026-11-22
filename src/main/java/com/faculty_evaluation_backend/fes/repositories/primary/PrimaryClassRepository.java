@@ -456,6 +456,45 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
             """)
     Set<String> findLegacyIdsByDatabase(@Param("database") String database);
 
+    @Query("""
+                SELECT pc.legacyId
+                FROM PrimaryClass pc
+                WHERE pc.legacyDatabase = :database
+                  AND pc.schoolYear = :schoolYear
+                  AND LOWER(TRIM(pc.semester)) = LOWER(TRIM(:semester))
+            """)
+    Set<String> findLegacyIdsByDatabaseAndTerm(
+            @Param("database") String database,
+            @Param("schoolYear") Integer schoolYear,
+            @Param("semester") String semester
+    );
+
+    @Query("""
+                SELECT pc
+                FROM PrimaryClass pc
+                WHERE pc.legacyDatabase = :database
+                  AND pc.schoolYear = :schoolYear
+                  AND LOWER(TRIM(pc.semester)) = LOWER(TRIM(:semester))
+            """)
+    List<PrimaryClass> findByLegacyDatabaseAndSchoolYearAndSemester(
+            @Param("database") String database,
+            @Param("schoolYear") Integer schoolYear,
+            @Param("semester") String semester
+    );
+
+    @Query("""
+                SELECT DISTINCT pc.classCode
+                FROM PrimaryClass pc
+                WHERE pc.legacyDatabase = :database
+                  AND pc.schoolYear = :schoolYear
+                  AND LOWER(TRIM(pc.semester)) = LOWER(TRIM(:semester))
+            """)
+    Set<String> findClassCodesByDatabaseAndTerm(
+            @Param("database") String database,
+            @Param("schoolYear") Integer schoolYear,
+            @Param("semester") String semester
+    );
+
     @Query(value = """
             
             SELECT

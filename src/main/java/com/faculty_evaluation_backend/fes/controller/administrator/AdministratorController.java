@@ -2,6 +2,7 @@ package com.faculty_evaluation_backend.fes.controller.administrator;
 
 import com.faculty_evaluation_backend.fes.audit.AuditableAction;
 import com.faculty_evaluation_backend.fes.audit.AuditLogService;
+import com.faculty_evaluation_backend.fes.config.database.LegacyDatabase;
 import com.faculty_evaluation_backend.fes.dto.audit.AuditLogSliceResponse;
 import com.faculty_evaluation_backend.fes.controller.evaluation.EvaluationController;
 import com.faculty_evaluation_backend.fes.dto.audit.AuditLogResponse;
@@ -190,18 +191,20 @@ public class AdministratorController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String search,
-            @RequestParam(required = false) String legacyDatabase
+            @RequestParam(required = false) String legacyDatabase,
+            @RequestParam(required = false) College college
     ) {
 
         log.info(
-                "Fetching faculty list | page: {} size: {} search: {} legacyDatabase: {}",
+                "Fetching faculty list | page: {} size: {} search: {} legacyDatabase: {} college: {}",
                 page,
                 size,
                 search,
-                legacyDatabase
+                legacyDatabase,
+                college
         );
 
-        return administratorService.facultyList(page, size, search, legacyDatabase);
+        return administratorService.facultyList(page, size, search, legacyDatabase, college);
     }
 
     @GetMapping("/class-assignments")
@@ -268,11 +271,33 @@ public class AdministratorController {
 
     @PutMapping("/update-faculty")
     @AuditableAction(action = "UPDATE", entity = "FACULTY")
-    public ResponseEntity<String> updateFaculty(@RequestParam String facultyId, @RequestParam String firstname, @RequestParam(required = false) String middlename, @RequestParam String lastname, @RequestParam String position, @RequestParam Double loadLimit, @RequestParam College college, @RequestParam Status status) {
+    public ResponseEntity<String> updateFaculty(
+            @RequestParam String facultyId,
+            @RequestParam String firstname,
+            @RequestParam(required = false) String middlename,
+            @RequestParam String lastname,
+            @RequestParam String position,
+            @RequestParam Double loadLimit,
+            @RequestParam College college,
+            @RequestParam Status status,
+            @RequestParam(required = false) LegacyDatabase sourceCampus,
+            @RequestParam(required = false) String legacyDatabase
+    ) {
 
         log.info("Updating faculty with facultyId: {}", facultyId);
 
-        String response = administratorService.updateFaculty(facultyId, firstname, middlename, lastname, position, loadLimit, college, status);
+        String response = administratorService.updateFaculty(
+                facultyId,
+                firstname,
+                middlename,
+                lastname,
+                position,
+                loadLimit,
+                college,
+                status,
+                sourceCampus,
+                legacyDatabase
+        );
 
         return ResponseEntity.ok(response);
     }

@@ -1,6 +1,7 @@
 package com.faculty_evaluation_backend.fes.migration.services;
 
 import com.faculty_evaluation_backend.fes.config.database.LegacyDatabase;
+import com.faculty_evaluation_backend.fes.utilities.normalization.SemesterNormalizer;
 
 public class MigrationIdGenerator {
 
@@ -42,5 +43,18 @@ public class MigrationIdGenerator {
         };
 
         return prefix + "-" + originalId;
+    }
+
+    public static String generateClassLegacyId(
+            Object classCode,
+            Integer schoolYear,
+            String semester
+    ) {
+        if (classCode == null) {
+            return null;
+        }
+        String canonicalSemester = SemesterNormalizer.toCanonicalValue(semester);
+        String sem = (canonicalSemester != null) ? canonicalSemester : (semester != null ? semester.trim() : "");
+        return classCode.toString().trim() + "_" + (schoolYear != null ? schoolYear : "") + "_" + sem;
     }
 }

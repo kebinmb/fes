@@ -1,13 +1,17 @@
 package com.faculty_evaluation_backend.fes.migration.services;
 
 import com.faculty_evaluation_backend.fes.config.database.LegacyDatabase;
+import com.faculty_evaluation_backend.fes.entities.data.SchoolYearAndSemester;
 import com.faculty_evaluation_backend.fes.entities.legacy.LegacyStudentLoad;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryStudentLoad;
+import com.faculty_evaluation_backend.fes.entities.primary.enums.Status;
 import com.faculty_evaluation_backend.fes.migration.engine.ParallelMigrationExecutor;
+import com.faculty_evaluation_backend.fes.repositories.data.SchoolYearAndSemesterRepository;
 import com.faculty_evaluation_backend.fes.repositories.legacy.LegacyStudentLoadRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryClassRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryStudentLoadRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryStudentRepository;
+import com.faculty_evaluation_backend.fes.utilities.normalization.SemesterNormalizer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,6 +29,7 @@ public class StudentLoadMigration extends BaseMigrationService {
     private final ParallelMigrationExecutor parallelMigrationExecutor;
     private final PrimaryClassRepository primaryClassRepository;
     private final PrimaryStudentRepository primaryStudentRepository;
+    private final SchoolYearAndSemesterRepository schoolYearAndSemesterRepository;
     private static final int BATCH_SIZE = 500;
 
     public void migrate() {
@@ -36,17 +41,37 @@ public class StudentLoadMigration extends BaseMigrationService {
                     database.name()
             );
 
+            SchoolYearAndSemester filterData =
+                    schoolYearAndSemesterRepository
+                            .findByStatus(Status.ACTIVE)
+                            .orElseThrow(() ->
+                                    new RuntimeException(
+                                            "No active school year and semester found."
+                                    )
+                            );
+
+            String canonicalSemester =
+                    SemesterNormalizer.toCanonicalValue(
+                            filterData.getSemester().getValue()
+                    );
+            Integer activeSchoolYear = filterData.getSchoolYear();
+
             List<LegacyStudentLoad> data =
                     legacyStudentLoadRepository.findAll();
             log.info(
-                    "Fetched {} subject records from {}",
+                    "Fetched {} student load records from {}",
                     data.size(),
                     database.name()
             );
 
+            // Only consider class codes that belong to the active term in primary_class
             Set<String> validClassCodes =
                     primaryClassRepository
-                            .findLegacyIdsByDatabase(database.name());
+                            .findClassCodesByDatabaseAndTerm(
+                                    database.name(),
+                                    activeSchoolYear,
+                                    canonicalSemester
+                            );
 
             Set<String> validStudentIds =
                     primaryStudentRepository
@@ -63,13 +88,17 @@ public class StudentLoadMigration extends BaseMigrationService {
 
                         List<PrimaryStudentLoad> toSave = batch.stream()
                                 .filter(ls -> ls != null && ls.getId() != null)
-                                .filter(ls ->
-                                        validClassCodes.contains(
-                                                ls.getId()
-                                                        .getClassCode()
-                                                        .toString()
-                                        )
-                                )
+                                .filter(ls -> {
+                                    if (ls.getId().getClassCode() == null) {
+                                        return false;
+                                    }
+                                    String generatedClassCode =
+                                            MigrationIdGenerator.generateStringId(
+                                                    database,
+                                                    ls.getId().getClassCode().toString()
+                                            );
+                                    return validClassCodes.contains(generatedClassCode);
+                                })
                                 .filter(ls ->
                                         !existingLegacyIds.contains(
                                                 ls.getId()
@@ -96,7 +125,7 @@ public class StudentLoadMigration extends BaseMigrationService {
                                     "Saved {} student load records from {}",
                                     toSave.size(),
                                     database.name()
-                            );
+                                );
                         }
                     });
 

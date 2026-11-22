@@ -1,5 +1,6 @@
 package com.faculty_evaluation_backend.fes.services.data.admin;
 
+import com.faculty_evaluation_backend.fes.config.database.LegacyDatabase;
 import com.faculty_evaluation_backend.fes.dto.data.SchoolYearAndSemesterDTO;
 import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardFacultyLoadResponse;
 import com.faculty_evaluation_backend.fes.dto.dashboard.AdminDashboardProgramBreakdownResponse;
@@ -400,7 +401,8 @@ public class AdministratorService {
             int page,
             int size,
             String search,
-            String legacyDatabase
+            String legacyDatabase,
+            College college
     ) {
 
         Page<PrimaryFaculty> facultyPage;
@@ -417,16 +419,47 @@ public class AdministratorService {
         String normalizedSearch = normalizeOptional(search);
         String normalizedLegacyDatabase = normalizeLegacyDatabase(legacyDatabase);
 
-        facultyPage = primaryFacultyRepository.searchExcludingCollege(
+        facultyPage = primaryFacultyRepository.searchFaculties(
                 normalizedSearch,
-                College.FOR_MIGRATION,
+                college,
                 normalizedLegacyDatabase,
                 pageable
         );
 
-        List<FetchFacultyResponse> responseList = facultyPage.getContent().stream().map(faculty -> FetchFacultyResponse.builder().facultyId(faculty.getFacultyId()).firstname(faculty.getFirstname()).lastname(faculty.getLastname()).middlename(faculty.getMiddlename()).position(faculty.getPosition()).loadLimit(faculty.getLoadLimit() != null ? faculty.getLoadLimit().toString() : null).status(faculty.getStatus()).college(faculty.getCollege()).legacyDatabase(faculty.getLegacyDatabase()).build()).toList();
+        List<FetchFacultyResponse> responseList = facultyPage.getContent().stream().map(faculty -> FetchFacultyResponse.builder()
+                .facultyId(faculty.getFacultyId())
+                .firstname(faculty.getFirstname())
+                .lastname(faculty.getLastname())
+                .middlename(faculty.getMiddlename())
+                .position(faculty.getPosition())
+                .loadLimit(faculty.getLoadLimit() != null ? faculty.getLoadLimit().toString() : null)
+                .status(faculty.getStatus())
+                .college(faculty.getCollege())
+                .legacyDatabase(faculty.getLegacyDatabase())
+                .sourceCampus(faculty.getSourceCampus())
+                .campus(faculty.getCampus())
+                .build()).toList();
 
-        return PageResponse.<FetchFacultyResponse>builder().content(responseList).page(facultyPage.getNumber()).size(facultyPage.getSize()).totalElements(facultyPage.getTotalElements()).totalPages(facultyPage.getTotalPages()).build();
+        return PageResponse.<FetchFacultyResponse>builder()
+                .content(responseList)
+                .page(facultyPage.getNumber())
+                .size(facultyPage.getSize())
+                .totalElements(facultyPage.getTotalElements())
+                .totalPages(facultyPage.getTotalPages())
+                .build();
+    }
+
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
+    public PageResponse<FetchFacultyResponse> facultyList(
+            int page,
+            int size,
+            String search,
+            String legacyDatabase
+    ) {
+        return facultyList(page, size, search, legacyDatabase, null);
     }
 
     @Transactional(
@@ -478,18 +511,69 @@ public class AdministratorService {
             },
             allEntries = true
     )
-    public String updateFaculty(String facultyId, String firstname, String middlename, String lastname, String position, Double loadLimit, College college, Status status) {
+    @Transactional(transactionManager = "primaryTransactionManager")
+    public String updateFaculty(
+            String facultyId,
+            String firstname,
+            String middlename,
+            String lastname,
+            String position,
+            Double loadLimit,
+            College college,
+            Status status,
+            LegacyDatabase sourceCampus,
+            String legacyDatabase
+    ) {
+        PrimaryFaculty faculty = primaryFacultyRepository.findByFacultyId(facultyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Faculty not found."));
 
-        primaryFacultyRepository.findByFacultyId(facultyId).orElseThrow(() -> new ResourceNotFoundException("Faculty not found."));
+        faculty.setFirstname(firstname);
+        faculty.setMiddlename(middlename);
+        faculty.setLastname(lastname);
+        faculty.setPosition(position);
+        faculty.setLoadLimit(loadLimit);
+        faculty.setCollege(college);
+        faculty.setStatus(status);
 
-        int updatedRows = primaryFacultyRepository.updateFaculty(facultyId, firstname, middlename, lastname, position, loadLimit, college, status);
-
-        if (updatedRows > 0) {
-
-            return "Faculty updated successfully.";
+        if (sourceCampus != null) {
+            faculty.setSourceCampus(sourceCampus);
+            if (legacyDatabase == null || legacyDatabase.isBlank()) {
+                faculty.setLegacyDatabase(sourceCampus.name());
+            }
         }
 
-        throw new BadRequestException("Failed to update faculty.");
+        if (legacyDatabase != null && !legacyDatabase.isBlank()) {
+            String trimmedDb = legacyDatabase.trim();
+            faculty.setLegacyDatabase(trimmedDb);
+            if (sourceCampus == null) {
+                try {
+                    faculty.setSourceCampus(LegacyDatabase.valueOf(trimmedDb.toUpperCase()));
+                } catch (IllegalArgumentException ignored) {
+                }
+            }
+        }
+
+        String dbName = faculty.getLegacyDatabase() != null ? faculty.getLegacyDatabase() :
+                (faculty.getSourceCampus() != null ? faculty.getSourceCampus().name() : null);
+
+        if (dbName != null) {
+            String campus = switch (dbName.toUpperCase()) {
+                case "LEGACY_TALISAY", "TALISAY" -> "TALISAY";
+                case "LEGACY_ALIJIS", "ALIJIS" -> "ALIJIS";
+                case "LEGACY_BINALBAGAN", "BINALBAGAN" -> "BINALBAGAN";
+                case "LEGACY_FT", "FT" -> "FT";
+                default -> faculty.getCampus();
+            };
+            faculty.setCampus(campus);
+        }
+
+        primaryFacultyRepository.save(faculty);
+
+        return "Faculty updated successfully.";
+    }
+
+    public String updateFaculty(String facultyId, String firstname, String middlename, String lastname, String position, Double loadLimit, College college, Status status) {
+        return updateFaculty(facultyId, firstname, middlename, lastname, position, loadLimit, college, status, null, null);
     }
 
     @Transactional(
