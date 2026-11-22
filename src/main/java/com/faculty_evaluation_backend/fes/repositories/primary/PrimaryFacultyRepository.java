@@ -142,6 +142,10 @@ public interface PrimaryFacultyRepository extends JpaRepository<PrimaryFaculty, 
                         OR f.college = :college
                   )
                   AND (
+                        :status IS NULL
+                        OR f.status = :status
+                  )
+                  AND (
                         :legacyDatabase IS NULL
                         OR :legacyDatabase = ''
                         OR f.legacyDatabase = :legacyDatabase
@@ -162,6 +166,7 @@ public interface PrimaryFacultyRepository extends JpaRepository<PrimaryFaculty, 
     Page<PrimaryFaculty> searchFaculties(
             @Param("search") String search,
             @Param("college") College college,
+            @Param("status") Status status,
             @Param("legacyDatabase") String legacyDatabase,
             Pageable pageable
     );

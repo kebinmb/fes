@@ -402,7 +402,8 @@ public class AdministratorService {
             int size,
             String search,
             String legacyDatabase,
-            College college
+            College college,
+            Status status
     ) {
 
         Page<PrimaryFaculty> facultyPage;
@@ -422,6 +423,7 @@ public class AdministratorService {
         facultyPage = primaryFacultyRepository.searchFaculties(
                 normalizedSearch,
                 college,
+                status,
                 normalizedLegacyDatabase,
                 pageable
         );
@@ -457,9 +459,23 @@ public class AdministratorService {
             int page,
             int size,
             String search,
+            String legacyDatabase,
+            College college
+    ) {
+        return facultyList(page, size, search, legacyDatabase, college, null);
+    }
+
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
+    public PageResponse<FetchFacultyResponse> facultyList(
+            int page,
+            int size,
+            String search,
             String legacyDatabase
     ) {
-        return facultyList(page, size, search, legacyDatabase, null);
+        return facultyList(page, size, search, legacyDatabase, null, null);
     }
 
     @Transactional(

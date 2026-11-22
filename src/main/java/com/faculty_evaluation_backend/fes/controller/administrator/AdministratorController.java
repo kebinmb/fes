@@ -192,19 +192,21 @@ public class AdministratorController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String legacyDatabase,
-            @RequestParam(required = false) College college
+            @RequestParam(required = false) College college,
+            @RequestParam(required = false) Status status
     ) {
 
         log.info(
-                "Fetching faculty list | page: {} size: {} search: {} legacyDatabase: {} college: {}",
+                "Fetching faculty list | page: {} size: {} search: {} legacyDatabase: {} college: {} status: {}",
                 page,
                 size,
                 search,
                 legacyDatabase,
-                college
+                college,
+                status
         );
 
-        return administratorService.facultyList(page, size, search, legacyDatabase, college);
+        return administratorService.facultyList(page, size, search, legacyDatabase, college, status);
     }
 
     @GetMapping("/class-assignments")
