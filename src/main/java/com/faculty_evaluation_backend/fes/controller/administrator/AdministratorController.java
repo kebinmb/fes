@@ -27,6 +27,8 @@ import com.faculty_evaluation_backend.fes.dto.faculty.ClassFacultyAssignmentResp
 import com.faculty_evaluation_backend.fes.dto.faculty.ClassFacultyReassignmentRequest;
 import com.faculty_evaluation_backend.fes.dto.faculty.ClassFacultyReassignmentResponse;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyAssignmentOptionResponse;
+import com.faculty_evaluation_backend.fes.dto.subject.PrimarySubjectResponse;
+import com.faculty_evaluation_backend.fes.dto.subject.UpsertPrimarySubjectRequest;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadRequest;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadResponse;
 import com.faculty_evaluation_backend.fes.dto.faculty.FacultyWorkloadSectionOptionResponse;
@@ -378,6 +380,66 @@ public class AdministratorController {
         administratorService.deleteFacultyWorkload(facultyWorkloadId);
 
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/subjects")
+    @AuditableAction(action = "FETCH", entity = "PRIMARY_SUBJECT")
+    public PageResponse<PrimarySubjectResponse> getSubjects(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search
+    ) {
+        return administratorService.getSubjects(page, size, search);
+    }
+
+    @GetMapping("/subjects/{primarySubjectId}")
+    @AuditableAction(action = "FETCH", entity = "PRIMARY_SUBJECT")
+    public ResponseEntity<PrimarySubjectResponse> getSubjectById(
+            @PathVariable Long primarySubjectId
+    ) {
+        return ResponseEntity.ok(administratorService.getSubjectById(primarySubjectId));
+    }
+
+    @GetMapping("/subjects/by-code")
+    @AuditableAction(action = "FETCH", entity = "PRIMARY_SUBJECT")
+    public ResponseEntity<PrimarySubjectResponse> getSubjectByCode(
+            @RequestParam String subjectCode
+    ) {
+        return ResponseEntity.ok(administratorService.getSubjectByCode(subjectCode));
+    }
+
+    @PostMapping("/subjects")
+    @AuditableAction(action = "CREATE", entity = "PRIMARY_SUBJECT")
+    public ResponseEntity<PrimarySubjectResponse> createSubject(
+            @Valid @RequestBody UpsertPrimarySubjectRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(administratorService.createSubject(request));
+    }
+
+    @PutMapping("/subjects/{primarySubjectId}")
+    @AuditableAction(action = "UPDATE", entity = "PRIMARY_SUBJECT")
+    public ResponseEntity<PrimarySubjectResponse> updateSubject(
+            @PathVariable Long primarySubjectId,
+            @Valid @RequestBody UpsertPrimarySubjectRequest request
+    ) {
+        return ResponseEntity.ok(administratorService.updateSubject(primarySubjectId, request));
+    }
+
+    @DeleteMapping("/subjects/{primarySubjectId}")
+    @AuditableAction(action = "DELETE", entity = "PRIMARY_SUBJECT")
+    public ResponseEntity<Map<String, String>> deleteSubject(
+            @PathVariable Long primarySubjectId
+    ) {
+        administratorService.deleteSubject(primarySubjectId);
+        return ResponseEntity.ok(Map.of("message", "Subject deleted successfully."));
+    }
+
+    @PostMapping("/subjects/sync-from-workload")
+    @AuditableAction(action = "SYNC", entity = "PRIMARY_SUBJECT")
+    public ResponseEntity<Map<String, Object>> syncSubjectsFromFacultyWorkload(
+            @RequestParam(defaultValue = "false") boolean overwrite
+    ) {
+        return ResponseEntity.ok(administratorService.syncSubjectsFromFacultyWorkload(overwrite));
     }
 
     @GetMapping("/faculty-workloads/section-options")

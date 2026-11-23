@@ -226,7 +226,8 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
                 COALESCE(psub.lec_hours, 0.0) AS lecHours,
                 COALESCE(psub.lab_hours, 0.0) AS labHours,
                 (COALESCE(psub.lec_hours, 0.0) + COALESCE(psub.lab_hours, 0.0)) AS totalHoursPerWeek,
-                (COALESCE(psub.lec_units, 0.0) + COALESCE(psub.lab_units, 0.0)) AS totalTeachingLoad
+                (COALESCE(psub.lec_units, 0.0) + COALESCE(psub.lab_units, 0.0)) AS totalTeachingLoad,
+                COALESCE(psub.subject_type, CASE WHEN COALESCE(psub.lab_hours, 0.0) > 0 THEN 'LABORATORY' ELSE 'LECTURE' END) AS subjectType
             FROM primary_class pc
             INNER JOIN primary_section ps
                 ON ps.section_id = pc.section_id
@@ -316,7 +317,8 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
                 COALESCE(psub.lec_hours, 0.0) AS lecHours,
                 COALESCE(psub.lab_hours, 0.0) AS labHours,
                 (COALESCE(psub.lec_hours, 0.0) + COALESCE(psub.lab_hours, 0.0)) AS totalHoursPerWeek,
-                (COALESCE(psub.lec_units, 0.0) + COALESCE(psub.lab_units, 0.0)) AS totalTeachingLoad
+                (COALESCE(psub.lec_units, 0.0) + COALESCE(psub.lab_units, 0.0)) AS totalTeachingLoad,
+                COALESCE(psub.subject_type, CASE WHEN COALESCE(psub.lab_hours, 0.0) > 0 THEN 'LABORATORY' ELSE 'LECTURE' END) AS subjectType
             FROM primary_class pc
             INNER JOIN primary_section ps
                 ON ps.section_id = pc.section_id

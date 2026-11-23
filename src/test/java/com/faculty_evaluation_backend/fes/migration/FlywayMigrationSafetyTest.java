@@ -33,6 +33,17 @@ class FlywayMigrationSafetyTest {
         assertTrue(migration.contains("prepare stmt from @statement"));
     }
 
+    @Test
+    void subjectTypeMigrationIsDefensive() throws IOException {
+        String migration = readClasspathResource(
+                "/db/migration/V59__add_subject_type_to_primary_subject.sql"
+        ).toLowerCase();
+
+        assertTrue(migration.contains("information_schema.columns"));
+        assertTrue(migration.contains("column_name = 'subject_type'"));
+        assertTrue(migration.contains("prepare subject_type_column_stmt from @subject_type_column_sql"));
+    }
+
     private String readClasspathResource(String path) throws IOException {
         try (var inputStream = getClass().getResourceAsStream(path)) {
             if (inputStream == null) {

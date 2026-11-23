@@ -28,6 +28,7 @@ public record FacultyWorkloadResponse(
         BigDecimal overloadHours,
         String loadStatus,
         FacultyWorkloadSource source,
-        String remarks
+        String remarks,
+        String subjectType
 ) {
 }

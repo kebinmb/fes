@@ -26,4 +26,6 @@ public interface FacultyWorkloadClassOptionProjection {
     Double getTotalHoursPerWeek();
 
     Double getTotalTeachingLoad();
+
+    String getSubjectType();
 }

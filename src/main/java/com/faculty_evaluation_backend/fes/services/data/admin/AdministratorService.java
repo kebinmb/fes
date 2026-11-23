@@ -37,7 +37,10 @@ import com.faculty_evaluation_backend.fes.entities.data.enums.Semester;
 import com.faculty_evaluation_backend.fes.entities.evaluation.FacultyEvaluationScore;
 import com.faculty_evaluation_backend.fes.entities.primary.FacultyWorkload;
 import com.faculty_evaluation_backend.fes.entities.primary.PrimaryFaculty;
+import com.faculty_evaluation_backend.fes.dto.subject.PrimarySubjectResponse;
+import com.faculty_evaluation_backend.fes.dto.subject.UpsertPrimarySubjectRequest;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.College;
+import com.faculty_evaluation_backend.fes.entities.primary.PrimarySubject;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.FacultyWorkloadSource;
 import com.faculty_evaluation_backend.fes.entities.primary.enums.Status;
 import com.faculty_evaluation_backend.fes.exceptions.BadRequestException;
@@ -48,6 +51,7 @@ import com.faculty_evaluation_backend.fes.repositories.primary.FacultyWorkloadRe
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryClassRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryFacultyRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimarySectionRepository;
+import com.faculty_evaluation_backend.fes.repositories.primary.PrimarySubjectRepository;
 import com.faculty_evaluation_backend.fes.repositories.primary.PrimaryStudentLoadRepository;
 import com.faculty_evaluation_backend.fes.utilities.mapper.PageMapper;
 import com.faculty_evaluation_backend.fes.utilities.normalization.SemesterNormalizer;
@@ -113,6 +117,7 @@ public class AdministratorService {
     private final SchoolYearAndSemesterRepository schoolYearAndSemesterRepository;
 
     private final PrimarySectionRepository primarySectionRepository;
+    private final PrimarySubjectRepository primarySubjectRepository;
     private final PrimaryClassRepository primaryClassRepository;
     private final PrimaryStudentLoadRepository primaryStudentLoadRepository;
     private final FacultyWorkloadRepository facultyWorkloadRepository;
@@ -607,11 +612,26 @@ public class AdministratorService {
         int safeSize = Math.min(Math.max(size, 1), 50);
         Pageable pageable = PageRequest.of(safePage, safeSize);
 
+        Integer resolvedSchoolYear = schoolYear;
+        String resolvedSemester = normalizeSemester(semester);
+
+        if (resolvedSchoolYear == null || resolvedSemester == null || resolvedSemester.isBlank()) {
+            SchoolYearAndSemester activeTerm = schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE).orElse(null);
+            if (activeTerm != null) {
+                if (resolvedSchoolYear == null) {
+                    resolvedSchoolYear = activeTerm.getSchoolYear();
+                }
+                if (resolvedSemester == null || resolvedSemester.isBlank()) {
+                    resolvedSemester = activeTerm.getSemester() != null ? activeTerm.getSemester().getValue() : null;
+                }
+            }
+        }
+
         Page<FacultyWorkload> workloadPage =
                 facultyWorkloadRepository.searchWorkloads(
                         normalizeBlank(search),
-                        schoolYear,
-                        normalizeSemester(semester),
+                        resolvedSchoolYear,
+                        resolvedSemester,
                         pageable
                 );
 
@@ -952,7 +972,10 @@ public class AdministratorService {
                         : BigDecimal.ZERO,
                 row.getTotalTeachingLoad() != null
                         ? BigDecimal.valueOf(row.getTotalTeachingLoad())
-                        : BigDecimal.ZERO
+                        : BigDecimal.ZERO,
+                row.getSubjectType() != null && !row.getSubjectType().isBlank()
+                        ? row.getSubjectType()
+                        : (row.getLabHours() != null && row.getLabHours() > 0 ? "LABORATORY" : "LECTURE")
         );
     }
 
@@ -1318,6 +1341,18 @@ public class AdministratorService {
             facultyName = facultyDisplayName(faculty);
         }
 
+        String subjectType = null;
+        if (workload.getCourseCode() != null && !workload.getCourseCode().isBlank()) {
+            subjectType = primarySubjectRepository.findBySubjectCode(workload.getCourseCode())
+                    .map(PrimarySubject::getSubjectType)
+                    .orElse(null);
+        }
+        if (subjectType == null || subjectType.isBlank()) {
+            subjectType = (workload.getTotalHoursPerWeek() != null && workload.getTotalHoursPerWeek().compareTo(BigDecimal.valueOf(3.0)) > 0)
+                    ? "LABORATORY"
+                    : "LECTURE";
+        }
+
         return FacultyWorkloadResponse.builder()
                 .facultyWorkloadId(workload.getFacultyWorkloadId())
                 .facultyId(workload.getFacultyId())
@@ -1342,6 +1377,7 @@ public class AdministratorService {
                 .loadStatus(workload.getLoadStatus())
                 .source(workload.getSource())
                 .remarks(workload.getRemarks())
+                .subjectType(subjectType)
                 .build();
     }
 
@@ -1766,5 +1802,205 @@ public class AdministratorService {
     public int syncFacultyWorkloadsFromPrimaryClasses(Integer schoolYear, String semester) {
         Map<String, Object> result = autoPopulateAndSyncFacultyWorkloads(schoolYear, semester);
         return (Integer) result.getOrDefault("createdCount", 0) + (Integer) result.getOrDefault("updatedCount", 0);
+    }
+
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
+    public PageResponse<PrimarySubjectResponse> getSubjects(int page, int size, String search) {
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 100);
+        Pageable pageable = PageRequest.of(safePage, safeSize);
+
+        Page<PrimarySubject> subjectPage = primarySubjectRepository.searchSubjects(normalizeBlank(search), pageable);
+
+        List<PrimarySubjectResponse> content = subjectPage.getContent().stream()
+                .map(this::toPrimarySubjectResponse)
+                .toList();
+
+        return PageResponse.<PrimarySubjectResponse>builder()
+                .content(content)
+                .page(subjectPage.getNumber())
+                .size(subjectPage.getSize())
+                .totalElements(subjectPage.getTotalElements())
+                .totalPages(subjectPage.getTotalPages())
+                .build();
+    }
+
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
+    public PrimarySubjectResponse getSubjectById(Long primarySubjectId) {
+        PrimarySubject subject = primarySubjectRepository.findById(primarySubjectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Subject not found with ID: " + primarySubjectId));
+        return toPrimarySubjectResponse(subject);
+    }
+
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
+    public PrimarySubjectResponse getSubjectByCode(String subjectCode) {
+        if (subjectCode == null || subjectCode.isBlank()) {
+            throw new BadRequestException("Subject code cannot be blank.");
+        }
+        PrimarySubject subject = primarySubjectRepository.findBySubjectCode(subjectCode.trim())
+                .orElseThrow(() -> new ResourceNotFoundException("Subject not found with code: " + subjectCode));
+        return toPrimarySubjectResponse(subject);
+    }
+
+    @Transactional(
+            transactionManager = "primaryTransactionManager"
+    )
+    @CacheEvict(
+            value = {
+                    "facultyWorkloadClassOptions",
+                    "facultyWorkloadCoverage",
+                    "adminDashboardFacultyLoads",
+                    "facultyEvaluationReports"
+            },
+            allEntries = true
+    )
+    public PrimarySubjectResponse createSubject(UpsertPrimarySubjectRequest request) {
+        String cleanCode = request.getSubjectCode().trim();
+        if (primarySubjectRepository.existsBySubjectCode(cleanCode)) {
+            throw new BadRequestException("Subject code already exists: " + cleanCode);
+        }
+
+        PrimarySubject subject = new PrimarySubject();
+        subject.setSubjectCode(cleanCode);
+        subject.setDescriptiveTitle(request.getDescriptiveTitle().trim());
+        subject.setLecUnits(request.getLecUnits());
+        subject.setLabUnits(request.getLabUnits());
+        subject.setLecHours(request.getLecHours());
+        subject.setLabHours(request.getLabHours());
+        subject.setSubjectType(normalizeSubjectType(request.getSubjectType(), request.getLabHours(), request.getLabUnits()));
+
+        PrimarySubject saved = primarySubjectRepository.save(subject);
+        log.info("Created new subject: code={}, id={}", saved.getSubjectCode(), saved.getPrimarySubjectId());
+        return toPrimarySubjectResponse(saved);
+    }
+
+    @Transactional(
+            transactionManager = "primaryTransactionManager"
+    )
+    @CacheEvict(
+            value = {
+                    "facultyWorkloadClassOptions",
+                    "facultyWorkloadCoverage",
+                    "adminDashboardFacultyLoads",
+                    "facultyEvaluationReports"
+            },
+            allEntries = true
+    )
+    public PrimarySubjectResponse updateSubject(Long primarySubjectId, UpsertPrimarySubjectRequest request) {
+        PrimarySubject subject = primarySubjectRepository.findById(primarySubjectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Subject not found with ID: " + primarySubjectId));
+
+        String cleanCode = request.getSubjectCode().trim();
+        if (primarySubjectRepository.existsBySubjectCodeAndPrimarySubjectIdNot(cleanCode, primarySubjectId)) {
+            throw new BadRequestException("Another subject with code '" + cleanCode + "' already exists.");
+        }
+
+        subject.setSubjectCode(cleanCode);
+        subject.setDescriptiveTitle(request.getDescriptiveTitle().trim());
+        subject.setLecUnits(request.getLecUnits());
+        subject.setLabUnits(request.getLabUnits());
+        subject.setLecHours(request.getLecHours());
+        subject.setLabHours(request.getLabHours());
+        subject.setSubjectType(normalizeSubjectType(request.getSubjectType(), request.getLabHours(), request.getLabUnits()));
+
+        PrimarySubject saved = primarySubjectRepository.save(subject);
+        log.info("Updated subject: id={}, code={}, lecHours={}, labHours={}, lecUnits={}, labUnits={}",
+                saved.getPrimarySubjectId(), saved.getSubjectCode(),
+                saved.getLecHours(), saved.getLabHours(), saved.getLecUnits(), saved.getLabUnits());
+        return toPrimarySubjectResponse(saved);
+    }
+
+    @Transactional(
+            transactionManager = "primaryTransactionManager"
+    )
+    @CacheEvict(
+            value = {
+                    "facultyWorkloadClassOptions",
+                    "facultyWorkloadCoverage",
+                    "adminDashboardFacultyLoads",
+                    "facultyEvaluationReports"
+            },
+            allEntries = true
+    )
+    public void deleteSubject(Long primarySubjectId) {
+        PrimarySubject subject = primarySubjectRepository.findById(primarySubjectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Subject not found with ID: " + primarySubjectId));
+
+        primarySubjectRepository.delete(subject);
+        log.info("Deleted subject: id={}, code={}", primarySubjectId, subject.getSubjectCode());
+    }
+
+    private PrimarySubjectResponse toPrimarySubjectResponse(PrimarySubject subject) {
+        double lecU = subject.getLecUnits() != null ? subject.getLecUnits() : 0.0;
+        double labU = subject.getLabUnits() != null ? subject.getLabUnits() : 0.0;
+        double lecH = subject.getLecHours() != null ? subject.getLecHours() : 0.0;
+        double labH = subject.getLabHours() != null ? subject.getLabHours() : 0.0;
+
+        return PrimarySubjectResponse.builder()
+                .primarySubjectId(subject.getPrimarySubjectId())
+                .subjectCode(subject.getSubjectCode())
+                .descriptiveTitle(subject.getDescriptiveTitle())
+                .lecUnits(subject.getLecUnits())
+                .labUnits(subject.getLabUnits())
+                .lecHours(subject.getLecHours())
+                .labHours(subject.getLabHours())
+                .totalUnits(lecU + labU)
+                .totalHours(lecH + labH)
+                .subjectType(subject.getSubjectType() != null && !subject.getSubjectType().isBlank()
+                        ? subject.getSubjectType()
+                        : (labH > 0 || labU > 0 ? "LABORATORY" : "LECTURE"))
+                .sourceCampus(subject.getSourceCampus() != null ? subject.getSourceCampus().name() : null)
+                .legacyDatabase(subject.getLegacyDatabase())
+                .build();
+    }
+
+    private String normalizeSubjectType(String explicitType, Double labHours, Double labUnits) {
+        if (explicitType != null && !explicitType.isBlank()) {
+            String clean = explicitType.trim().toUpperCase();
+            if ("LABORATORY".equals(clean) || "LAB".equals(clean)) {
+                return "LABORATORY";
+            }
+            if ("LECTURE".equals(clean) || "LEC".equals(clean)) {
+                return "LECTURE";
+            }
+            if ("LECTURE_AND_LABORATORY".equals(clean) || "BOTH".equals(clean)) {
+                return "LECTURE_AND_LABORATORY";
+            }
+            return clean;
+        }
+        return (labHours != null && labHours > 0) || (labUnits != null && labUnits > 0)
+                ? "LABORATORY"
+                : "LECTURE";
+    }
+
+    @Transactional(
+            transactionManager = "primaryTransactionManager"
+    )
+    @CacheEvict(
+            value = {
+                    "facultyWorkloadClassOptions",
+                    "facultyWorkloadCoverage",
+                    "adminDashboardFacultyLoads",
+                    "facultyEvaluationReports"
+            },
+            allEntries = true
+    )
+    public Map<String, Object> syncSubjectsFromFacultyWorkload(boolean overwrite) {
+        boolean onlyNullOrZero = !overwrite;
+        int updated = primarySubjectRepository.syncSubjectHoursFromWorkload(onlyNullOrZero);
+        log.info("Synchronized subject hours from faculty_workload: updatedCount={}, overwrite={}", updated, overwrite);
+        return Map.of(
+                "updatedCount", updated,
+                "message", String.format("Successfully synchronized %d subjects from active faculty workloads.", updated)
+        );
     }
 }

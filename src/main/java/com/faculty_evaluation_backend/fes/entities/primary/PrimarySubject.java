@@ -37,4 +37,7 @@ public class PrimarySubject extends MigratableEntity {
 
     @Column(name = "lab_hours")
     private Double labHours;
+
+    @Column(name = "subject_type", length = 50)
+    private String subjectType;
 }

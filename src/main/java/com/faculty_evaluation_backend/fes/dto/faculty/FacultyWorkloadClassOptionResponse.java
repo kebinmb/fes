@@ -14,7 +14,8 @@ public record FacultyWorkloadClassOptionResponse(
         Double lecHours,
         Double labHours,
         BigDecimal totalHoursPerWeek,
-        BigDecimal totalTeachingLoad
+        BigDecimal totalTeachingLoad,
+        String subjectType
 ) {
     public FacultyWorkloadClassOptionResponse(
             String classCode,
@@ -36,7 +37,39 @@ public record FacultyWorkloadClassOptionResponse(
                 0.0,
                 0.0,
                 BigDecimal.ZERO,
-                BigDecimal.ZERO
+                BigDecimal.ZERO,
+                null
+        );
+    }
+
+    public FacultyWorkloadClassOptionResponse(
+            String classCode,
+            String courseCode,
+            Integer sectionId,
+            String programCode,
+            String yearLevel,
+            String sectionCode,
+            Double lecUnits,
+            Double labUnits,
+            Double lecHours,
+            Double labHours,
+            BigDecimal totalHoursPerWeek,
+            BigDecimal totalTeachingLoad
+    ) {
+        this(
+                classCode,
+                courseCode,
+                sectionId,
+                programCode,
+                yearLevel,
+                sectionCode,
+                lecUnits,
+                labUnits,
+                lecHours,
+                labHours,
+                totalHoursPerWeek,
+                totalTeachingLoad,
+                null
         );
     }
 }
