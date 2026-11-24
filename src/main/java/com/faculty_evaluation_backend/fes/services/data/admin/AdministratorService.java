@@ -729,7 +729,10 @@ public class AdministratorService {
                 request.getSchoolYear(),
                 semester,
                 request.getNumberOfPreparations(),
-                request.getDesignationEtu()
+                request.getDesignationEtu(),
+                savedWorkload.getFacultyWorkloadId(),
+                savedWorkload.getLoadStatus(),
+                false
         );
 
         return toFacultyWorkloadResponse(
@@ -1437,6 +1440,28 @@ public class AdministratorService {
             Integer numberOfPreparations,
             BigDecimal designationEtu
     ) {
+        updateFacultyTermTeachingLoad(
+                facultyId,
+                schoolYear,
+                semester,
+                numberOfPreparations,
+                designationEtu,
+                null,
+                null,
+                false
+        );
+    }
+
+    private void updateFacultyTermTeachingLoad(
+            String facultyId,
+            Integer schoolYear,
+            String semester,
+            Integer numberOfPreparations,
+            BigDecimal designationEtu,
+            Long preservedWorkloadId,
+            String preservedLoadStatus,
+            boolean forceRecalculateLoadStatus
+    ) {
         List<FacultyWorkload> termWorkloads =
                 facultyWorkloadRepository.findAllByFacultyIdAndSchoolYearAndEquivalentSemester(
                         facultyId,
@@ -1524,10 +1549,17 @@ public class AdministratorService {
 
             BigDecimal classHours = safeBigDecimal(termWorkload.getTotalHoursPerWeek());
             cumulativeLoad = cumulativeLoad.add(classHours);
-            if (cumulativeLoad.compareTo(loadLimit) > 0 && overloadHours.compareTo(BigDecimal.ZERO) > 0) {
-                termWorkload.setLoadStatus("Overload");
+
+            if (preservedWorkloadId != null && preservedWorkloadId.equals(termWorkload.getFacultyWorkloadId())) {
+                termWorkload.setLoadStatus(normalizeLoadStatus(preservedLoadStatus));
+            } else if (!forceRecalculateLoadStatus && termWorkload.getLoadStatus() != null && !termWorkload.getLoadStatus().isBlank()) {
+                termWorkload.setLoadStatus(normalizeLoadStatus(termWorkload.getLoadStatus()));
             } else {
-                termWorkload.setLoadStatus("Regular");
+                if (cumulativeLoad.compareTo(loadLimit) > 0 && overloadHours.compareTo(BigDecimal.ZERO) > 0) {
+                    termWorkload.setLoadStatus(OVERLOAD_LOAD_STATUS);
+                } else {
+                    termWorkload.setLoadStatus(REGULAR_LOAD_STATUS);
+                }
             }
         }
 
@@ -1784,7 +1816,10 @@ public class AdministratorService {
                     targetYear,
                     canonicalSemester,
                     null,
-                    null
+                    null,
+                    null,
+                    null,
+                    true
             );
         }
 
