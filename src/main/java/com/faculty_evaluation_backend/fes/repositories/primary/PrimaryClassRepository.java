@@ -288,6 +288,8 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
                 ON ps.section_id = pc.section_id
             LEFT JOIN primary_subject psub
                 ON psub.subject_code = pc.subject_code
+            LEFT JOIN primary_faculty pf
+                ON pf.faculty_id = pc.faculty_id
             LEFT JOIN faculty_workload fw
                 ON (fw.faculty_id) =
                    (pc.faculty_id)
@@ -341,6 +343,7 @@ public interface PrimaryClassRepository extends JpaRepository<PrimaryClass, Long
               )
               AND pc.faculty_id IS NOT NULL
               AND TRIM(pc.faculty_id) != ''
+              AND (pf.college IS NULL OR UPPER(TRIM(pf.college)) <> 'FOR_MIGRATION')
               AND pc.subject_code IS NOT NULL
               AND pc.section_id IS NOT NULL
               AND pc.class_code IS NOT NULL

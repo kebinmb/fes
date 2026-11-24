@@ -208,6 +208,7 @@ public interface FacultyWorkloadRepository
                                 AND UPPER(TRIM(fw.semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
                             )
                       )
+                      AND (f.college IS NULL OR f.college <> com.faculty_evaluation_backend.fes.entities.primary.enums.College.FOR_MIGRATION)
                     ORDER BY fw.updatedAt DESC, fw.facultyWorkloadId DESC
                     """,
             countQuery = """
@@ -247,6 +248,7 @@ public interface FacultyWorkloadRepository
                                 AND UPPER(TRIM(fw.semester)) IN ('SUMMER', 'SUMMER_SEMESTER')
                             )
                       )
+                      AND (f.college IS NULL OR f.college <> com.faculty_evaluation_backend.fes.entities.primary.enums.College.FOR_MIGRATION)
                     """
     )
     Page<FacultyWorkload> searchWorkloads(

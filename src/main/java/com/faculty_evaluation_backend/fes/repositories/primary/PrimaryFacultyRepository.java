@@ -176,6 +176,10 @@ public interface PrimaryFacultyRepository extends JpaRepository<PrimaryFaculty, 
                 FROM PrimaryFaculty f
                 WHERE (f.college IS NULL OR f.college <> :excludedCollege)
                   AND (
+                        :status IS NULL
+                        OR f.status = :status
+                  )
+                  AND (
                         :legacyDatabase IS NULL
                         OR :legacyDatabase = ''
                         OR f.legacyDatabase = :legacyDatabase
@@ -196,6 +200,7 @@ public interface PrimaryFacultyRepository extends JpaRepository<PrimaryFaculty, 
     Page<PrimaryFaculty> searchExcludingCollege(
             @Param("search") String search,
             @Param("excludedCollege") College excludedCollege,
+            @Param("status") Status status,
             @Param("legacyDatabase") String legacyDatabase,
             Pageable pageable
     );

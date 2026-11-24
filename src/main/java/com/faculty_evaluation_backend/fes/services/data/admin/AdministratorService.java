@@ -408,6 +408,7 @@ public class AdministratorService {
             String search,
             String legacyDatabase,
             College college,
+            College excludeCollege,
             Status status
     ) {
 
@@ -425,13 +426,23 @@ public class AdministratorService {
         String normalizedSearch = normalizeOptional(search);
         String normalizedLegacyDatabase = normalizeLegacyDatabase(legacyDatabase);
 
-        facultyPage = primaryFacultyRepository.searchFaculties(
-                normalizedSearch,
-                college,
-                status,
-                normalizedLegacyDatabase,
-                pageable
-        );
+        if (excludeCollege != null && college == null) {
+            facultyPage = primaryFacultyRepository.searchExcludingCollege(
+                    normalizedSearch,
+                    excludeCollege,
+                    status,
+                    normalizedLegacyDatabase,
+                    pageable
+            );
+        } else {
+            facultyPage = primaryFacultyRepository.searchFaculties(
+                    normalizedSearch,
+                    college,
+                    status,
+                    normalizedLegacyDatabase,
+                    pageable
+            );
+        }
 
         List<FetchFacultyResponse> responseList = facultyPage.getContent().stream().map(faculty -> FetchFacultyResponse.builder()
                 .facultyId(faculty.getFacultyId())
@@ -454,6 +465,21 @@ public class AdministratorService {
                 .totalElements(facultyPage.getTotalElements())
                 .totalPages(facultyPage.getTotalPages())
                 .build();
+    }
+
+    @Transactional(
+            transactionManager = "primaryTransactionManager",
+            readOnly = true
+    )
+    public PageResponse<FetchFacultyResponse> facultyList(
+            int page,
+            int size,
+            String search,
+            String legacyDatabase,
+            College college,
+            Status status
+    ) {
+        return facultyList(page, size, search, legacyDatabase, college, null, status);
     }
 
     @Transactional(
