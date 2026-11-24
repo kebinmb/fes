@@ -1523,16 +1523,17 @@ public class AdministratorService {
                         .map(this::safeBigDecimal)
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // Ensure any termWorkload with 0 totalHoursPerWeek is populated from primary_class + primary_subject
+        // Ensure term workloads are synced with primary_subject as source of truth for hours/units
         termWorkloads.forEach(tw -> {
-            if (tw.getTotalHoursPerWeek() == null || tw.getTotalHoursPerWeek().compareTo(BigDecimal.ZERO) == 0) {
-                primaryClassRepository.findClassSubjectHours(facultyId, tw.getClassCode(), tw.getCourseCode())
-                        .ifPresent(ch -> {
-                            if (ch.getTotalHoursPerWeek() != null && ch.getTotalHoursPerWeek() > 0) {
-                                tw.setTotalHoursPerWeek(BigDecimal.valueOf(ch.getTotalHoursPerWeek()));
-                            }
-                        });
+            if (preservedWorkloadId != null && Objects.equals(preservedWorkloadId, tw.getFacultyWorkloadId())) {
+                return;
             }
+            primaryClassRepository.findClassSubjectHours(facultyId, tw.getClassCode(), tw.getCourseCode())
+                    .ifPresent(ch -> {
+                        if (ch.getTotalHoursPerWeek() != null && ch.getTotalHoursPerWeek() > 0) {
+                            tw.setTotalHoursPerWeek(BigDecimal.valueOf(ch.getTotalHoursPerWeek()));
+                        }
+                    });
         });
 
         Integer effectiveNumberOfPreparations = numberOfPreparations;
@@ -1572,21 +1573,13 @@ public class AdministratorService {
         BigDecimal formulaOverload = totalWorkload.subtract(loadLimit);
 
         // Pass 1: resolve each workload's loadStatus
-        BigDecimal cumulativeLoad = BigDecimal.ZERO;
         for (FacultyWorkload termWorkload : termWorkloads) {
-            BigDecimal classHours = safeBigDecimal(termWorkload.getTotalHoursPerWeek());
-            cumulativeLoad = cumulativeLoad.add(classHours);
-
             if (preservedWorkloadId != null && Objects.equals(preservedWorkloadId, termWorkload.getFacultyWorkloadId())) {
                 termWorkload.setLoadStatus(normalizeLoadStatus(preservedLoadStatus));
-            } else if (!forceRecalculateLoadStatus && termWorkload.getLoadStatus() != null && !termWorkload.getLoadStatus().isBlank()) {
+            } else if (termWorkload.getLoadStatus() != null && !termWorkload.getLoadStatus().isBlank()) {
                 termWorkload.setLoadStatus(normalizeLoadStatus(termWorkload.getLoadStatus()));
             } else {
-                if (cumulativeLoad.compareTo(loadLimit) > 0 && formulaOverload.compareTo(BigDecimal.ZERO) > 0) {
-                    termWorkload.setLoadStatus(OVERLOAD_LOAD_STATUS);
-                } else {
-                    termWorkload.setLoadStatus(REGULAR_LOAD_STATUS);
-                }
+                termWorkload.setLoadStatus(REGULAR_LOAD_STATUS);
             }
         }
 
@@ -1868,7 +1861,7 @@ public class AdministratorService {
                     null,
                     null,
                     null,
-                    true
+                    false
             );
         }
 
@@ -2000,7 +1993,50 @@ public class AdministratorService {
         log.info("Updated subject: id={}, code={}, lecHours={}, labHours={}, lecUnits={}, labUnits={}",
                 saved.getPrimarySubjectId(), saved.getSubjectCode(),
                 saved.getLecHours(), saved.getLabHours(), saved.getLecUnits(), saved.getLabUnits());
+
+        syncSubjectHoursToWorkloads(cleanCode);
+
         return toPrimarySubjectResponse(saved);
+    }
+
+    private void syncSubjectHoursToWorkloads(String courseCode) {
+        if (courseCode == null || courseCode.isBlank()) {
+            return;
+        }
+
+        List<FacultyWorkload> matchingWorkloads = facultyWorkloadRepository.findAllByCourseCode(courseCode.trim());
+        if (matchingWorkloads == null || matchingWorkloads.isEmpty()) {
+            return;
+        }
+
+        Set<String> affectedTerms = new HashSet<>();
+        for (FacultyWorkload fw : matchingWorkloads) {
+            primaryClassRepository.findClassSubjectHours(fw.getFacultyId(), fw.getClassCode(), fw.getCourseCode())
+                    .ifPresent(ch -> {
+                        if (ch.getTotalHoursPerWeek() != null && ch.getTotalHoursPerWeek() > 0) {
+                            fw.setTotalHoursPerWeek(BigDecimal.valueOf(ch.getTotalHoursPerWeek()));
+                        }
+                    });
+            String termKey = fw.getFacultyId() + "|" + fw.getSchoolYear() + "|" + fw.getSemester();
+            affectedTerms.add(termKey);
+        }
+        facultyWorkloadRepository.saveAll(matchingWorkloads);
+
+        for (FacultyWorkload fw : matchingWorkloads) {
+            String termKey = fw.getFacultyId() + "|" + fw.getSchoolYear() + "|" + fw.getSemester();
+            if (affectedTerms.remove(termKey)) {
+                updateFacultyTermTeachingLoad(
+                        fw.getFacultyId(),
+                        fw.getSchoolYear(),
+                        fw.getSemester(),
+                        fw.getNumberOfPreparations(),
+                        fw.getDesignationEtu(),
+                        null,
+                        null,
+                        false
+                );
+            }
+        }
     }
 
     @Transactional(

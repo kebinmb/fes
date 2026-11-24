@@ -170,6 +170,8 @@ public interface FacultyWorkloadRepository
             @Param("sectionCode") String sectionCode
     );
 
+    List<FacultyWorkload> findAllByCourseCode(String courseCode);
+
     @Query(
             value = """
                     SELECT fw
