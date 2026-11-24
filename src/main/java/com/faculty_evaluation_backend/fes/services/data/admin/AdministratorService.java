@@ -1488,12 +1488,22 @@ public class AdministratorService {
             String preservedLoadStatus,
             boolean forceRecalculateLoadStatus
     ) {
-        List<FacultyWorkload> termWorkloads =
+        List<FacultyWorkload> rawWorkloads =
                 facultyWorkloadRepository.findAllByFacultyIdAndSchoolYearAndEquivalentSemester(
                         facultyId,
                         schoolYear,
                         semester
                 );
+        List<FacultyWorkload> termWorkloads =
+                rawWorkloads == null ? new ArrayList<>() : new ArrayList<>(rawWorkloads);
+
+        if (preservedWorkloadId != null) {
+            boolean containsSaved = termWorkloads.stream()
+                    .anyMatch(tw -> Objects.equals(tw.getFacultyWorkloadId(), preservedWorkloadId));
+            if (!containsSaved) {
+                facultyWorkloadRepository.findById(preservedWorkloadId).ifPresent(termWorkloads::add);
+            }
+        }
 
         // Map through primary_class and primary_subject to get accurate teaching load from units
         BigDecimal calculatedTeachingLoad = primaryClassRepository.calculateFacultySubjectTotals(
@@ -1557,22 +1567,13 @@ public class AdministratorService {
         BigDecimal loadLimit =
                 effectiveLoadLimit(effectiveNumberOfPreparations);
 
+        BigDecimal totalWorkload =
+                totalTeachingLoad.add(effectiveDesignationEtu);
+        BigDecimal formulaOverload = totalWorkload.subtract(loadLimit);
+
+        // Pass 1: resolve each workload's loadStatus
         BigDecimal cumulativeLoad = BigDecimal.ZERO;
         for (FacultyWorkload termWorkload : termWorkloads) {
-            BigDecimal totalWorkload =
-                    totalTeachingLoad.add(effectiveDesignationEtu);
-            BigDecimal overloadHours = totalWorkload.subtract(loadLimit);
-
-            termWorkload.setNumberOfPreparations(effectiveNumberOfPreparations);
-            termWorkload.setDesignationEtu(effectiveDesignationEtu);
-            termWorkload.setTotalTeachingLoad(totalTeachingLoad);
-            termWorkload.setTotalWorkload(totalWorkload);
-            termWorkload.setOverloadHours(
-                    overloadHours.compareTo(BigDecimal.ZERO) > 0
-                            ? overloadHours
-                            : BigDecimal.ZERO
-            );
-
             BigDecimal classHours = safeBigDecimal(termWorkload.getTotalHoursPerWeek());
             cumulativeLoad = cumulativeLoad.add(classHours);
 
@@ -1581,12 +1582,34 @@ public class AdministratorService {
             } else if (!forceRecalculateLoadStatus && termWorkload.getLoadStatus() != null && !termWorkload.getLoadStatus().isBlank()) {
                 termWorkload.setLoadStatus(normalizeLoadStatus(termWorkload.getLoadStatus()));
             } else {
-                if (cumulativeLoad.compareTo(loadLimit) > 0 && overloadHours.compareTo(BigDecimal.ZERO) > 0) {
+                if (cumulativeLoad.compareTo(loadLimit) > 0 && formulaOverload.compareTo(BigDecimal.ZERO) > 0) {
                     termWorkload.setLoadStatus(OVERLOAD_LOAD_STATUS);
                 } else {
                     termWorkload.setLoadStatus(REGULAR_LOAD_STATUS);
                 }
             }
+        }
+
+        // Pass 2: calculate explicit overload hours from all workloads marked OVERLOAD
+        BigDecimal explicitOverloadHours = termWorkloads.stream()
+                .filter(tw -> OVERLOAD_LOAD_STATUS.equalsIgnoreCase(tw.getLoadStatus()))
+                .map(FacultyWorkload::getTotalHoursPerWeek)
+                .map(this::safeBigDecimal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal effectiveOverloadHours = explicitOverloadHours.max(
+                formulaOverload.compareTo(BigDecimal.ZERO) > 0
+                        ? formulaOverload
+                        : BigDecimal.ZERO
+        );
+
+        // Pass 3: set common fields and effective overload hours across all term workloads
+        for (FacultyWorkload termWorkload : termWorkloads) {
+            termWorkload.setNumberOfPreparations(effectiveNumberOfPreparations);
+            termWorkload.setDesignationEtu(effectiveDesignationEtu);
+            termWorkload.setTotalTeachingLoad(totalTeachingLoad);
+            termWorkload.setTotalWorkload(totalWorkload);
+            termWorkload.setOverloadHours(effectiveOverloadHours);
         }
 
         facultyWorkloadRepository.saveAll(termWorkloads);
