@@ -749,7 +749,7 @@ public class AdministratorService {
         );
         workload.setRemarks(normalizeBlank(request.getRemarks()));
 
-        FacultyWorkload savedWorkload = facultyWorkloadRepository.save(workload);
+        FacultyWorkload savedWorkload = facultyWorkloadRepository.saveAndFlush(workload);
         updateFacultyTermTeachingLoad(
                 facultyId,
                 request.getSchoolYear(),
@@ -1577,7 +1577,7 @@ public class AdministratorService {
             BigDecimal classHours = safeBigDecimal(termWorkload.getTotalHoursPerWeek());
             cumulativeLoad = cumulativeLoad.add(classHours);
 
-            if (preservedWorkloadId != null && preservedWorkloadId.equals(termWorkload.getFacultyWorkloadId())) {
+            if (preservedWorkloadId != null && Objects.equals(preservedWorkloadId, termWorkload.getFacultyWorkloadId())) {
                 termWorkload.setLoadStatus(normalizeLoadStatus(preservedLoadStatus));
             } else if (!forceRecalculateLoadStatus && termWorkload.getLoadStatus() != null && !termWorkload.getLoadStatus().isBlank()) {
                 termWorkload.setLoadStatus(normalizeLoadStatus(termWorkload.getLoadStatus()));
