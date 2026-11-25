@@ -23,4 +23,10 @@ public interface SchoolYearAndSemesterRepository extends JpaRepository<SchoolYea
             Semester semester,
             Status status
     );
+
+    Optional<SchoolYearAndSemester>
+    findBySchoolYearAndSemester(
+            Integer schoolYear,
+            Semester semester
+    );
 }

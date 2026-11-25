@@ -15,6 +15,7 @@ import com.faculty_evaluation_backend.fes.dto.faculty.FacultyClassDetailsProject
 import com.faculty_evaluation_backend.fes.entities.authentication.CustomUserDetails;
 import com.faculty_evaluation_backend.fes.entities.authentication.UserAccounts;
 import com.faculty_evaluation_backend.fes.entities.data.SchoolYearAndSemester;
+import com.faculty_evaluation_backend.fes.entities.data.enums.Semester;
 import com.faculty_evaluation_backend.fes.entities.evaluation.CommitmentAndTransparency;
 import com.faculty_evaluation_backend.fes.entities.evaluation.ContentKnowledgePedagogyAndTechnology;
 import com.faculty_evaluation_backend.fes.entities.evaluation.FacultyEvaluationReport;
@@ -402,13 +403,24 @@ public class EvaluationDataService {
             String verificationBaseUrl,
             CustomUserDetails generatedBy
     ) {
-        SchoolYearAndSemester term =
-                schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE)
-                        .orElseThrow(() ->
-                                new RuntimeException(
-                                        "No active school year and semester found."
-                                )
-                        );
+        return generateFacultyEvaluationReport(
+                facultyId,
+                null,
+                null,
+                verificationBaseUrl,
+                generatedBy
+        );
+    }
+
+    @Transactional(transactionManager = "primaryTransactionManager")
+    public FacultyEvaluationGeneratedReportResponse generateFacultyEvaluationReport(
+            String facultyId,
+            Integer schoolYear,
+            String semester,
+            String verificationBaseUrl,
+            CustomUserDetails generatedBy
+    ) {
+        SchoolYearAndSemester term = resolveSchoolYearAndSemester(schoolYear, semester);
         Long generatedByUserId = resolveGeneratedByUserId(generatedBy);
         String generatedByUsername = preparedByName(generatedByUserId, generatedBy);
         return generateFacultyEvaluationReportInternal(
@@ -564,13 +576,32 @@ public class EvaluationDataService {
             String verificationBaseUrl,
             CustomUserDetails generatedBy
     ) {
+        return generateFacultyEvaluationReportsForFacultyIds(
+                facultyIds,
+                null,
+                null,
+                verificationBaseUrl,
+                generatedBy
+        );
+    }
+
+    @Transactional(transactionManager = "primaryTransactionManager")
+    public FacultyEvaluationBulkReportResponse
+    generateFacultyEvaluationReportsForFacultyIds(
+            List<String> facultyIds,
+            Integer schoolYear,
+            String semester,
+            String verificationBaseUrl,
+            CustomUserDetails generatedBy
+    ) {
         if (facultyIds == null || facultyIds.isEmpty()) {
             throw new BadRequestException(
                     "No print-ready faculty records found for the selected filters."
             );
         }
 
-        return generateBulkReportsForFacultyIds(facultyIds, verificationBaseUrl, generatedBy);
+        SchoolYearAndSemester term = resolveSchoolYearAndSemester(schoolYear, semester);
+        return generateBulkReportsForFacultyIds(facultyIds, term, verificationBaseUrl, generatedBy);
     }
 
     private FacultyEvaluationBulkReportResponse generateBulkReportsForFacultyIds(
@@ -585,6 +616,15 @@ public class EvaluationDataService {
                                         "No active school year and semester found."
                                 )
                         );
+        return generateBulkReportsForFacultyIds(facultyIds, term, verificationBaseUrl, generatedBy);
+    }
+
+    private FacultyEvaluationBulkReportResponse generateBulkReportsForFacultyIds(
+            List<String> facultyIds,
+            SchoolYearAndSemester term,
+            String verificationBaseUrl,
+            CustomUserDetails generatedBy
+    ) {
         Long generatedByUserId = resolveGeneratedByUserId(generatedBy);
         String generatedByUsername = preparedByName(generatedByUserId, generatedBy);
 
@@ -620,6 +660,52 @@ public class EvaluationDataService {
                 .skippedFacultyIds(skippedFacultyIds)
                 .reports(reports)
                 .build();
+    }
+
+    private SchoolYearAndSemester resolveSchoolYearAndSemester(
+            Integer schoolYear,
+            String semester
+    ) {
+        if (schoolYear == null && (semester == null || semester.isBlank())) {
+            return schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE)
+                    .orElseThrow(() ->
+                            new RuntimeException(
+                                    "No active school year and semester found."
+                            )
+                    );
+        }
+
+        SchoolYearAndSemester activeTerm =
+                schoolYearAndSemesterRepository.findByStatus(Status.ACTIVE)
+                        .orElse(null);
+
+        Integer resolvedSchoolYear = schoolYear != null
+                ? schoolYear
+                : (activeTerm != null ? activeTerm.getSchoolYear() : null);
+
+        String canonicalSemester = SemesterNormalizer.toCanonicalValue(semester);
+        Semester resolvedSemester;
+        if (canonicalSemester != null) {
+            resolvedSemester = Semester.fromValue(canonicalSemester);
+        } else if (activeTerm != null) {
+            resolvedSemester = activeTerm.getSemester();
+        } else {
+            resolvedSemester = Semester.FIRST_SEMESTER;
+        }
+
+        if (resolvedSchoolYear == null) {
+            throw new BadRequestException("School year is required.");
+        }
+
+        return schoolYearAndSemesterRepository
+                .findBySchoolYearAndSemester(resolvedSchoolYear, resolvedSemester)
+                .orElseGet(() ->
+                        SchoolYearAndSemester.builder()
+                                .schoolYear(resolvedSchoolYear)
+                                .semester(resolvedSemester)
+                                .status(Status.INACTIVE)
+                                .build()
+                );
     }
 
     @Transactional(

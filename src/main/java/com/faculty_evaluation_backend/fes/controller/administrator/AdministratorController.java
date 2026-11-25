@@ -559,6 +559,8 @@ public class AdministratorController {
     public ResponseEntity<FacultyEvaluationGeneratedReportResponse>
     generateFacultyEvaluationReport(
             @PathVariable String facultyId,
+            @RequestParam(required = false) Integer schoolYear,
+            @RequestParam(required = false) String semester,
             @AuthenticationPrincipal CustomUserDetails userDetails,
             HttpServletRequest request
     ) {
@@ -574,6 +576,8 @@ public class AdministratorController {
         return ResponseEntity.ok(
                 evaluationDataService.generateFacultyEvaluationReport(
                         facultyId,
+                        schoolYear,
+                        semester,
                         verificationBaseUrl,
                         userDetails
                 )
@@ -617,6 +621,8 @@ public class AdministratorController {
             @RequestParam(required = false) String legacyDatabase,
             @RequestParam(required = false) String campus,
             @RequestParam(required = false) College college,
+            @RequestParam(required = false) Integer schoolYear,
+            @RequestParam(required = false) String semester,
             @AuthenticationPrincipal CustomUserDetails userDetails,
             HttpServletRequest request
     ) {
@@ -635,13 +641,15 @@ public class AdministratorController {
                         college,
                         legacyDatabase,
                         campus,
-                        null,
-                        null
+                        schoolYear,
+                        semester
                 );
 
         return ResponseEntity.ok(
                 evaluationDataService.generateFacultyEvaluationReportsForFacultyIds(
                         facultyIds,
+                        schoolYear,
+                        semester,
                         verificationBaseUrl,
                         userDetails
                 )
